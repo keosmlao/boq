@@ -1,5 +1,5 @@
 import AuthGuard from "@/_components/AuthGuard";
-import CreateQuotation from "@/_screens/saleadmin/CreateQuotation";
+import CreateQuotation from "../../_components/CreateQuotation";
 
 export default function Page() {
   return (

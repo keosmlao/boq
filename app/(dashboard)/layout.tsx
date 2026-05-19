@@ -1,8 +1,9 @@
 import Sidebar from "@/_components/Sidebar";
 import TopBar from "@/_components/TopBar";
 import { PageHeaderProvider } from "@/_components/PageHeader";
+import type { ReactNode } from "react";
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div className="theme-shell-bg flex h-screen">
       <Sidebar />

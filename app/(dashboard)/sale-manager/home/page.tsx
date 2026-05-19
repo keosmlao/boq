@@ -1,5 +1,15 @@
+"use client";
+
+
 import AuthGuard from "@/_components/AuthGuard";
-import SaleManagerPage from "@/_screens/saleadmin/SaleManagerPage";
+function SaleManagerPage() {
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">SALE MANAGER Dashboard</h1>
+      {/* Add your widgets or content here */}
+    </div>
+  );
+}
 
 export default function Page() {
   return (

@@ -1,10 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  poweredByHeader: false,
   typescript: {
+    // TODO: turn this off after the legacy screens listed in README are typed.
     ignoreBuildErrors: true,
   },
 };

@@ -1,4 +1,6 @@
 import localFont from "next/font/local";
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import "./globals.css";
 
 const notoSansLao = localFont({
@@ -28,12 +30,25 @@ const notoSansLao = localFont({
   display: "swap",
 });
 
-export const metadata = {
-  title: "ODG Project Management",
+export const metadata: Metadata = {
+  title: {
+    default: "ODG Project Management",
+    template: "%s | ODG Project Management",
+  },
   description: "ODG project management system",
+  applicationName: "ODG Project Management",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
-export default function RootLayout({ children }) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="lo">
       <body className={`${notoSansLao.className} ${notoSansLao.variable}`}>

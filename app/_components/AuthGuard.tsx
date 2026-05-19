@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { hasAnyRole } from "@/_lib/auth";
 
-export default function AuthGuard({ children, roles = [] }) {
+export default function AuthGuard({ children, roles = [] }: { children: ReactNode; roles?: string[] }) {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
 
@@ -21,24 +23,7 @@ export default function AuthGuard({ children, roles = [] }) {
 
     try {
       const user = JSON.parse(userStr);
-      const normalize = (r) => (r || "").toString().trim().toLowerCase();
-      const activeRole = normalize(user.role);
-
-      let userRoles = [];
-      if (Array.isArray(user.allRoles)) {
-        userRoles = user.allRoles.map(normalize);
-      } else if (typeof user.allRoles === "string") {
-        userRoles = user.allRoles
-          .split(",")
-          .map(normalize)
-          .filter(Boolean);
-      }
-
-      const effectiveRoles = [
-        ...new Set([activeRole, ...userRoles].filter(Boolean)),
-      ];
-
-      if (roles.some((r) => effectiveRoles.includes(r))) {
+      if (hasAnyRole(user, roles)) {
         setAuthorized(true);
       } else {
         router.replace("/unauthorized");
@@ -46,7 +31,7 @@ export default function AuthGuard({ children, roles = [] }) {
     } catch {
       router.replace("/login");
     }
-  }, []);
+  }, [router, roles]);
 
   if (!authorized) {
     return (

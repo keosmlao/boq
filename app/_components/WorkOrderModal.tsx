@@ -24,8 +24,6 @@ export default function WorkOrderModal({
   submit,
   resetForm,
 }) {
-  if (!open) return null;
-
   const [projectOpen, setProjectOpen] = useState(false);
   const [projectQuery, setProjectQuery] = useState("");
   const [contractOpen, setContractOpen] = useState(false);
@@ -160,6 +158,8 @@ export default function WorkOrderModal({
     !hasTasks && "ວຽກ",
     !form.technician_id && "ຊ່າງນໍາ",
   ].filter(Boolean);
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 wo-modal">

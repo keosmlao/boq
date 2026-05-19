@@ -1,5 +1,5 @@
-import Unauthorized from "@/_screens/Unauthorized";
-
-export default function Page() {
-  return <Unauthorized />;
+function Unauthorized() {
+  return <div className="text-red-500 p-4">🚫 Unauthorized Access</div>;
 }
+
+export { Unauthorized as default };

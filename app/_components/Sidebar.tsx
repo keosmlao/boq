@@ -91,9 +91,9 @@ export default function Sidebar() {
 
   const apps: AppItem[] = useMemo(
     () => [
-      { key: "sales", label: "ການຂາຍ", short: "ຂາຍ", href: "/sale-admin/listproject", icon: <KanbanSquare size={19} /> },
-      { key: "service", label: "ບໍລິການ", short: "ບໍລິການ", href: "/service-admin/listproject", icon: <Wrench size={19} /> },
-      { key: "inventory", label: "ສາງ", short: "ສາງ", href: "/service-admin/listsparepart", icon: <LayoutGrid size={19} /> },
+      { key: "sales", label: "ການຂາຍ", short: "ຂາຍ", href: "/sale-admin/list-project", icon: <KanbanSquare size={19} /> },
+      { key: "service", label: "ບໍລິການ", short: "ບໍລິການ", href: "/service-admin/list-project", icon: <Wrench size={19} /> },
+      { key: "inventory", label: "ສາງ", short: "ສາງ", href: "/service-admin/list-sparepart", icon: <LayoutGrid size={19} /> },
       { key: "accounting", label: "ບັນຊີ", short: "ບັນຊີ", href: "/service-admin/installments", icon: <CircleDollarSign size={19} /> },
       { key: "timesheets", label: "ໃບລົງເວລາ", short: "ເວລາ", href: "/timesheets", icon: <Timer size={19} /> },
       { key: "reports", label: "ລາຍງານ", short: "ລາຍງານ", href: "/head-tech/summary", icon: <BarChart3 size={19} /> },
@@ -107,16 +107,16 @@ export default function Sidebar() {
         {
           section: "ການຂາຍ",
           links: [
-            { label: "ໂຄງການ", path: "/sale-admin/listproject", icon: <KanbanSquare size={15} /> },
+            { label: "ໂຄງການ", path: "/sale-admin/list-project", icon: <KanbanSquare size={15} /> },
           ],
         },
         {
           section: "ການດຳເນີນງານ",
           links: [
-            { label: "ໂຄງການບໍລິການ", path: "/service-admin/listproject", icon: <Building2 size={15} /> },
-            { label: "BOQ", path: "/service-admin/listboq", icon: <FileText size={15} /> },
-            { label: "ໃບຂໍເບີກ", path: "/service-admin/listrequest", icon: <Briefcase size={15} /> },
-            { label: "ປິດໂຄງການ", path: "/service-admin/close_request", icon: <Target size={15} /> },
+            { label: "ໂຄງການບໍລິການ", path: "/service-admin/list-project", icon: <Building2 size={15} /> },
+            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={15} /> },
+            { label: "ໃບຂໍເບີກ", path: "/service-admin/list-request", icon: <Briefcase size={15} /> },
+            { label: "ປິດໂຄງການ", path: "/service-admin/close-request", icon: <Target size={15} /> },
           ],
         },
       ],
@@ -124,14 +124,14 @@ export default function Sidebar() {
         {
           section: "ການຂາຍ",
           links: [
-            { label: "ໂຄງການ", path: "/sale-admin/listproject", icon: <KanbanSquare size={15} /> },
+            { label: "ໂຄງການ", path: "/sale-admin/list-project", icon: <KanbanSquare size={15} /> },
           ],
         },
         {
           section: "ການດຳເນີນງານ",
           links: [
-            { label: "ໂຄງການບໍລິການ", path: "/service-admin/listproject", icon: <Building2 size={15} /> },
-            { label: "BOQ", path: "/service-admin/listboq", icon: <FileText size={15} /> },
+            { label: "ໂຄງການບໍລິການ", path: "/service-admin/list-project", icon: <Building2 size={15} /> },
+            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={15} /> },
             { label: "ງວດຊຳລະ", path: "/service-admin/installments", icon: <Clock size={15} /> },
             { label: "ໃບລົງເວລາ", path: "/timesheets", icon: <Timer size={15} /> },
           ],
@@ -141,15 +141,15 @@ export default function Sidebar() {
         {
           section: "ໂຄງການ",
           links: [
-            { label: "ໂຄງການ", path: "/service-admin/listproject", icon: <KanbanSquare size={15} /> },
-            { label: "BOQ", path: "/service-admin/listboq", icon: <FileText size={15} /> },
-            { label: "ການຂໍປິດໂຄງການ", path: "/service-admin/close_request", icon: <Target size={15} /> },
+            { label: "ໂຄງການ", path: "/service-admin/list-project", icon: <KanbanSquare size={15} /> },
+            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={15} /> },
+            { label: "ການຂໍປິດໂຄງການ", path: "/service-admin/close-request", icon: <Target size={15} /> },
           ],
         },
         {
           section: "ການດຳເນີນງານ",
           links: [
-            { label: "ໃບຂໍເບີກ", path: "/service-admin/listrequest", icon: <Briefcase size={15} /> },
+            { label: "ໃບຂໍເບີກ", path: "/service-admin/list-request", icon: <Briefcase size={15} /> },
             { label: "ໃບສົ່ງຄືນ", path: "/service-admin/material-return-list", icon: <RefreshCw size={15} /> },
             { label: "ໃບສັ່ງວຽກ", path: "/service-admin/work-orders", icon: <CheckCircle size={15} />, badge: "!" },
             { label: "ຊ່າງເທັກນິກ", path: "/service-admin/technicians", icon: <Users size={15} /> },
@@ -160,8 +160,8 @@ export default function Sidebar() {
         {
           section: "ໂຄງການ",
           links: [
-            { label: "ໂຄງການ", path: "/service-admin/listproject", icon: <KanbanSquare size={15} /> },
-            { label: "BOQ", path: "/service-admin/listboq", icon: <FileText size={15} /> },
+            { label: "ໂຄງການ", path: "/service-admin/list-project", icon: <KanbanSquare size={15} /> },
+            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={15} /> },
             { label: "ໃບສັ່ງວຽກ", path: "/service-admin/work-orders", icon: <CheckCircle size={15} /> },
             { label: "ໃບລົງເວລາ", path: "/timesheets", icon: <Timer size={15} /> },
           ],
@@ -173,7 +173,7 @@ export default function Sidebar() {
           links: [
             { label: "ໜ້າຫຼັກ", path: "/head-tech/home", icon: <Home size={15} /> },
             { label: "ສະຫຼຸບ", path: "/head-tech/summary", icon: <BarChart3 size={15} /> },
-            { label: "ໂຄງການ", path: "/service-admin/listproject", icon: <KanbanSquare size={15} /> },
+            { label: "ໂຄງການ", path: "/service-admin/list-project", icon: <KanbanSquare size={15} /> },
             { label: "ໃບສັ່ງວຽກ", path: "/service-admin/work-orders", icon: <CheckCircle size={15} /> },
             { label: "ໃບລົງເວລາ", path: "/timesheets", icon: <Timer size={15} /> },
           ],
@@ -183,7 +183,7 @@ export default function Sidebar() {
         {
           section: "ບັນຊີ",
           links: [
-            { label: "ໂຄງການ", path: "/sale-admin/listproject", icon: <KanbanSquare size={15} /> },
+            { label: "ໂຄງການ", path: "/sale-admin/list-project", icon: <KanbanSquare size={15} /> },
             { label: "ງວດຊຳລະ", path: "/service-admin/installments", icon: <Clock size={15} /> },
           ],
         },
@@ -233,7 +233,7 @@ export default function Sidebar() {
   const nav = (
     <aside className="flex h-full bg-[#f7f5f7] text-[var(--theme-text)]">
       <div className="flex w-14 flex-col items-center border-r border-[var(--theme-border-subtle)] bg-[var(--theme-primary)] py-2 text-white">
-        <Link href="/sale-admin/listproject" className="mb-2 flex h-10 w-10 items-center justify-center rounded hover:bg-white/10" title="ODG">
+        <Link href="/sale-admin/list-project" className="mb-2 flex h-10 w-10 items-center justify-center rounded hover:bg-white/10" title="ODG">
           <img src="/ODG.png" alt="ODG" className="h-6 w-6 object-contain" />
         </Link>
         <div className="theme-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto">

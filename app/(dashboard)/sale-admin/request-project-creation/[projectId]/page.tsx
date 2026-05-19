@@ -1,4 +1,4 @@
-import RequestProjectCreation from "@/_screens/saleadmin/RequestProjectCreation";
+import RequestProjectCreation from "../_components/RequestProjectCreation";
 
 export default function Page() {
   return <RequestProjectCreation />;
