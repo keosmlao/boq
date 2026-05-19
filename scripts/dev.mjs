@@ -3,7 +3,7 @@ import { rmSync } from "node:fs";
 import process from "node:process";
 
 const cwd = process.cwd();
-const port = String(process.env.PORT || "3000");
+const port = String(process.env.PORT || "3003");
 const nextBin = `${cwd}/node_modules/.bin/next`;
 const distDirs = [".next", ".next-dev"];
 
