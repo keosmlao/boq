@@ -6,6 +6,8 @@ import { useEffect, useState, useMemo } from "react";
 import { Loader2, Calendar, RefreshCw } from "lucide-react";
 import { usePageHeader } from "@/_components/PageHeader";
 import { getWorkOrders } from "@/_actions/work-orders";
+import ViewSwitcher, { type ViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 
 function _getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -17,6 +19,24 @@ function _getAuthHeaders(): Record<string, string> {
 function WorkInProgressToday() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("wip-today-list-view");
+      if (saved === "list" || saved === "kanban") setViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("wip-today-list-view", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   const loadWorkOrders = async () => {
     setLoading(true);
@@ -73,9 +93,53 @@ function WorkInProgressToday() {
       <>
       <div className="p-6 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto">
+          <div className="mb-3 flex items-center gap-2 bg-white border border-gray-200 rounded-lg shadow-sm px-3 py-2 text-xs">
+            <span className="text-gray-500 tabular-nums">{inProgressToday.length} ລາຍການ</span>
+            <div className="ml-auto">
+              <ViewSwitcher value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
           {loading ? (
             <div className="text-center py-10">
               <Loader2 className="animate-spin inline-block text-gray-400" size={32} />
+            </div>
+          ) : viewMode === "kanban" ? (
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3">
+              <KanbanBoard<any>
+                columns={[
+                  {
+                    id: "in_progress",
+                    title: "ກຳລັງດຳເນີນ",
+                    color: "#3b82f6",
+                    records: inProgressToday,
+                  },
+                ]}
+                getCardId={(o: any) => String(o.id)}
+                renderCard={(o: any) => (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                        {o.code}
+                      </span>
+                      <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                        {formatDate(o.scheduled_date)}
+                      </span>
+                    </div>
+                    <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                      {o.project_name || o.project_code}
+                    </div>
+                    {o.task_name && (
+                      <div className="truncate text-[10px] text-[var(--theme-text-mute)]">
+                        {o.task_name}
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                      <span className="truncate">{o.technician_id || ""}</span>
+                      <span className="tabular-nums" />
+                    </div>
+                  </div>
+                )}
+              />
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">

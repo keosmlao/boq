@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { logout as logoutAction } from "@/_actions/auth";
 import {
   BarChart3,
   Briefcase,
@@ -224,9 +225,9 @@ export default function Sidebar() {
     window.location.reload();
   };
 
-  const logout = () => {
+  const logout = async () => {
     localStorage.clear();
-    document.cookie = "odg-auth=; path=/; max-age=0";
+    await logoutAction();
     router.replace("/login");
   };
 

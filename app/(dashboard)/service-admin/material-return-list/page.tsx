@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { usePageHeader } from "@/_components/PageHeader";
+import ViewSwitcher, { type ViewMode as OdooViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 
 function _getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -41,6 +43,24 @@ function MaterialReturnList() {
   const [viewMode, setViewMode] = useState("table");
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailReturn, setDetailReturn] = useState(null);
+  const [odooViewMode, setOdooViewMode] = useState<OdooViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("material-return-list-view");
+      if (saved === "list" || saved === "kanban") setOdooViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("material-return-list-view", odooViewMode);
+    } catch {
+      // ignore
+    }
+  }, [odooViewMode]);
 
   useEffect(() => {
     fetchReturns();
@@ -335,6 +355,7 @@ function MaterialReturnList() {
                   ລ້າງ
                 </button>
               )}
+              <ViewSwitcher value={odooViewMode} onChange={setOdooViewMode} />
             </div>
           </section>
 
@@ -377,6 +398,68 @@ function MaterialReturnList() {
                     <span>ສ້າງໃບຄືນທຳອິດ</span>
                   </button>
                 )}
+              </div>
+            ) : odooViewMode === "kanban" ? (
+              <div className="rounded-lg border-2 border-[var(--theme-border-subtle)] bg-white p-3">
+                <KanbanBoard<any>
+                  columns={[
+                    {
+                      id: "pending",
+                      title: "ລໍຖ້າ",
+                      color: "#f59e0b",
+                      records: filteredReturns.filter(
+                        (r: any) => r.status === "pending",
+                      ),
+                    },
+                    {
+                      id: "processing",
+                      title: "ກຳລັງດຳເນີນ",
+                      color: "#3b82f6",
+                      records: filteredReturns.filter(
+                        (r: any) => r.status === "processing",
+                      ),
+                    },
+                    {
+                      id: "completed",
+                      title: "ສຳເລັດ",
+                      color: "#10b981",
+                      records: filteredReturns.filter(
+                        (r: any) =>
+                          r.status === "completed" || !r.status,
+                      ),
+                    },
+                  ]}
+                  getCardId={(r: any) => String(r.doc_no || r.id)}
+                  onCardClick={(r: any) => openDetail(r)}
+                  renderCard={(r: any) => (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                          {r.doc_no || `#${r.id}`}
+                        </span>
+                        <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                          {r.returnDate
+                            ? new Date(r.returnDate).toLocaleDateString("lo-LA")
+                            : "-"}
+                        </span>
+                      </div>
+                      <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                        {r.projectName || `Project ${r.project_id}`}
+                      </div>
+                      {r.returnedBy && (
+                        <div className="truncate text-[10px] text-[var(--theme-text-mute)]">
+                          ໂດຍ {r.returnedBy}
+                        </div>
+                      )}
+                      <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                        <span className="truncate" />
+                        <span className="tabular-nums">
+                          {r.items?.length || 0} ລາຍ
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                />
               </div>
             ) : viewMode === "cards" ? (
               // Cards View

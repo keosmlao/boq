@@ -13,6 +13,8 @@ import { useRouter } from "next/navigation";
 import Swal from 'sweetalert2';
 import Modal from 'react-modal';
 import { usePageHeader } from "@/_components/PageHeader";
+import ViewSwitcher, { type ViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 
 function _getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -383,6 +385,24 @@ const BOQContractList = () => {
 
   const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [pendingDoc, setPendingDoc] = useState(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("project-list-view");
+      if (saved === "list" || saved === "kanban") setViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("project-list-view", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     const u = localStorage.getItem('user');
@@ -540,6 +560,9 @@ const BOQContractList = () => {
                 </span>
                 <span className="text-[var(--theme-text-mute)]">BOQ ແລ້ວ</span>
               </span>
+              <div className="ml-auto">
+                <ViewSwitcher value={viewMode} onChange={setViewMode} />
+              </div>
             </div>
 
             {loading ? (
@@ -562,6 +585,78 @@ const BOQContractList = () => {
                 >
                   ລ້າງຕົວກັ່ນຕອງ
                 </button>
+              </div>
+            ) : viewMode === "kanban" ? (
+              <div className="overflow-hidden rounded-lg border border-[var(--theme-border-subtle)] bg-white shadow-sm px-2 pt-3">
+                <KanbanBoard<any>
+                  columns={[
+                    {
+                      id: "waiting_contract",
+                      title: "ລໍຖ້າອະນຸມັດສັນຍາ",
+                      color: "#f59e0b",
+                      records: filtered.filter((c) => !isContractApproved(c)),
+                    },
+                    {
+                      id: "waiting_boq",
+                      title: "ລໍຖ້າອອກ BOQ",
+                      color: "#3b82f6",
+                      records: filtered.filter(
+                        (c) =>
+                          isContractApproved(c) &&
+                          !(Boolean(c.has_boq) || c.boq_status === "done"),
+                      ),
+                    },
+                    {
+                      id: "boq_done",
+                      title: "ອອກ BOQ ແລ້ວ",
+                      color: "#10b981",
+                      records: filtered.filter(
+                        (c) => Boolean(c.has_boq) || c.boq_status === "done",
+                      ),
+                    },
+                  ]}
+                  getCardId={(c: any) => rowKey(c)}
+                  onCardClick={(c: any) => handleNavigateBoq(c)}
+                  renderCard={(c: any) => {
+                    const codes = String(c.contract_no || "")
+                      .split(",")
+                      .map((s: string) => s.trim())
+                      .filter(Boolean);
+                    const pjcCode =
+                      codes.find((x: string) => /^PJC/i.test(x)) ||
+                      codes.find((x: string) => !/^QT/i.test(x)) ||
+                      codes[0] ||
+                      "—";
+                    return (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                            {pjcCode}
+                          </span>
+                          <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                            {c.amount ? formatNumber(c.amount) : "-"}
+                          </span>
+                        </div>
+                        <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                          {c.contract_name || "ບໍ່ລະບຸ"}
+                        </div>
+                        {c.project_name && (
+                          <div className="truncate text-[10px] text-[var(--theme-text-mute)]">
+                            {c.project_name}
+                          </div>
+                        )}
+                        <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                          <span className="truncate">
+                            {c.coordinator || ""}
+                          </span>
+                          <span className="tabular-nums">
+                            {c.project_status || ""}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
               </div>
             ) : (
               <div className="overflow-hidden rounded-lg border border-[var(--theme-border-subtle)] bg-white shadow-sm">

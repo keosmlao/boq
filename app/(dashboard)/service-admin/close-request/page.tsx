@@ -15,6 +15,8 @@ import {
 import Modal from "react-modal";
 import Swal from "sweetalert2";
 import { usePageHeader } from "@/_components/PageHeader";
+import ViewSwitcher, { type ViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 
 function _getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -78,6 +80,24 @@ const ProjectListClose = () => {
   const [page, setPage] = useState(1);
   const [perPage] = useState(10);
   const [selectedStatus, setSelectedStatus] = useState(STATUS.ALL);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("close-request-list-view");
+      if (saved === "list" || saved === "kanban") setViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("close-request-list-view", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   // Toggle
   const toggleExpand = (id) => {
@@ -262,6 +282,12 @@ const ProjectListClose = () => {
           {/* Date Range Filter Bar (kept in page; search/status/title moved to TopBar) */}
           <div className="mb-6">
             <div className="bg-white border border-[var(--theme-border-subtle)] rounded-lg shadow-sm px-4 py-4">
+              <div className="mb-3 flex items-center gap-2 text-xs">
+                <span className="text-slate-500 tabular-nums">{filtered.length} ໂຄງການ</span>
+                <div className="ml-auto">
+                  <ViewSwitcher value={viewMode} onChange={setViewMode} />
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* From Date */}
                 <div className="relative">
@@ -304,6 +330,57 @@ const ProjectListClose = () => {
                   ກຳລັງໂຫຼດຂໍ້ມູນໂຄງການ...
                 </div>
               </div>
+            </div>
+          ) : viewMode === "kanban" ? (
+            <div className="bg-white border border-[var(--theme-border-subtle)] rounded-lg shadow-sm p-3">
+              <KanbanBoard<any>
+                columns={[
+                  {
+                    id: STATUS.WAITING,
+                    title: "ລໍຖ້າອະນຸມັດ",
+                    color: "#f59e0b",
+                    records: filtered.filter(
+                      (p: any) => p.status === STATUS.WAITING,
+                    ),
+                  },
+                  {
+                    id: STATUS.CLOSED,
+                    title: "ປິດໂຄງການແລ້ວ",
+                    color: "#10b981",
+                    records: filtered.filter(
+                      (p: any) => p.status === STATUS.CLOSED,
+                    ),
+                  },
+                ]}
+                getCardId={(p: any) => String(p.id)}
+                onCardClick={(p: any) => toggleExpand(p.id)}
+                renderCard={(p: any) => (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                        {p.sml_code || `#${p.id}`}
+                      </span>
+                      <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                        {formatDateDMY(p.close_date)}
+                      </span>
+                    </div>
+                    <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                      {p.project_name}
+                    </div>
+                    {p.village_name && (
+                      <div className="truncate text-[10px] text-[var(--theme-text-mute)]">
+                        {p.village_name}, {p.district_name}
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                      <span className="truncate">{p.coordinator || ""}</span>
+                      <span className="tabular-nums">
+                        {p.contractlist?.length || 0} ສັນຍາ
+                      </span>
+                    </div>
+                  </div>
+                )}
+              />
             </div>
           ) : (
             <>

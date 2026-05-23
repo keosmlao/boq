@@ -25,6 +25,8 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { usePageHeader } from "@/_components/PageHeader";
+import ViewSwitcher, { type ViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 
 function _getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -48,6 +50,25 @@ function BOQMaterialList() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("sparepart-list-view");
+      if (saved === "list" || saved === "kanban") setViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("sparepart-list-view", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   // Number helpers & derived metrics
   const numVal = (...vals) => {
@@ -401,6 +422,7 @@ function BOQMaterialList() {
                   ລ້າງຕົວກອງ
                 </button>
               )}
+              <ViewSwitcher value={viewMode} onChange={setViewMode} />
             </div>
           </section>
 
@@ -431,6 +453,59 @@ function BOQMaterialList() {
                     </div>
                   </div>
                 </div>
+              </div>
+            ) : viewMode === "kanban" ? (
+              <div className="px-3 pt-3 md:px-4">
+                <KanbanBoard<any>
+                  columns={[
+                    {
+                      id: "enough",
+                      title: "ພຽງພໍ",
+                      color: "#10b981",
+                      records: filteredMaterials.filter(
+                        (m) => m._d.stock > 0 && m._d.shortage === 0,
+                      ),
+                    },
+                    {
+                      id: "short",
+                      title: "ຂາດ",
+                      color: "#f59e0b",
+                      records: filteredMaterials.filter(
+                        (m) => m._d.shortage > 0 && m._d.stock > 0,
+                      ),
+                    },
+                    {
+                      id: "out",
+                      title: "ໝົດສະຕັອກ",
+                      color: "#f43f5e",
+                      records: filteredMaterials.filter((m) => m._d.stock === 0),
+                    },
+                  ]}
+                  getCardId={(m: any) => m.item_code}
+                  renderCard={(m: any) => (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                          {m.item_code}
+                        </span>
+                        <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                          {m.unit_code || ""}
+                        </span>
+                      </div>
+                      <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                        {m.item_name}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                        <span className="truncate">
+                          BOQ {m._d.boq.toLocaleString()}
+                        </span>
+                        <span className="tabular-nums">
+                          ສະຕັອກ {m._d.stock.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                />
               </div>
             ) : (
               <>

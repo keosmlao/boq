@@ -11,6 +11,8 @@ import {
   TrendingUp, Building2, Phone, FileCheck, RefreshCw
 } from "lucide-react";
 import { usePageHeader } from "@/_components/PageHeader";
+import ViewSwitcher, { type ViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 
 function _getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -42,6 +44,24 @@ function ProjectInstallments() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("installments-list-view");
+      if (saved === "list" || saved === "kanban") setViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("installments-list-view", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -119,7 +139,71 @@ function ProjectInstallments() {
   return (
       <>
       <div className="h-screen flex flex-col bg-gray-50 font-sans overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-2 text-xs">
+          <span className="text-gray-500 tabular-nums">{filtered.length} ໂຄງການ</span>
+          <div className="ml-auto">
+            <ViewSwitcher value={viewMode} onChange={setViewMode} />
+          </div>
+        </div>
 
+        {viewMode === "kanban" ? (
+          <div className="flex-1 overflow-y-auto bg-gray-50 px-3 py-3 md:px-4">
+            <KanbanBoard<any>
+              columns={[
+                {
+                  id: "unpaid",
+                  title: "ລໍຖ້າຊຳລະ",
+                  color: "#f59e0b",
+                  records: filtered.filter(
+                    (p: any) =>
+                      !(
+                        Number(p.approve_status_1) === 1 &&
+                        Number(p.approve_status_2) === 1
+                      ),
+                  ),
+                },
+                {
+                  id: "paid",
+                  title: "ຊຳລະແລ້ວ",
+                  color: "#10b981",
+                  records: filtered.filter(
+                    (p: any) =>
+                      Number(p.approve_status_1) === 1 &&
+                      Number(p.approve_status_2) === 1,
+                  ),
+                },
+              ]}
+              getCardId={(p: any) => String(p.id)}
+              onCardClick={(p: any) => setSelectedId(p.id)}
+              renderCard={(p: any) => (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                      {p.cust_code || "N/A"}
+                    </span>
+                    <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                      {formatDate(p.start_date)}
+                    </span>
+                  </div>
+                  <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                    {p.project_name}
+                  </div>
+                  {p.contract_no && (
+                    <div className="truncate font-mono text-[10px] text-[var(--theme-text-mute)]">
+                      ສັນຍາ {p.contract_no}
+                    </div>
+                  )}
+                  <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                    <span className="truncate">{p.coordinator || ""}</span>
+                    <span className="tabular-nums">
+                      ₭{formatMoney(p.total_amount)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            />
+          </div>
+        ) : (
         <div className="flex-1 flex overflow-hidden">
           
           {/* Sidebar List */}
@@ -348,6 +432,7 @@ function ProjectInstallments() {
             )}
           </main>
         </div>
+        )}
       </div>
       </>
   );

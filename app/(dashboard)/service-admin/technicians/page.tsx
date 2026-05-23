@@ -8,6 +8,8 @@ import {
   Search, Shield, Edit2, CheckCircle2, X, Trash2
 } from "lucide-react";
 import { usePageHeader } from "@/_components/PageHeader";
+import ViewSwitcher, { type ViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 import {
   getTechnicians, getHelpers,
   createTechnician, updateTechnician, deleteTechnician,
@@ -45,6 +47,25 @@ function ManageTechnicians() {
   // Form State
   const initialForm = { code: "", name_1: "", phone: "", role: "technician", helpers: [], roworder: null };
   const [form, setForm] = useState(initialForm);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("technicians-list-view");
+      if (saved === "list" || saved === "kanban") setViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("technicians-list-view", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   // Load Data
   const loadData = async () => {
@@ -315,7 +336,86 @@ function ManageTechnicians() {
           {/* Right Panel: List */}
           <div className="space-y-4">
 
-            {/* Table Card */}
+            <div className="flex items-center gap-2 bg-white border border-[var(--theme-border-subtle)] rounded-lg shadow-sm px-3 py-2 text-xs">
+              <span className="text-slate-500 tabular-nums">{filteredData.length} ລາຍການ</span>
+              <div className="ml-auto">
+                <ViewSwitcher value={viewMode} onChange={setViewMode} />
+              </div>
+            </div>
+
+            {viewMode === "kanban" ? (
+              <div className="bg-white border border-[var(--theme-border-subtle)] rounded-lg shadow-sm p-3 min-h-[400px]">
+                <KanbanBoard<any>
+                  columns={
+                    activeTab === "technicians"
+                      ? [
+                          {
+                            id: "lead",
+                            title: "Lead Tech",
+                            color: "#3b82f6",
+                            records: filteredData.filter(
+                              (t: any) => t.role === "lead",
+                            ),
+                          },
+                          {
+                            id: "technician",
+                            title: "Technician",
+                            color: "#10b981",
+                            records: filteredData.filter(
+                              (t: any) =>
+                                t.role === "technician" ||
+                                (!t.role && activeTab === "technicians"),
+                            ),
+                          },
+                        ]
+                      : [
+                          {
+                            id: "all",
+                            title: "ທັງໝົດ",
+                            color: "#94a3b8",
+                            records: filteredData,
+                          },
+                        ]
+                  }
+                  getCardId={(t: any) => String(t.roworder ?? t.code ?? t.name_1)}
+                  onCardClick={(t: any) => {
+                    setActiveTab(t.role === "assistant" ? "assistants" : "technicians");
+                    startEdit(t);
+                  }}
+                  renderCard={(t: any) => {
+                    const badge = ROLE_CONFIG[t.role] || ROLE_CONFIG.technician;
+                    const helpersList = Array.isArray(t.helpers) ? t.helpers : [];
+                    return (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                            {t.code || "-"}
+                          </span>
+                          <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                            {badge.label}
+                          </span>
+                        </div>
+                        <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                          {t.name_1 || "-"}
+                        </div>
+                        {t.phone && (
+                          <div className="truncate text-[10px] text-[var(--theme-text-mute)]">
+                            {t.phone}
+                          </div>
+                        )}
+                        <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                          <span className="truncate" />
+                          <span className="tabular-nums">
+                            {helpersList.length} ຜູ້ຊ່ວຍ
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+              </div>
+            ) : (
+            /* Table Card */
             <div className="bg-white border border-[var(--theme-border-subtle)] rounded-lg shadow-sm overflow-hidden min-h-[400px]">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -404,6 +504,7 @@ function ManageTechnicians() {
                 </table>
               </div>
             </div>
+            )}
           </div>
 
         </div>

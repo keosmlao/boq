@@ -16,6 +16,8 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { usePageHeader } from "@/_components/PageHeader";
+import ViewSwitcher, { type ViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 
 function _getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -117,6 +119,24 @@ function WaitingApproveList() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [expanded, setExpanded] = useState<Set<string | number>>(new Set());
   const [userRole, setUserRole] = useState<ApprovalRole>("");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("waiting-approve-list-view");
+      if (saved === "list" || saved === "kanban") setViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("waiting-approve-list-view", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   const toggle = (id: WaitingProject["id"]) => setExpanded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
@@ -243,10 +263,79 @@ function WaitingApproveList() {
 
         {/* ── Main ── */}
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--theme-border-subtle)] bg-white shadow-sm">
+          <div className="flex items-center gap-2 border-b border-[var(--theme-border-subtle)] bg-white px-3 py-2 text-[11px]">
+            <span className="text-slate-500 tabular-nums">{filtered.length} / {projects.length} ລາຍການ</span>
+            <div className="ml-auto">
+              <ViewSwitcher value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
           {loading ? (
             <div className="flex flex-1 items-center justify-center"><div className="h-7 w-7 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-blue-600" /></div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center"><FolderOpen className="h-8 w-8 text-[var(--theme-text-mute)]" /><p className="mt-2 text-xs text-[var(--theme-text-mute)]">ບໍ່ພົບຂໍ້ມູນ</p></div>
+          ) : viewMode === "kanban" ? (
+            <div className="min-h-0 flex-1 overflow-auto p-3">
+              <KanbanBoard<WaitingProject>
+                columns={[
+                  {
+                    id: "pending",
+                    title: "ລໍຖ້າຂາຍ",
+                    color: "#f59e0b",
+                    records: filtered.filter(
+                      (p) => Number(p.approve_status_1) === 0,
+                    ),
+                  },
+                  {
+                    id: "approved",
+                    title: "ລໍຖ້າບັນຊີ",
+                    color: "#3b82f6",
+                    records: filtered.filter(
+                      (p) =>
+                        Number(p.approve_status_1) === 1 &&
+                        Number(p.approve_status_2) !== 1,
+                    ),
+                  },
+                  {
+                    id: "checked",
+                    title: "ສຳເລັດ",
+                    color: "#10b981",
+                    records: filtered.filter(
+                      (p) =>
+                        Number(p.approve_status_1) === 1 &&
+                        Number(p.approve_status_2) === 1,
+                    ),
+                  },
+                ]}
+                getCardId={(p) => String(p.id)}
+                onCardClick={(p) => toggle(p.id)}
+                renderCard={(p) => (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                        {p.contract_no || `#${p.id}`}
+                      </span>
+                      <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                        {fmtDate(p.create_date)}
+                      </span>
+                    </div>
+                    <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                      {p.project_name || "-"}
+                    </div>
+                    {p.cust_code && (
+                      <div className="truncate font-mono text-[10px] text-[var(--theme-text-mute)]">
+                        {p.cust_code}
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                      <span className="truncate">
+                        {p.coordinator || p.contact_name || ""}
+                      </span>
+                      <span className="tabular-nums">₭{fmt(p.total)}</span>
+                    </div>
+                  </div>
+                )}
+              />
+            </div>
           ) : (
             <div className="min-h-0 flex-1 overflow-auto">
               <table className="min-w-full">

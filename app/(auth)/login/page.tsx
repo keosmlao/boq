@@ -73,7 +73,6 @@ function Login() {
 
   const finalizeLogin = (selectedRole, userData = tempUserData) => {
     localStorage.setItem("user", JSON.stringify({ ...userData, role: selectedRole }));
-    document.cookie = "odg-auth=1; path=/; max-age=" + (60*60*24*7);
     switch (selectedRole) {
       case "sale_admin": case "sale_manager": router.push("/sale-admin/list-project"); break;
       case "service_admin": case "service_manager": router.push("/service-admin/list-project"); break;
@@ -95,60 +94,127 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full theme-shell-bg text-[var(--theme-text)] font-lao">
-      <div className="relative grid min-h-screen lg:grid-cols-[minmax(420px,0.9fr)_1.1fr]">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.72),transparent_58%)]"></div>
+    <div className="min-h-screen w-full bg-[var(--theme-bg)] text-[var(--theme-text)] font-lao flex items-center justify-center relative overflow-hidden">
+      {/* Decorative ambient glowing blobs */}
+      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-[rgba(79,70,229,0.08)] blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-[rgba(14,165,233,0.08)] blur-[120px] pointer-events-none" />
 
-        {/* Left: Auth */}
-        <div className="relative z-10 flex items-center justify-center px-5 py-8 lg:px-10">
-          <div className="w-full max-w-md">
-            <div className="mb-8 flex items-center gap-3">
-              <div className="theme-btn-primary flex h-10 w-10 items-center justify-center rounded-md text-white">
-                <Command size={18} />
+      <div className="relative z-10 w-full max-w-6xl mx-auto my-4 px-4">
+        <div className="bg-white/80 backdrop-blur-xl rounded-[var(--radius-xl)] border border-[var(--theme-border)] shadow-[var(--theme-shadow-lg)] overflow-hidden grid lg:grid-cols-[1.1fr_0.9fr]">
+          
+          {/* Left Side: Brand Story & Design Showcase */}
+          <div className="relative hidden lg:flex flex-col justify-between p-12 text-white bg-gradient-to-br from-[#1e1b4b] via-[#312e81] to-[#4338ca]">
+            {/* Overlay grid lines for tech look */}
+            <div className="absolute inset-0 opacity-5 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:24px_24px]" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-[rgba(14,165,233,0.15)] to-transparent pointer-events-none" />
+
+            <div className="relative flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/20">
+                <Command size={16} className="text-[var(--theme-accent)]" />
               </div>
-              <div>
-                <div className="theme-kicker">ODG</div>
+              <span className="text-sm font-semibold uppercase tracking-[0.2em] text-white/90 font-sans">
+                ODIEN GROUP
+              </span>
+            </div>
+
+            <div className="relative max-w-lg space-y-8 my-auto">
+              <div className="space-y-4">
+                <span className="text-[var(--theme-accent)] text-xs font-bold uppercase tracking-[0.25em] font-sans block">
+                  Project Operations Suite
+                </span>
+                <h2 className="text-4xl font-extrabold leading-tight font-sans">
+                  One workspace for sales, service, stock & finance.
+                </h2>
+                <p className="text-sm leading-relaxed text-slate-300 font-light">
+                  ລະບົບບໍລິຫານຈັດການໂຄງການຮູບແບບໃໝ່ ເນັ້ນຄວາມຊັດເຈນຂອງຂໍ້ມູນ, ການຕິດຕາມສະຖານະໜ້າງານ ແລະ ການເຮັດວຽກປະຈຳວັນຂອງທີມງານໃຫ້ວ່ອງໄວຂຶ້ນ.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 pt-4">
+                {[
+                  { label: "ການເຮັດວຽກ", value: "1 Flow" },
+                  { label: "ທີມງານຫຼັກ", value: "6 Roles" },
+                  { label: "ສະຖານະ", value: "Real-time" },
+                ].map((stat) => (
+                  <div key={stat.label} className="rounded-[var(--radius-md)] border border-white/10 bg-white/5 p-4 backdrop-blur-md hover:bg-white/10 transition-all duration-300">
+                    <div className="text-[9px] uppercase tracking-[0.15em] text-slate-300 font-sans">{stat.label}</div>
+                    <div className="text-lg font-bold mt-1 text-white font-sans">{stat.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {["ການຕິດຕາມ BOQ", "ການຈັດການໃບເບີກ", "ລາຍງານຊ່າງໜ້າງານ"].map((tag) => (
+                  <span key={tag} className="text-xs bg-white/10 border border-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm text-slate-200">
+                    {tag}
+                  </span>
+                ))}
               </div>
             </div>
 
-            <div className="theme-page-surface rounded-lg p-5 shadow-[0_24px_60px_-42px_rgba(23,33,43,0.55)] md:p-7">
+            <div className="relative flex items-center gap-2 text-xs text-slate-300">
+              <CheckCircle2 size={14} className="text-[var(--theme-success)]" />
+              <span>Developed & Managed by ODG Technology</span>
+            </div>
+          </div>
+
+          {/* Right Side: Auth Form */}
+          <div className="flex items-center justify-center p-8 lg:p-12 bg-white">
+            <div className="w-full max-w-md space-y-8">
+              
+              {/* Logo / Header for mobile */}
+              <div className="flex lg:hidden items-center gap-3 justify-center mb-6">
+                <div className="h-9 w-9 rounded-lg bg-[var(--theme-primary)] flex items-center justify-center text-white">
+                  <Command size={18} />
+                </div>
+                <span className="text-lg font-bold tracking-[0.15em] text-[var(--theme-primary)]">ODIEN GROUP</span>
+              </div>
+
               {view === "login" ? (
-                <div className="animate-in fade-in slide-in-from-left-4 duration-500">
-                  <div className="mb-6">
-                    <div className="theme-kicker">Sign In</div>
-                    <h1 className="mt-2 text-2xl font-bold theme-heading md:text-3xl">
+                <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
+                  <div className="space-y-2 text-center lg:text-left">
+                    <span className="text-[var(--theme-primary)] text-xs font-bold uppercase tracking-[0.2em] block font-sans">
+                      SIGN IN TO SYSTEM
+                    </span>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-[var(--theme-text)]">
                       ເຂົ້າລະບົບ ODG
                     </h1>
-                    <p className="theme-copy mt-1 text-sm">
-                      ຈັດການໂຄງການ, BOQ, ໃບຂໍເບີກ ແລະ ງານຕິດຕັ້ງໃນ workspace ດຽວ.
+                    <p className="text-sm text-[var(--theme-text-soft)]">
+                      ກະລຸນາໃສ່ບັນຊີຜູ້ໃຊ້ເພື່ອເຂົ້າຈັດການລະບົບຂອງທ່ານ
                     </p>
                   </div>
 
-                  <form onSubmit={handleLogin} className="space-y-4">
+                  <form onSubmit={handleLogin} className="space-y-5">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--theme-text-soft)]">ຊື່ຜູ້ໃຊ້</label>
+                      <label className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--theme-text-soft)]">
+                        ຊື່ຜູ້ໃຊ້ (Username)
+                      </label>
                       <div className="relative">
-                        <UserIcon className="absolute left-3 top-3 text-[var(--theme-text-soft)]" size={18} />
+                        <UserIcon className="absolute left-3.5 top-3 text-[var(--theme-text-mute)]" size={16} />
                         <input
                           type="text"
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
-                          className="theme-input w-full rounded-md py-3 pl-10 pr-4 text-sm transition-all"
-                          placeholder="ປ້ອນຊື່ຜູ້ໃຊ້"
+                          className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] focus:border-[var(--theme-primary)] rounded-[var(--radius-sm)] py-3 pl-11 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-soft)]/20"
+                          placeholder="ປ້ອນຊື່ຜູ້ໃຊ້ຂອງທ່ານ"
                           required
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--theme-text-soft)]">ລະຫັດຜ່ານ</label>
+                      <div className="flex justify-between items-center">
+                        <label className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--theme-text-soft)]">
+                          ລະຫັດຜ່ານ (Password)
+                        </label>
+                      </div>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-3 text-[var(--theme-text-soft)]" size={18} />
+                        <Lock className="absolute left-3.5 top-3 text-[var(--theme-text-mute)]" size={16} />
                         <input
                           type="password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="theme-input w-full rounded-md py-3 pl-10 pr-4 text-sm transition-all"
+                          className="w-full bg-[var(--theme-bg)] border border-[var(--theme-border)] focus:border-[var(--theme-primary)] rounded-[var(--radius-sm)] py-3 pl-11 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-soft)]/20"
                           placeholder="••••••••"
                           required
                         />
@@ -156,41 +222,55 @@ function Login() {
                     </div>
 
                     {error && (
-                      <div className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                        <Shield size={14} /> {error}
+                      <div className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-red-200 bg-red-50/50 p-3 text-xs text-red-600 animate-shake">
+                        <Shield size={14} className="flex-shrink-0" />
+                        <span>{error}</span>
                       </div>
                     )}
 
                     <button
                       type="submit"
                       disabled={loading}
-                      className="theme-btn-primary flex w-full items-center justify-center gap-2 rounded-md py-3 text-sm font-semibold text-white transition-all disabled:opacity-70"
+                      className="w-full bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-primary-strong)] hover:from-[var(--theme-primary-strong)] hover:to-[var(--theme-primary)] text-white shadow-md hover:shadow-lg rounded-[var(--radius-sm)] py-3 text-sm font-semibold transition-all duration-300 disabled:opacity-75 flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      {loading ? "ກຳລັງກວດສອບ..." : "ເຂົ້າລະບົບ"}
-                      {!loading && <ArrowRight size={16} />}
+                      {loading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>ກຳລັງກວດສອບ...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>ເຂົ້າລະບົບ</span>
+                          <ArrowRight size={16} />
+                        </>
+                      )}
                     </button>
                   </form>
 
-                  <div className="mt-6 border-t border-[var(--theme-border)] pt-4 text-[11px] text-[var(--theme-text-soft)]">
-                    ເຂົ້າລະບົບປອດໄພ ແຍກສິດຕາມບົດບາດ ແລະ ຮອງຮັບຫຼາຍຝ່າຍ.
+                  <div className="pt-4 border-t border-[var(--theme-border)] text-center lg:text-left">
+                    <p className="text-xs text-[var(--theme-text-mute)]">
+                      ມີບັນຫາໃນການເຂົ້າໃຊ້ລະບົບ? ກະລຸນາຕິດຕໍ່ ຝ່າຍໄອທີ ຫຼື ຜູ້ດູແລລະບົບ.
+                    </p>
                   </div>
                 </div>
               ) : (
-                <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                  <div className="mb-5">
+                <div className="animate-in fade-in slide-in-from-left-4 duration-500 space-y-6">
+                  <div className="space-y-2">
                     <button
                       onClick={() => setView("login")}
-                      className="mb-3 flex items-center gap-1 text-xs text-[var(--theme-text-soft)] transition-colors hover:text-[var(--theme-text)]"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--theme-primary)] hover:text-[var(--theme-primary-strong)] transition-colors"
                     >
                       ← ກັບໄປໜ້າເຂົ້າລະບົບ
                     </button>
-                    <h1 className="text-2xl font-bold theme-heading">ເລືອກລະດັບການເຂົ້າເຖິງ</h1>
-                    <p className="theme-copy text-sm">
-                      ບັນຊີນີ້ມີຫຼາຍບົດບາດ ກະລຸນາເລືອກ 1 ບົດບາດ.
+                    <h1 className="text-3xl font-extrabold tracking-tight text-[var(--theme-text)]">
+                      ເລືອກລະດັບການເຂົ້າເຖິງ
+                    </h1>
+                    <p className="text-sm text-[var(--theme-text-soft)]">
+                      ບັນຊີຂອງທ່ານມີຫຼາຍບົດບາດ ກະລຸນາເລືອກ 1 ບົດບາດເພື່ອເລີ່ມເຮັດວຽກ.
                     </p>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1 theme-scrollbar">
                     {availableRoles.map((role) => {
                       const style = getRoleStyle(role);
                       const Icon = style.icon;
@@ -198,19 +278,19 @@ function Login() {
                         <button
                           key={role}
                           onClick={() => finalizeLogin(role)}
-                          className="theme-card theme-card-hover group flex w-full items-center gap-4 rounded-lg p-4 text-left"
+                          className="w-full text-left flex items-center gap-4 p-4 rounded-[var(--radius-md)] border border-[var(--theme-border)] hover:border-[var(--theme-primary)] bg-white hover:bg-[var(--theme-primary-tint)] transition-all duration-300 group cursor-pointer"
                         >
-                          <div className={`flex h-10 w-10 items-center justify-center rounded-md ${style.bg} text-white shadow-sm`}>
+                          <div className={`flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--theme-primary)]/10 text-[var(--theme-primary)] group-hover:bg-[var(--theme-primary)] group-hover:text-white transition-all duration-300`}>
                             <Icon size={18} />
                           </div>
-                          <div className="flex-1">
-                            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-800 group-hover:text-[var(--theme-primary)]">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--theme-text)] group-hover:text-[var(--theme-primary-strong)]">
                               {style.label}
                             </h3>
-                            <p className="text-xs text-[var(--theme-text-soft)]">{style.desc}</p>
+                            <p className="text-xs text-[var(--theme-text-soft)] truncate mt-0.5">{style.desc}</p>
                           </div>
-                          <div className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--theme-border)] transition-all group-hover:border-[var(--theme-primary)] group-hover:bg-[var(--theme-primary)]">
-                            <ArrowRight size={12} className="text-transparent group-hover:text-white" />
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--theme-border)] group-hover:border-[var(--theme-primary)] group-hover:bg-[var(--theme-primary)] text-[var(--theme-text-mute)] group-hover:text-white transition-all duration-300">
+                            <ArrowRight size={12} />
                           </div>
                         </button>
                       );
@@ -218,71 +298,10 @@ function Login() {
                   </div>
                 </div>
               )}
-            </div>
-
-            <div className="mt-6 text-[11px] text-[var(--theme-text-soft)]">
-              &copy; 2026 ODG ລະບົບຈັດການໂຄງການ.
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Brand */}
-        <div className="relative hidden overflow-hidden lg:block">
-          <img
-            src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=2000"
-            alt="Office"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(23,33,43,0.72),rgba(15,118,110,0.58))]"></div>
-
-          <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
-            <div className="flex items-center gap-3">
-              <div className="h-1 w-10 rounded-full bg-[var(--theme-accent)]"></div>
-              <span className="text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
-                Project Operations Suite
-              </span>
-            </div>
-
-            <div className="max-w-xl space-y-6">
-              <h2 className="text-4xl font-bold leading-tight">
-                One workspace for sales, service, stock and finance.
-              </h2>
-              <p className="text-base leading-relaxed text-white/82">
-                ຮູບແບບໃໝ່ເນັ້ນການອ່ານຂໍ້ມູນ, ການຕິດຕາມສະຖານະ ແລະ ການເຮັດວຽກປະຈຳວັນຂອງທີມງານ.
-              </p>
-
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  { label: "ຄວາມຊັດເຈນ", value: "1 Flow" },
-                  { label: "ບົດບາດ", value: "6 Teams" },
-                  { label: "ໂຄງການ", value: "Live" },
-                ].map((stat) => (
-                  <div key={stat.label} className="rounded-lg border border-white/16 bg-white/12 px-4 py-3 backdrop-blur-sm">
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-white/70">{stat.label}</div>
-                    <div className="text-xl font-bold">{stat.value}</div>
-                  </div>
-                ))}
+              
+              <div className="text-center lg:text-left text-xs text-[var(--theme-text-mute)] pt-2">
+                &copy; {new Date().getFullYear()} ODG Project Suite. All rights reserved.
               </div>
-
-              <div className="flex flex-wrap gap-2 pt-2">
-                {[
-                  "ຂັ້ນຕອນຊັດເຈນ",
-                  "ສີສັນເບົາຕາ",
-                  "ກວດສອບງ່າຍ",
-                ].map((pill) => (
-                  <span
-                    key={pill}
-                    className="rounded-md border border-white/14 bg-white/12 px-3 py-1.5 text-xs text-white/86"
-                  >
-                    {pill}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 text-xs text-[#d4e4f6]">
-              <CheckCircle2 size={14} className="text-white" />
-              ບໍລິຫານໂດຍ ODG Technology
             </div>
           </div>
         </div>

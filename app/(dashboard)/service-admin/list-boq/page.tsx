@@ -19,6 +19,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { usePageHeader } from "@/_components/PageHeader";
+import ViewSwitcher, { type ViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 
 function _getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -127,6 +129,24 @@ function BOQTable() {
   const [role, setRole] = useState("");
   const [username, setUsername] = useState("");
   const [deleteDocNo, setDeleteDocNo] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("boq-list-view");
+      if (saved === "list" || saved === "kanban") setViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("boq-list-view", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   const requestIdRef = useRef(0);
 
@@ -432,9 +452,15 @@ function BOQTable() {
                 ລ້າງຕົວກັ່ນຕອງ
               </button>
             )}
+            <div className="ml-auto flex items-center gap-2">
+              <span className="hidden text-[11px] text-[var(--theme-text-mute)] tabular-nums md:inline">
+                {filtered.length} / {rows.length}
+              </span>
+              <ViewSwitcher value={viewMode} onChange={setViewMode} />
+            </div>
           </div>
 
-          {/* List */}
+          {/* List / Kanban */}
           {loading ? (
             <div className="flex h-60 items-center justify-center">
               <div className="flex items-center gap-3 text-[var(--theme-text-mute)]">
@@ -461,6 +487,63 @@ function BOQTable() {
                   ລ້າງຕົວກັ່ນຕອງ
                 </button>
               )}
+            </div>
+          ) : viewMode === "kanban" ? (
+            <div className="px-3 pt-3 md:px-4">
+              <KanbanBoard<BoqRow>
+                columns={[
+                  {
+                    id: "0",
+                    title: STATUS_META[0].label,
+                    color: "#f59e0b",
+                    records: filtered.filter((r) => r.approve_status === 0),
+                  },
+                  {
+                    id: "1",
+                    title: STATUS_META[1].label,
+                    color: "#10b981",
+                    records: filtered.filter((r) => r.approve_status === 1),
+                  },
+                  {
+                    id: "2",
+                    title: STATUS_META[2].label,
+                    color: "#f43f5e",
+                    records: filtered.filter((r) => r.approve_status === 2),
+                  },
+                ]}
+                getCardId={(r) => r.doc_no}
+                onCardClick={(r) => openEdit(r.doc_no)}
+                renderCard={(r) => (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                        {r.doc_no}
+                      </span>
+                      <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                        {fmtDate(r.doc_date)}
+                      </span>
+                    </div>
+                    <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                      {r.project_name}
+                    </div>
+                    {r.contract_no && (
+                      <div className="truncate font-mono text-[10px] text-[var(--theme-text-mute)]">
+                        ສັນຍາ {r.contract_no}
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                      {r.coordinator && r.coordinator !== "-" ? (
+                        <span className="truncate">{r.coordinator}</span>
+                      ) : (
+                        <span />
+                      )}
+                      <span className="tabular-nums">
+                        {r.total_items} ລາຍ
+                      </span>
+                    </div>
+                  </div>
+                )}
+              />
             </div>
           ) : (
             <ul className="divide-y divide-[var(--theme-border-subtle)]">

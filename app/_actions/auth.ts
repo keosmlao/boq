@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { query } from "@/_lib/db";
 import { cleanText } from "@/_lib/http";
 import { getSalesStats } from "@/_lib/projects";
+import bcrypt from "bcryptjs";
+import { signSession } from "@/_lib/auth_session";
 
 type Fail = { success: false; message: string };
 function fail(message: string): Fail { return { success: false, message }; }
@@ -40,13 +42,32 @@ export async function login(input: { username: string; password: string }): Prom
 
     const user = result.rows[0];
     if (!user) return fail("ບໍ່ພົບຊື່ຜູ້ໃຊ້ນີ້");
-    if (cleanText(user.password) !== password) return fail("ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ");
+
+    const dbPassword = cleanText(user.password);
+    let isMatch = false;
+
+    if (dbPassword.startsWith("$2a$") || dbPassword.startsWith("$2b$")) {
+      isMatch = bcrypt.compareSync(password, dbPassword);
+    } else {
+      isMatch = dbPassword === password;
+    }
+
+    if (!isMatch) return fail("ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ");
+
+    // Sign a secure JWT session token
+    const token = await signSession({
+      username: user.username,
+      role: user.role,
+      name_1: user.name_1,
+    });
 
     const cookieStore = await cookies();
-    cookieStore.set("odg-auth", "1", {
+    cookieStore.set("odg-auth", token, {
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
       sameSite: "lax",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
     });
 
     return {
@@ -69,4 +90,17 @@ export async function getSalesStatsAction(): Promise<{ success: true } & Record<
     const stats = await getSalesStats() as Record<string, unknown>;
     return { success: true, ...stats };
   } catch (e) { return fail((e as Error).message); }
+}
+
+export async function logout(): Promise<{ success: true }> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set("odg-auth", "", {
+      path: "/",
+      maxAge: 0,
+    });
+    return { success: true };
+  } catch (e) {
+    return { success: true };
+  }
 }

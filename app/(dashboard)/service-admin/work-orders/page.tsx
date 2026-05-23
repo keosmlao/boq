@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import WorkOrderModal from "@/_components/WorkOrderModal";
 import { usePageHeader } from "@/_components/PageHeader";
+import ViewSwitcher, { type ViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 
 function _getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -90,6 +92,25 @@ function WorkOrders() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("work-orders-list-view");
+      if (saved === "list" || saved === "kanban") setViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("work-orders-list-view", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   const selectedHelpers = (form.helper_ids || "").split(",").map((s) => s.trim()).filter(Boolean);
   const selectedHelperSet = useMemo(() => new Set(selectedHelpers), [selectedHelpers]);
@@ -698,6 +719,7 @@ function WorkOrders() {
               <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="h-8 rounded border border-[var(--theme-border-subtle)] bg-white px-2 text-xs text-[var(--theme-text)]">
                 {PAGE_SIZE_OPTIONS.map(size => <option key={size} value={size}>{size} ແຖວ</option>)}
               </select>
+              <ViewSwitcher value={viewMode} onChange={setViewMode} />
             </div>
           </section>
 
@@ -718,6 +740,70 @@ function WorkOrders() {
                     <div className="mt-1 text-sm text-[var(--theme-text-mute)]">ປັບຄຳຄົ້ນ ຫຼື ຕົວກັ່ນຕອງແລ້ວລອງໃໝ່</div>
                   </div>
                 </div>
+              </div>
+            ) : viewMode === "kanban" ? (
+              <div className="px-3 pt-3 md:px-4">
+                <KanbanBoard<any>
+                  columns={Object.entries(STATUS_CONFIG).map(([key, config]) => ({
+                    id: key,
+                    title: (config as any).label,
+                    color:
+                      key === "draft"
+                        ? "#94a3b8"
+                        : key === "assigned"
+                          ? "#f59e0b"
+                          : key === "in_progress"
+                            ? "#3b82f6"
+                            : key === "completed"
+                              ? "#10b981"
+                              : key === "closed"
+                                ? "#64748b"
+                                : "#f43f5e",
+                    records: filteredOrders.filter((o) => o.status === key),
+                  }))}
+                  getCardId={(o: any) => String(o.id)}
+                  onCardClick={(o: any) => handleEdit(o)}
+                  renderCard={(o: any) => {
+                    const priority = PRIORITY_CONFIG[o.priority] || PRIORITY_CONFIG.Normal;
+                    const techName =
+                      techOptions.find(
+                        (t) => t.code === o.technician_id || t.name === o.technician_id,
+                      )?.name || o.technician_id || "ບໍ່ລະບຸ";
+                    const tasks = Array.isArray(o.tasks) ? o.tasks : [];
+                    const taskNames = tasks.length
+                      ? tasks.map((t: any) => t.task_name || t.task || t.name).filter(Boolean)
+                      : o.task_name
+                        ? [o.task_name]
+                        : [];
+                    return (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                            {o.code}
+                          </span>
+                          <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                            {formatDateDMY(o.created_at)}
+                          </span>
+                        </div>
+                        <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                          {o.project_name || o.project_code || "-"}
+                        </div>
+                        {taskNames[0] && (
+                          <div className="truncate text-[10px] text-[var(--theme-text-mute)]">
+                            {taskNames[0]}
+                            {taskNames.length > 1 ? ` +${taskNames.length - 1}` : ""}
+                          </div>
+                        )}
+                        <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                          <span className="truncate">{techName}</span>
+                          <span className={`tabular-nums ${priority.text}`}>
+                            {priority.label}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
               </div>
             ) : groupBy === "none" ? (
               <>

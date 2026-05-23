@@ -20,6 +20,8 @@ import {
   X,
 } from "lucide-react";
 import { usePageHeader } from "@/_components/PageHeader";
+import ViewSwitcher, { type ViewMode } from "@/_components/odoo/ViewSwitcher";
+import KanbanBoard, { type KanbanColumn } from "@/_components/odoo/KanbanBoard";
 
 function _getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
@@ -108,6 +110,24 @@ function ListRequest() {
   const [statusFilter, setStatusFilter] = useState<"all" | "0" | "1">("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [deleteDocNo, setDeleteDocNo] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("request-list-view");
+      if (saved === "list" || saved === "kanban") setViewMode(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("request-list-view", viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   // Edit modal
   const [editOpen, setEditOpen] = useState(false);
@@ -515,6 +535,14 @@ function ListRequest() {
     <div className="bg-[var(--theme-page)] px-3 py-3 md:px-4">
       <div className="mx-auto max-w-[1480px]">
         <section className="theme-card overflow-hidden">
+          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--theme-border-subtle)] bg-white px-3 py-2 text-[12px]">
+            <span className="text-[11px] text-[var(--theme-text-mute)] tabular-nums">
+              {filtered.length} / {rows.length}
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              <ViewSwitcher value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
           {loading ? (
             <div className="flex h-60 items-center justify-center">
               <div className="flex items-center gap-3 text-[var(--theme-text-mute)]">
@@ -539,6 +567,57 @@ function ListRequest() {
                   ລ້າງຕົວກັ່ນຕອງ
                 </button>
               )}
+            </div>
+          ) : viewMode === "kanban" ? (
+            <div className="px-3 pt-3 md:px-4">
+              <KanbanBoard<RequestRow>
+                columns={[
+                  {
+                    id: "0",
+                    title: STATUS_META["0"].label,
+                    color: "#f59e0b",
+                    records: filtered.filter((r) => r.statusValue === "0"),
+                  },
+                  {
+                    id: "1",
+                    title: STATUS_META["1"].label,
+                    color: "#10b981",
+                    records: filtered.filter((r) => r.statusValue === "1"),
+                  },
+                ]}
+                getCardId={(r) => r.doc_no}
+                onCardClick={(r) => {
+                  if (r.doc_success !== 1) void openEdit(r.doc_no);
+                }}
+                renderCard={(r) => (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate font-mono text-[11px] font-semibold text-[var(--theme-primary)]">
+                        {r.doc_no}
+                      </span>
+                      <span className="flex-shrink-0 text-[10px] text-[var(--theme-text-mute)] tabular-nums">
+                        {fmtDate(r.doc_date)}
+                      </span>
+                    </div>
+                    <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">
+                      {r.project_name}
+                    </div>
+                    {r.doc_ref && r.doc_ref !== "-" && (
+                      <div className="truncate font-mono text-[10px] text-[var(--theme-text-mute)]">
+                        ອ້າງອີງ {r.doc_ref}
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-[var(--theme-text-mute)]">
+                      <span className="truncate">
+                        {r.requester_name || r.creator_code}
+                      </span>
+                      <span className="tabular-nums">
+                        {r.total_items} ລາຍ
+                      </span>
+                    </div>
+                  </div>
+                )}
+              />
             </div>
           ) : (
             <ul className="divide-y divide-[var(--theme-border-subtle)]">
