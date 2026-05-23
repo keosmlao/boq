@@ -80,14 +80,26 @@ const numVal = (...vals: any[]): number => {
 
 const lower = (v: any) => (v ?? "").toString().toLowerCase();
 
+const toIsoDate = (v: unknown): string => {
+  if (v === null || v === undefined || v === "") return "";
+  if (v instanceof Date) {
+    if (Number.isNaN(v.getTime())) return "";
+    const y = v.getFullYear();
+    const m = String(v.getMonth() + 1).padStart(2, "0");
+    const d = String(v.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return String(v).slice(0, 10);
+};
+
 const fmtDate = (v?: string | null) => {
-  if (!v) return "-";
-  const iso = String(v).slice(0, 10);
+  const iso = toIsoDate(v);
+  if (!iso) return "-";
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
     const [y, m, d] = iso.split("-");
     return `${d}/${m}/${y}`;
   }
-  return v;
+  return iso;
 };
 
 const fmtNum = (n: number) => Number(n || 0).toLocaleString("en-US");
@@ -146,7 +158,7 @@ function BOQTable() {
       const serverData = Array.isArray(resp) ? resp : [];
       const mapped: BoqRow[] = serverData.map((x: any, i: number) => {
         const docNo = x.doc_no ?? "-";
-        const docDate = x.doc_date ?? "";
+        const docDate = toIsoDate(x.doc_date);
         const boqList = Array.isArray(x.boq_list) ? x.boq_list : [];
         const boqTotalQty = numVal(x.boq_total_qty, x.total_boq_qty);
         const withdrawTotalQty = numVal(x.withdraw_total_qty, x.total_withdraw_qty);

@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   ChevronDown,
   Grid3X3,
+  LogOut,
   Plus,
   Search,
   Settings,
+  UserCircle2,
 } from "lucide-react";
 import { usePageHeaderState } from "./PageHeader";
 
@@ -40,7 +42,43 @@ function labelFor(segment: string) {
 
 export default function TopBar() {
   const pathname = usePathname();
+  const router = useRouter();
   const pageHeader = usePageHeaderState();
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [userName, setUserName] = useState("");
+  const settingsRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      setUserName(u.name || u.username || u.email || "ຜູ້ໃຊ້");
+    } catch {
+      setUserName("ຜູ້ໃຊ້");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (!settingsRef.current?.contains(e.target as Node)) setSettingsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSettingsOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [settingsOpen]);
+
+  const logout = () => {
+    localStorage.clear();
+    document.cookie = "odg-auth=; path=/; max-age=0";
+    router.replace("/login");
+  };
 
   const crumbs = useMemo(() => {
     return pathname
@@ -108,9 +146,44 @@ export default function TopBar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-1">
-          <button type="button" className="flex h-8 w-8 items-center justify-center rounded text-white/82 hover:bg-white/10 hover:text-white" aria-label="ຕັ້ງຄ່າ">
-            <Settings size={15} />
-          </button>
+          <div ref={settingsRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={settingsOpen}
+              aria-label="ຕັ້ງຄ່າ"
+              className={`flex h-8 w-8 items-center justify-center rounded transition ${settingsOpen ? "bg-white/15 text-white" : "text-white/82 hover:bg-white/10 hover:text-white"}`}
+            >
+              <Settings size={15} />
+            </button>
+            {settingsOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-9 z-40 w-56 overflow-hidden rounded-md border border-[var(--theme-border)] bg-white text-[var(--theme-text)] shadow-lg"
+              >
+                <div className="flex items-center gap-2 border-b border-[var(--theme-border-subtle)] px-3 py-2.5">
+                  <UserCircle2 size={28} className="text-[var(--theme-text-mute)]" />
+                  <div className="min-w-0">
+                    <div className="truncate text-[12px] font-semibold">{userName}</div>
+                    <div className="text-[10px] text-[var(--theme-text-mute)]">ODG Workspace</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setSettingsOpen(false);
+                    logout();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-[var(--theme-text)] transition hover:bg-[var(--theme-primary-tint)] hover:text-[var(--theme-primary)]"
+                >
+                  <LogOut size={14} />
+                  ອອກຈາກລະບົບ
+                </button>
+              </div>
+            )}
+          </div>
           <button type="button" className="flex h-8 w-8 items-center justify-center rounded text-white/82 hover:bg-white/10 hover:text-white" aria-label="ແຈ້ງເຕືອນ">
             <Bell size={15} />
           </button>

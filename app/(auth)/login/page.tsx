@@ -108,7 +108,6 @@ function Login() {
               </div>
               <div>
                 <div className="theme-kicker">ODG</div>
-                <div className="text-lg font-bold theme-heading">Odoo ERP</div>
               </div>
             </div>
 
