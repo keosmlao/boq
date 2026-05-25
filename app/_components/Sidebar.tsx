@@ -12,7 +12,6 @@ import {
   CircleDollarSign,
   Clock,
   FileText,
-  Grid3X3,
   Home,
   KanbanSquare,
   LayoutGrid,
@@ -20,12 +19,13 @@ import {
   Menu,
   RefreshCw,
   Search,
-  Shield,
   Target,
   Timer,
   Users,
   Wrench,
   X,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 
 type NavLink = {
@@ -38,14 +38,6 @@ type NavLink = {
 type NavSection = {
   section: string;
   links: NavLink[];
-};
-
-type AppItem = {
-  key: string;
-  label: string;
-  short: string;
-  href: string;
-  icon: React.ReactNode;
 };
 
 const normalizeRole = (role: unknown) =>
@@ -68,10 +60,13 @@ const roleLabel: Record<string, string> = {
   account_admin: "ບັນຊີ",
 };
 
+const COLLAPSED_KEY = "odg-sidebar-collapsed";
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [ready, setReady] = useState(false);
   const [search, setSearch] = useState("");
   const [username, setUsername] = useState("ຜູ້ໃຊ້");
@@ -84,23 +79,12 @@ export default function Sidebar() {
       setUsername(user.name_1 || user.username || "ຜູ້ໃຊ້");
       setActiveRole(normalizeRole(user.role || ""));
       setRoles(parseRoles(user.allRoles || user.role || ""));
+      setCollapsed(localStorage.getItem(COLLAPSED_KEY) === "1");
     } catch {
-      // ignore localStorage parse errors
+      // ignore
     }
     setReady(true);
   }, []);
-
-  const apps: AppItem[] = useMemo(
-    () => [
-      { key: "sales", label: "ການຂາຍ", short: "ຂາຍ", href: "/sale-admin/list-project", icon: <KanbanSquare size={19} /> },
-      { key: "service", label: "ບໍລິການ", short: "ບໍລິການ", href: "/service-admin/list-project", icon: <Wrench size={19} /> },
-      { key: "inventory", label: "ສາງ", short: "ສາງ", href: "/service-admin/list-sparepart", icon: <LayoutGrid size={19} /> },
-      { key: "accounting", label: "ບັນຊີ", short: "ບັນຊີ", href: "/service-admin/installments", icon: <CircleDollarSign size={19} /> },
-      { key: "timesheets", label: "ໃບລົງເວລາ", short: "ເວລາ", href: "/timesheets", icon: <Timer size={19} /> },
-      { key: "reports", label: "ລາຍງານ", short: "ລາຍງານ", href: "/head-tech/summary", icon: <BarChart3 size={19} /> },
-    ],
-    [],
-  );
 
   const sidebarSections: Record<string, NavSection[]> = useMemo(
     () => ({
@@ -108,16 +92,16 @@ export default function Sidebar() {
         {
           section: "ການຂາຍ",
           links: [
-            { label: "ໂຄງການ", path: "/sale-admin/list-project", icon: <KanbanSquare size={15} /> },
+            { label: "ໂຄງການ", path: "/sale-admin/list-project", icon: <KanbanSquare size={16} /> },
           ],
         },
         {
           section: "ການດຳເນີນງານ",
           links: [
-            { label: "ໂຄງການບໍລິການ", path: "/service-admin/list-project", icon: <Building2 size={15} /> },
-            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={15} /> },
-            { label: "ໃບຂໍເບີກ", path: "/service-admin/list-request", icon: <Briefcase size={15} /> },
-            { label: "ປິດໂຄງການ", path: "/service-admin/close-request", icon: <Target size={15} /> },
+            { label: "ໂຄງການບໍລິການ", path: "/service-admin/list-project", icon: <Building2 size={16} /> },
+            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={16} /> },
+            { label: "ໃບຂໍເບີກ", path: "/service-admin/list-request", icon: <Briefcase size={16} /> },
+            { label: "ປິດໂຄງການ", path: "/service-admin/close-request", icon: <Target size={16} /> },
           ],
         },
       ],
@@ -125,16 +109,16 @@ export default function Sidebar() {
         {
           section: "ການຂາຍ",
           links: [
-            { label: "ໂຄງການ", path: "/sale-admin/list-project", icon: <KanbanSquare size={15} /> },
+            { label: "ໂຄງການ", path: "/sale-admin/list-project", icon: <KanbanSquare size={16} /> },
           ],
         },
         {
           section: "ການດຳເນີນງານ",
           links: [
-            { label: "ໂຄງການບໍລິການ", path: "/service-admin/list-project", icon: <Building2 size={15} /> },
-            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={15} /> },
-            { label: "ງວດຊຳລະ", path: "/service-admin/installments", icon: <Clock size={15} /> },
-            { label: "ໃບລົງເວລາ", path: "/timesheets", icon: <Timer size={15} /> },
+            { label: "ໂຄງການບໍລິການ", path: "/service-admin/list-project", icon: <Building2 size={16} /> },
+            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={16} /> },
+            { label: "ງວດຊຳລະ", path: "/service-admin/installments", icon: <Clock size={16} /> },
+            { label: "ໃບລົງເວລາ", path: "/timesheets", icon: <Timer size={16} /> },
           ],
         },
       ],
@@ -142,18 +126,19 @@ export default function Sidebar() {
         {
           section: "ໂຄງການ",
           links: [
-            { label: "ໂຄງການ", path: "/service-admin/list-project", icon: <KanbanSquare size={15} /> },
-            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={15} /> },
-            { label: "ການຂໍປິດໂຄງການ", path: "/service-admin/close-request", icon: <Target size={15} /> },
+            { label: "ໂຄງການ", path: "/service-admin/list-project", icon: <KanbanSquare size={16} /> },
+            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={16} /> },
+            { label: "ການຂໍປິດໂຄງການ", path: "/service-admin/close-request", icon: <Target size={16} /> },
           ],
         },
         {
           section: "ການດຳເນີນງານ",
           links: [
-            { label: "ໃບຂໍເບີກ", path: "/service-admin/list-request", icon: <Briefcase size={15} /> },
-            { label: "ໃບສົ່ງຄືນ", path: "/service-admin/material-return-list", icon: <RefreshCw size={15} /> },
-            { label: "ໃບສັ່ງວຽກ", path: "/service-admin/work-orders", icon: <CheckCircle size={15} />, badge: "!" },
-            { label: "ຊ່າງເທັກນິກ", path: "/service-admin/technicians", icon: <Users size={15} /> },
+            { label: "ໃບຂໍເບີກ", path: "/service-admin/list-request", icon: <Briefcase size={16} /> },
+            { label: "ໃບສົ່ງຄືນ", path: "/service-admin/material-return-list", icon: <RefreshCw size={16} /> },
+            { label: "ໃບສັ່ງວຽກ", path: "/service-admin/work-orders", icon: <CheckCircle size={16} />, badge: "!" },
+            { label: "ຊ່າງເທັກນິກ", path: "/service-admin/technicians", icon: <Users size={16} /> },
+            { label: "ສາງ", path: "/service-admin/list-sparepart", icon: <LayoutGrid size={16} /> },
           ],
         },
       ],
@@ -161,10 +146,10 @@ export default function Sidebar() {
         {
           section: "ໂຄງການ",
           links: [
-            { label: "ໂຄງການ", path: "/service-admin/list-project", icon: <KanbanSquare size={15} /> },
-            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={15} /> },
-            { label: "ໃບສັ່ງວຽກ", path: "/service-admin/work-orders", icon: <CheckCircle size={15} /> },
-            { label: "ໃບລົງເວລາ", path: "/timesheets", icon: <Timer size={15} /> },
+            { label: "ໂຄງການ", path: "/service-admin/list-project", icon: <KanbanSquare size={16} /> },
+            { label: "BOQ", path: "/service-admin/list-boq", icon: <FileText size={16} /> },
+            { label: "ໃບສັ່ງວຽກ", path: "/service-admin/work-orders", icon: <CheckCircle size={16} /> },
+            { label: "ໃບລົງເວລາ", path: "/timesheets", icon: <Timer size={16} /> },
           ],
         },
       ],
@@ -172,11 +157,11 @@ export default function Sidebar() {
         {
           section: "ບ່ອນເຮັດວຽກ",
           links: [
-            { label: "ໜ້າຫຼັກ", path: "/head-tech/home", icon: <Home size={15} /> },
-            { label: "ສະຫຼຸບ", path: "/head-tech/summary", icon: <BarChart3 size={15} /> },
-            { label: "ໂຄງການ", path: "/service-admin/list-project", icon: <KanbanSquare size={15} /> },
-            { label: "ໃບສັ່ງວຽກ", path: "/service-admin/work-orders", icon: <CheckCircle size={15} /> },
-            { label: "ໃບລົງເວລາ", path: "/timesheets", icon: <Timer size={15} /> },
+            { label: "ໜ້າຫຼັກ", path: "/head-tech/home", icon: <Home size={16} /> },
+            { label: "ສະຫຼຸບ", path: "/head-tech/summary", icon: <BarChart3 size={16} /> },
+            { label: "ໂຄງການ", path: "/service-admin/list-project", icon: <KanbanSquare size={16} /> },
+            { label: "ໃບສັ່ງວຽກ", path: "/service-admin/work-orders", icon: <CheckCircle size={16} /> },
+            { label: "ໃບລົງເວລາ", path: "/timesheets", icon: <Timer size={16} /> },
           ],
         },
       ],
@@ -184,8 +169,8 @@ export default function Sidebar() {
         {
           section: "ບັນຊີ",
           links: [
-            { label: "ໂຄງການ", path: "/sale-admin/list-project", icon: <KanbanSquare size={15} /> },
-            { label: "ງວດຊຳລະ", path: "/service-admin/installments", icon: <Clock size={15} /> },
+            { label: "ໂຄງການ", path: "/sale-admin/list-project", icon: <KanbanSquare size={16} /> },
+            { label: "ງວດຊຳລະ", path: "/service-admin/installments", icon: <Clock size={16} /> },
           ],
         },
       ],
@@ -208,11 +193,8 @@ export default function Sidebar() {
       .filter((section) => section.links.length > 0);
   }, [activeRole, search, sidebarSections]);
 
-  const activeApp = apps.find((app) => pathname.startsWith(app.href.split("/").slice(0, 2).join("/"))) || apps[0];
-
   const switchRole = (role: string) => {
     if (role === activeRole) return;
-
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       user.role = role;
@@ -220,9 +202,20 @@ export default function Sidebar() {
     } catch {
       // ignore
     }
-
     setActiveRole(role);
     window.location.reload();
+  };
+
+  const toggleCollapsed = () => {
+    setCollapsed((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
+      } catch {
+        // ignore
+      }
+      return next;
+    });
   };
 
   const logout = async () => {
@@ -232,118 +225,178 @@ export default function Sidebar() {
   };
 
   const nav = (
-    <aside className="flex h-full bg-[#f7f5f7] text-[var(--theme-text)]">
-      <div className="flex w-14 flex-col items-center border-r border-[var(--theme-border-subtle)] bg-[var(--theme-primary)] py-2 text-white">
-        <Link href="/sale-admin/list-project" className="mb-2 flex h-10 w-10 items-center justify-center rounded hover:bg-white/10" title="ODG">
-          <img src="/ODG.png" alt="ODG" className="h-6 w-6 object-contain" />
+    <aside
+      className={[
+        "flex h-full flex-col border-r border-[var(--border)] bg-[var(--sidebar-bg)] text-[var(--text)]",
+        collapsed ? "w-[60px]" : "w-[240px]",
+        "transition-[width] duration-200 ease-out",
+      ].join(" ")}
+    >
+      {/* Brand */}
+      <div
+        className={[
+          "flex items-center gap-2.5 border-b border-[var(--border)] px-3",
+          collapsed ? "h-14 justify-center" : "h-14",
+        ].join(" ")}
+      >
+        <Link
+          href="/sale-admin/list-project"
+          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--text)] text-[var(--text-inverse)]"
+          title="ODG"
+        >
+          <img src="/ODG.png" alt="ODG" className="h-5 w-5 object-contain invert dark:invert-0" />
         </Link>
-        <div className="theme-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto">
-          {apps.map((app) => {
-            const active = activeApp.key === app.key;
-            return (
-              <Link
-                key={app.key}
-                href={app.href}
-                title={app.label}
-                onClick={() => setOpen(false)}
-                className={[
-                  "flex h-11 w-11 flex-col items-center justify-center rounded text-[9px] font-semibold transition",
-                  active ? "bg-white text-[var(--theme-primary)]" : "text-white/78 hover:bg-white/10 hover:text-white",
-                ].join(" ")}
-              >
-                {app.icon}
-                <span className="mt-0.5 max-w-full truncate">{app.short}</span>
-              </Link>
-            );
-          })}
-        </div>
-        <button type="button" onClick={logout} className="mt-2 flex h-10 w-10 items-center justify-center rounded text-white/78 hover:bg-white/10 hover:text-white" title="ອອກຈາກລະບົບ">
-          <LogOut size={17} />
-        </button>
+        {!collapsed && (
+          <div className="min-w-0">
+            <div className="truncate text-[13px] font-semibold leading-tight">ODG</div>
+            <div className="truncate text-[10.5px] text-[var(--text-mute)]">
+              Project Management
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="flex w-[220px] flex-col border-r border-[var(--theme-border-subtle)] bg-[#f7f5f7]">
-        <div className="border-b border-[var(--theme-border-subtle)] bg-white px-3 py-2.5">
-          <div className="text-[13px] font-semibold text-[var(--theme-primary)]">{activeApp.label}</div>
-          <div className="truncate text-[11px] text-[var(--theme-text-mute)]">{roleLabel[activeRole] || "ບ່ອນເຮັດວຽກ"}</div>
-        </div>
-
-        <div className="border-b border-[var(--theme-border-subtle)] bg-white p-2">
-          <div className="flex h-8 items-center gap-2 rounded border border-[var(--theme-border)] bg-white px-2">
-            <Search size={13} className="text-[var(--theme-text-mute)]" />
+      {/* Search */}
+      {!collapsed && (
+        <div className="border-b border-[var(--border)] p-2.5">
+          <div className="flex h-8 items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] px-2.5 focus-within:border-[var(--brand)] focus-within:ring-2 focus-within:ring-[var(--brand-ring)] transition-colors">
+            <Search size={13} className="text-[var(--text-mute)]" />
             <input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="ຄົ້ນຫາເມນູ..."
-              className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-[var(--theme-text-mute)]"
+              className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
             />
           </div>
         </div>
+      )}
 
-        <nav className="theme-scrollbar flex-1 overflow-y-auto px-2 py-2">
-          {!ready ? (
-            <div className="space-y-1">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <div key={i} className="h-8 animate-pulse rounded bg-white" />
-              ))}
+      {/* Nav */}
+      <nav className="theme-scrollbar flex-1 overflow-y-auto px-2 py-3">
+        {!ready ? (
+          <div className="space-y-1.5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-8 animate-pulse rounded bg-[var(--bg-subtle)]" />
+            ))}
+          </div>
+        ) : sections.length === 0 ? (
+          !collapsed && (
+            <div className="px-2 py-8 text-center text-[12px] text-[var(--text-mute)]">
+              ບໍ່ມີເມນູ
             </div>
-          ) : sections.length === 0 ? (
-            <div className="px-2 py-8 text-center text-[12px] text-[var(--theme-text-mute)]">ບໍ່ມີເມນູ</div>
-          ) : (
-            <div className="space-y-3">
-              {sections.map((section) => (
-                <div key={section.section}>
-                  <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--theme-text-mute)]">
+          )
+        ) : (
+          <div className="space-y-4">
+            {sections.map((section) => (
+              <div key={section.section}>
+                {!collapsed && (
+                  <div className="px-2.5 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-mute)]">
                     {section.section}
                   </div>
-                  <div className="space-y-0.5">
-                    {section.links.map((link) => {
-                      const active = pathname === link.path || pathname.startsWith(`${link.path}/`);
-                      return (
-                        <Link
-                          key={link.path}
-                          href={link.path}
-                          onClick={() => setOpen(false)}
-                          className={[
-                            "flex h-8 items-center gap-2 rounded px-2 text-[12px] transition",
-                            active
-                              ? "bg-white font-semibold text-[var(--theme-primary)] shadow-[inset_3px_0_0_var(--theme-primary)]"
-                              : "text-[var(--theme-text-soft)] hover:bg-white hover:text-[var(--theme-text)]",
-                          ].join(" ")}
-                        >
-                          <span className="flex h-5 w-5 items-center justify-center text-inherit">{link.icon}</span>
-                          <span className="min-w-0 flex-1 truncate">{link.label}</span>
-                          {link.badge && (
-                            <span className="rounded bg-[var(--theme-accent)] px-1.5 py-px text-[9px] font-bold text-white">{link.badge}</span>
-                          )}
-                        </Link>
-                      );
-                    })}
-                  </div>
+                )}
+                <div className="space-y-0.5">
+                  {section.links.map((link) => {
+                    const active =
+                      pathname === link.path || pathname.startsWith(`${link.path}/`);
+                    return (
+                      <Link
+                        key={link.path}
+                        href={link.path}
+                        onClick={() => setOpen(false)}
+                        title={collapsed ? link.label : undefined}
+                        className={[
+                          "flex items-center gap-2.5 rounded-[var(--radius-sm)] text-[13px] font-medium transition-colors",
+                          collapsed
+                            ? "h-9 w-9 justify-center mx-auto"
+                            : "h-9 px-2.5",
+                          active
+                            ? "bg-[var(--brand-soft)] text-[var(--brand)]"
+                            : "text-[var(--text-soft)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)]",
+                        ].join(" ")}
+                      >
+                        <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+                          {link.icon}
+                        </span>
+                        {!collapsed && (
+                          <>
+                            <span className="min-w-0 flex-1 truncate">{link.label}</span>
+                            {link.badge && (
+                              <span className="rounded-full bg-[var(--danger)] px-1.5 py-0.5 text-[9px] font-bold text-white">
+                                {link.badge}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </Link>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
-        </nav>
+              </div>
+            ))}
+          </div>
+        )}
+      </nav>
 
-        <div className="border-t border-[var(--theme-border-subtle)] bg-white p-2">
-          <div className="truncate text-[12px] font-semibold text-[var(--theme-text)]">{username}</div>
-          {roles.length > 1 ? (
-            <select
-              value={activeRole}
-              onChange={(event) => switchRole(event.target.value)}
-              className="mt-1 h-7 w-full rounded border border-[var(--theme-border)] bg-white px-2 text-[11px] text-[var(--theme-text-soft)] outline-none focus:border-[var(--theme-primary)]"
-            >
-              {roles.map((role) => (
-                <option key={role} value={role}>
-                  {roleLabel[role] || role}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className="truncate text-[11px] text-[var(--theme-text-mute)]">{roleLabel[activeRole] || activeRole}</div>
-          )}
-        </div>
+      {/* Footer: collapse + user + logout */}
+      <div className="border-t border-[var(--border)] p-2.5 space-y-2">
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          className="hidden md:flex h-7 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] text-[11px] font-medium text-[var(--text-mute)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)] transition-colors"
+          title={collapsed ? "ຂະຫຍາຍ" : "ຫຍໍ້"}
+        >
+          {collapsed ? <ChevronsRight size={14} /> : <ChevronsLeft size={14} />}
+          {!collapsed && <span>ຫຍໍ້ເມນູ</span>}
+        </button>
+
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={logout}
+            title="ອອກຈາກລະບົບ"
+            className="flex h-9 w-9 mx-auto items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-soft)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)] transition-colors"
+          >
+            <LogOut size={15} />
+          </button>
+        ) : (
+          <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] p-2.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--bg-subtle)] text-[11px] font-semibold text-[var(--text-soft)]">
+                {(username || "U").charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12px] font-semibold text-[var(--text)] leading-tight">
+                  {username}
+                </div>
+                {roles.length > 1 ? (
+                  <select
+                    value={activeRole}
+                    onChange={(e) => switchRole(e.target.value)}
+                    className="mt-0.5 h-5 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-1 text-[10.5px] text-[var(--text-soft)] outline-none focus:border-[var(--brand)]"
+                  >
+                    {roles.map((role) => (
+                      <option key={role} value={role}>
+                        {roleLabel[role] || role}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="truncate text-[10.5px] text-[var(--text-mute)] mt-0.5">
+                    {roleLabel[activeRole] || activeRole}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={logout}
+                title="ອອກຈາກລະບົບ"
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded text-[var(--text-mute)] hover:bg-[var(--bg-subtle)] hover:text-[var(--danger)] transition-colors"
+              >
+                <LogOut size={13} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -353,13 +406,18 @@ export default function Sidebar() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="fixed left-2 top-2 z-50 flex h-8 w-8 items-center justify-center rounded bg-[var(--theme-primary)] text-white md:hidden"
+        className="fixed left-2 top-2 z-50 flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--text)] text-[var(--text-inverse)] md:hidden"
         aria-label="ສະຫຼັບເມນູ"
       >
         {open ? <X size={16} /> : <Menu size={16} />}
       </button>
-      {open && <div className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={() => setOpen(false)} />}
-      <div className={`fixed inset-y-0 left-0 z-50 transition-transform md:static md:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      {open && <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setOpen(false)} />}
+      <div
+        className={[
+          "fixed inset-y-0 left-0 z-50 transition-transform md:static md:translate-x-0",
+          open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+        ].join(" ")}
+      >
         {nav}
       </div>
     </>

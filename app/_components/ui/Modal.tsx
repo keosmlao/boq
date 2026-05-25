@@ -55,30 +55,31 @@ export function Modal({
   if (typeof window === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4 animate-fade-in">
       <div
-        className="absolute inset-0 bg-[#0f2137]/55 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40"
         onClick={closeOnBackdrop ? onClose : undefined}
       />
       <div
         role="dialog"
         aria-modal="true"
         className={cn(
-          "relative z-10 flex w-full flex-col overflow-hidden bg-white shadow-[var(--theme-shadow-lg)]",
-          "rounded-t-lg sm:rounded-lg",
+          "relative z-10 flex w-full flex-col overflow-hidden",
+          "bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-lg)]",
+          "rounded-t-[var(--radius-lg)] sm:rounded-[var(--radius-lg)]",
           "max-h-[92vh] sm:max-h-[85vh]",
           sizeStyles[size],
           className,
         )}
       >
         {(title || description) && (
-          <div className="flex items-start justify-between gap-3 border-b border-[var(--theme-border)] px-5 py-3.5">
+          <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-3.5">
             <div className="min-w-0">
               {title && (
-                <h3 className="text-sm font-bold text-[var(--theme-text)] truncate">{title}</h3>
+                <h3 className="text-[14px] font-semibold text-[var(--text)] truncate">{title}</h3>
               )}
               {description && (
-                <p className="mt-0.5 text-[11px] text-[var(--theme-text-soft)]">{description}</p>
+                <p className="mt-0.5 text-[12px] text-[var(--text-soft)]">{description}</p>
               )}
             </div>
             <IconButton
@@ -91,10 +92,12 @@ export function Modal({
           </div>
         )}
 
-        <div className="theme-scrollbar flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="theme-scrollbar flex-1 overflow-y-auto px-5 py-4 text-[var(--text)]">
+          {children}
+        </div>
 
         {footer && (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--theme-border)] bg-[var(--theme-surface-muted)] px-5 py-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] bg-[var(--surface-soft)] px-5 py-3">
             {footer}
           </div>
         )}
@@ -140,7 +143,7 @@ export function ConfirmModal({
             type="button"
             onClick={onClose}
             disabled={loading}
-              className="theme-btn-secondary rounded-md px-3.5 py-1.5 text-[12px] font-semibold"
+            className="h-8 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3.5 text-[12px] font-medium text-[var(--text)] hover:bg-[var(--bg-subtle)] disabled:opacity-60"
           >
             {cancelLabel}
           </button>
@@ -149,10 +152,10 @@ export function ConfirmModal({
             onClick={onConfirm}
             disabled={loading}
             className={cn(
-              "rounded-md px-3.5 py-1.5 text-[12px] font-semibold text-white shadow-md disabled:opacity-60",
+              "h-8 rounded-[var(--radius-sm)] px-3.5 text-[12px] font-medium text-white disabled:opacity-60",
               tone === "danger"
-                ? "bg-rose-500 hover:bg-rose-600"
-                : "bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-strong)]",
+                ? "bg-[var(--danger)] hover:opacity-90"
+                : "bg-[var(--brand)] hover:bg-[var(--brand-hover)]",
             )}
           >
             {loading ? "ກຳລັງດຳເນີນ..." : confirmLabel}

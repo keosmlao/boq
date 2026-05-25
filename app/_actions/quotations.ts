@@ -1,25 +1,39 @@
 "use server";
 
 import { query } from "@/_lib/db";
+import { cached, invalidate } from "@/_lib/cache";
 import { dateOrNull, ensureQuotationSchema, num } from "@/_lib/schemas/quotations";
 
 type Fail = { success: false; message: string };
 function fail(message: string): Fail { return { success: false, message }; }
 
+const TTL = 10_000;
+
 export async function getQuotations(opts: { projectId?: string; status?: string; search?: string } = {}): Promise<{ success: true; data: unknown[] } | Fail> {
   try {
-    await ensureQuotationSchema();
-    const conds: string[] = [];
-    const params: unknown[] = [];
-    if (opts.projectId) { params.push(opts.projectId); conds.push(`project_id = $${params.length}`); }
-    if (opts.status && opts.status !== "all") { params.push(opts.status); conds.push(`status = $${params.length}`); }
-    if (opts.search) {
-      params.push(`%${opts.search}%`);
-      conds.push(`(quotation_no ILIKE $${params.length} OR project_name ILIKE $${params.length} OR customer_name ILIKE $${params.length})`);
-    }
-    const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
-    const result = await query(`SELECT * FROM odg_quotation ${where} ORDER BY created_at DESC LIMIT 500`, params);
-    return { success: true, data: result.rows };
+    // Cache list-by-filters. Search results aren't cached (typing changes each
+    // keystroke and we don't want stale matches lingering).
+    const cacheKey = opts.search
+      ? null
+      : `quotations:list:${opts.projectId || "all"}:${opts.status || "any"}`;
+
+    const load = async () => {
+      await ensureQuotationSchema();
+      const conds: string[] = [];
+      const params: unknown[] = [];
+      if (opts.projectId) { params.push(opts.projectId); conds.push(`project_id = $${params.length}`); }
+      if (opts.status && opts.status !== "all") { params.push(opts.status); conds.push(`status = $${params.length}`); }
+      if (opts.search) {
+        params.push(`%${opts.search}%`);
+        conds.push(`(quotation_no ILIKE $${params.length} OR project_name ILIKE $${params.length} OR customer_name ILIKE $${params.length})`);
+      }
+      const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+      const result = await query(`SELECT * FROM odg_quotation ${where} ORDER BY created_at DESC LIMIT 500`, params);
+      return result.rows;
+    };
+
+    const data = cacheKey ? await cached(cacheKey, TTL, load) : await load();
+    return { success: true, data };
   } catch (e) { return fail((e as Error).message); }
 }
 
@@ -57,6 +71,7 @@ export async function createQuotation(body: any): Promise<{ success: true; data:
         JSON.stringify(Array.isArray(body.items) ? body.items : []),
       ],
     );
+    invalidate("quotations:");
     return { success: true, data: result.rows[0] };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -104,6 +119,7 @@ export async function updateQuotation(id: string, body: any): Promise<{ success:
       ],
     );
     if (!result.rows.length) return fail("Quotation not found");
+    invalidate("quotations:");
     return { success: true, data: result.rows[0] };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -113,6 +129,7 @@ export async function deleteQuotation(id: string): Promise<{ success: true } | F
     await ensureQuotationSchema();
     const result = await query(`DELETE FROM odg_quotation WHERE id = $1 RETURNING id`, [id]);
     if (!result.rows.length) return fail("Quotation not found");
+    invalidate("quotations:");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }
 }

@@ -28,17 +28,17 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn("mb-4", className)}>
+    <div className={cn("mb-5", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav className="mb-2 flex flex-wrap items-center gap-1 text-[11px] text-[var(--theme-text-soft)]">
+        <nav className="mb-2 flex flex-wrap items-center gap-1 text-[11px] text-[var(--text-mute)]">
           {breadcrumbs.map((b, i) => (
             <span key={i} className="flex items-center gap-1">
               {b.href ? (
-                <Link href={b.href} className="hover:text-[var(--theme-primary)]">
+                <Link href={b.href} className="hover:text-[var(--text)] transition-colors">
                   {b.label}
                 </Link>
               ) : (
-                <span className="text-[var(--theme-text)] font-medium">{b.label}</span>
+                <span className="text-[var(--text-soft)] font-medium">{b.label}</span>
               )}
               {i < breadcrumbs.length - 1 && <ChevronRight size={11} />}
             </span>
@@ -48,16 +48,16 @@ export function PageHeader({
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           {icon && (
-            <div className="theme-icon-badge flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--brand-soft)] text-[var(--brand)]">
               {icon}
             </div>
           )}
           <div className="min-w-0">
-            <h1 className="text-base sm:text-lg font-bold tracking-tight text-[var(--theme-text)] truncate">
+            <h1 className="text-[18px] sm:text-[20px] font-semibold tracking-tight text-[var(--text)] truncate">
               {title}
             </h1>
             {description && (
-              <p className="mt-0.5 text-[12px] text-[var(--theme-text-soft)]">{description}</p>
+              <p className="mt-0.5 text-[12.5px] text-[var(--text-soft)]">{description}</p>
             )}
           </div>
         </div>

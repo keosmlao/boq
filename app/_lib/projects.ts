@@ -67,18 +67,34 @@ const PROJECT_SELECT = `
 `;
 
 let ensureStatusHistoryTablePromise = null;
+let ensureContractColumnsPromise = null;
+let quotationTableExistsPromise = null;
 const MINUTE_IN_MS = 60 * 1000;
 
 async function ensureProjectContractCurrencyColumn(client = null) {
+  // Once these ALTERs succeed (in any session), the columns exist for everyone.
+  // Cache so subsequent list-loads don't pay the DDL lock + round-trip.
+  if (ensureContractColumnsPromise) {
+    return ensureContractColumnsPromise;
+  }
+
   const runner = client ? client.query.bind(client) : query;
-  await runner(`
-    ALTER TABLE odg_projects_contract
-    ADD COLUMN IF NOT EXISTS currency_code VARCHAR(16)
-  `);
-  await runner(`
-    ALTER TABLE odg_projects_contract
-    ADD COLUMN IF NOT EXISTS quotation_id BIGINT
-  `);
+  ensureContractColumnsPromise = (async () => {
+    await runner(`
+      ALTER TABLE odg_projects_contract
+      ADD COLUMN IF NOT EXISTS currency_code VARCHAR(16)
+    `);
+    await runner(`
+      ALTER TABLE odg_projects_contract
+      ADD COLUMN IF NOT EXISTS quotation_id BIGINT
+    `);
+  })().catch((err) => {
+    // Reset on failure so the next request retries instead of being stuck.
+    ensureContractColumnsPromise = null;
+    throw err;
+  });
+
+  return ensureContractColumnsPromise;
 }
 
 function normalizeHistoryValue(value) {
@@ -732,8 +748,27 @@ async function getProjectContractSummaryMap(projectIds) {
 async function getProjectQuotationSummaryMap(projectIds) {
   if (!projectIds.length) return new Map();
 
-  const tableCheck = await query(`SELECT to_regclass('public.odg_quotation') AS table_name`, []);
-  if (!tableCheck.rows[0]?.table_name) return new Map();
+  // Cache the "does odg_quotation exist?" check. It's created lazily by
+  // ensureQuotationSchema(); once it exists it doesn't get dropped, so a single
+  // confirmation is good for the process lifetime.
+  if (!quotationTableExistsPromise) {
+    quotationTableExistsPromise = query(
+      `SELECT to_regclass('public.odg_quotation') AS table_name`,
+      [],
+    )
+      .then((res) => Boolean(res.rows[0]?.table_name))
+      .catch((err) => {
+        quotationTableExistsPromise = null;
+        throw err;
+      });
+  }
+
+  const exists = await quotationTableExistsPromise;
+  if (!exists) {
+    // Re-check next time in case the schema gets created later in the session.
+    quotationTableExistsPromise = null;
+    return new Map();
+  }
 
   const result = await query(
     `

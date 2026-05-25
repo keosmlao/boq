@@ -2,6 +2,8 @@ import localFont from "next/font/local";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { ThemeProvider } from "./_components/theme/ThemeProvider";
+import { ThemeScript } from "./_components/theme/theme-script";
 
 const notoSansLao = localFont({
   src: [
@@ -50,9 +52,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="lo">
+    <html lang="lo" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body className={`${notoSansLao.className} ${notoSansLao.variable}`}>
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

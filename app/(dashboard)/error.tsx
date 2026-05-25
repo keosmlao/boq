@@ -1,20 +1,31 @@
 "use client";
 
-export default function Error({ error, reset }) {
+import { AlertCircle, RotateCcw } from "lucide-react";
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
-    <div className="flex items-center justify-center h-full min-h-[60vh]">
-      <div className="text-center max-w-md p-8">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-red-500 text-2xl font-bold">!</span>
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-full max-w-sm text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--danger-soft)] text-[var(--danger)]">
+          <AlertCircle size={22} />
         </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-2">ເກີດຂໍ້ຜິດພາດ</h2>
-        <p className="text-slate-500 text-sm mb-6">
+        <h2 className="mt-4 text-[16px] font-semibold text-[var(--text)]">
+          ເກີດຂໍ້ຜິດພາດ
+        </h2>
+        <p className="mt-1.5 text-[12.5px] text-[var(--text-soft)]">
           {error?.message || "ມີບັນຫາໃນການໂຫຼດໜ້ານີ້"}
         </p>
         <button
           onClick={reset}
-          className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+          className="mt-5 inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-sm)] bg-[var(--brand)] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[var(--brand-hover)]"
         >
+          <RotateCcw size={14} />
           ລອງໃໝ່
         </button>
       </div>

@@ -41,22 +41,22 @@ export function useToast() {
   return ctx;
 }
 
-const toneStyles: Record<ToastTone, { bg: string; icon: ReactNode }> = {
+const toneStyles: Record<ToastTone, { accent: string; icon: ReactNode }> = {
   success: {
-    bg: "border-emerald-200 bg-emerald-50",
-    icon: <CheckCircle2 size={16} className="text-emerald-600" />,
+    accent: "border-l-[var(--success)]",
+    icon: <CheckCircle2 size={16} className="text-[var(--success)]" />,
   },
   error: {
-    bg: "border-rose-200 bg-rose-50",
-    icon: <XCircle size={16} className="text-rose-600" />,
+    accent: "border-l-[var(--danger)]",
+    icon: <XCircle size={16} className="text-[var(--danger)]" />,
   },
   warning: {
-    bg: "border-amber-200 bg-amber-50",
-    icon: <AlertTriangle size={16} className="text-amber-600" />,
+    accent: "border-l-[var(--warning)]",
+    icon: <AlertTriangle size={16} className="text-[var(--warning)]" />,
   },
   info: {
-    bg: "border-sky-200 bg-sky-50",
-    icon: <Info size={16} className="text-sky-600" />,
+    accent: "border-l-[var(--info)]",
+    icon: <Info size={16} className="text-[var(--info)]" />,
   },
 };
 
@@ -120,23 +120,23 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   key={t.id}
                   role="status"
                   className={cn(
-                    "pointer-events-auto flex items-start gap-2.5 rounded-md border bg-white px-3.5 py-3 shadow-[var(--theme-shadow)] backdrop-blur",
-                    s.bg,
+                    "pointer-events-auto flex items-start gap-2.5 rounded-[var(--radius-md)] border border-[var(--border)] border-l-4 bg-[var(--surface)] px-3.5 py-3 shadow-[var(--shadow-md)] animate-fade-in",
+                    s.accent,
                   )}
                 >
                   <div className="mt-0.5">{s.icon}</div>
                   <div className="min-w-0 flex-1">
                     {t.title && (
-                      <div className="text-[12.5px] font-bold text-[var(--theme-text)]">
+                      <div className="text-[12.5px] font-semibold text-[var(--text)]">
                         {t.title}
                       </div>
                     )}
-                    <div className="text-[12px] text-[var(--theme-text)]">{t.message}</div>
+                    <div className="text-[12px] text-[var(--text-soft)]">{t.message}</div>
                   </div>
                   <button
                     type="button"
                     onClick={() => dismiss(t.id)}
-                    className="flex h-5 w-5 items-center justify-center rounded text-[var(--theme-text-soft)] hover:bg-black/5"
+                    className="flex h-5 w-5 items-center justify-center rounded text-[var(--text-mute)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)]"
                     aria-label="ປິດ"
                   >
                     <X size={12} />

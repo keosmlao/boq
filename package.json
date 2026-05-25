@@ -2,7 +2,7 @@
   "name": "odg-project-management",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "clean": "node -e \"const fs=require('fs');['.next','.next-dev','.next-build'].forEach((dir)=>fs.rmSync(dir,{recursive:true,force:true}))\"",
     "dev": "node scripts/dev.mjs",

@@ -9,9 +9,9 @@ export interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
 
 const roundedMap = {
   sm: "rounded",
-  md: "rounded-md",
-  lg: "rounded-lg",
-  xl: "rounded-md",
+  md: "rounded-[var(--radius-sm)]",
+  lg: "rounded-[var(--radius-md)]",
+  xl: "rounded-[var(--radius-lg)]",
   full: "rounded-full",
 };
 
@@ -19,7 +19,7 @@ export function Skeleton({ rounded = "md", className, ...rest }: SkeletonProps) 
   return (
     <div
       className={cn(
-        "animate-pulse bg-[linear-gradient(90deg,#e2ebf6_0%,#eef3fa_50%,#e2ebf6_100%)]",
+        "animate-pulse bg-[var(--bg-subtle)]",
         roundedMap[rounded],
         className,
       )}
@@ -43,7 +43,7 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
 
 export function SkeletonCard({ className }: { className?: string }) {
   return (
-    <div className={cn("theme-card rounded-md p-4", className)}>
+    <div className={cn("rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4", className)}>
       <div className="flex items-center gap-3">
         <Skeleton rounded="lg" className="h-10 w-10" />
         <div className="flex-1 space-y-2">

@@ -2,8 +2,9 @@
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createQuotation, updateQuotation } from "@/_actions/quotations";
-import { updateProjectAction } from "@/_actions/projects";
+import { createQuotation, getQuotation, updateQuotation } from "@/_actions/quotations";
+import { getProjects, updateProjectAction } from "@/_actions/projects";
+import { getInventory } from "@/_actions/lookups";
 import Select from "react-select";
 import Swal from "sweetalert2";
 import {
@@ -260,14 +261,17 @@ export default function CreateQuotation() {
   const loadProjects = async () => {
     try {
       setLoading(true);
-      const res = await _getJson("/api/projects");
-      const options = (res?.data || []).map((p: any) => ({
+      const res: any = await getProjects({ summary: true });
+      const rows: any[] = Array.isArray(res?.data) ? res.data : [];
+      const options = rows.map((p: any) => ({
         value: p.id,
         label: `${p.project_name} (${p.id})`,
         project_name: p.project_name,
         customer_name: p.coordinator,
         customer_phone: p.phone,
-        customer_address: `${p.village_name || ""}, ${p.district_name || ""}, ${p.province_name || ""}`,
+        customer_address: [p.village_name, p.district_name, p.province_name]
+          .filter(Boolean)
+          .join(", "),
       }));
       setProjects(options);
     } catch (e) {
@@ -280,8 +284,9 @@ export default function CreateQuotation() {
   const loadQuotationData = async (quotationId: string) => {
     try {
       setLoading(true);
-      const res = await _getJson(`/api/quotations/${quotationId}`);
-      const q = res || {};
+      const res: any = await getQuotation(quotationId);
+      if (res?.success === false) throw new Error(res.message || "Quotation not found");
+      const q: any = res || {};
       const incomingItems: any[] = Array.isArray(q.items) ? q.items : [];
       const items = incomingItems.length
         ? incomingItems.map((it: any) => ({
@@ -347,8 +352,8 @@ export default function CreateQuotation() {
     }
     setLoadingProducts(true);
     try {
-      const res = await _getJson(`/api/inventory?search=${encodeURIComponent(term)}`);
-      const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+      const res: any = await getInventory({ search: term });
+      const list = Array.isArray(res?.data) ? res.data : [];
       setProducts(list);
     } catch {
       setProducts([]);

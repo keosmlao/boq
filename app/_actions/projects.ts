@@ -1,6 +1,7 @@
 "use server";
 
 import { query } from "@/_lib/db";
+import { cached, invalidate } from "@/_lib/cache";
 import { cleanText, isTruthyFlag } from "@/_lib/http";
 import {
   approveProjectRequest,
@@ -20,6 +21,10 @@ import {
 } from "@/_lib/projects";
 import { saveWebFile } from "@/_lib/uploads";
 
+// Short TTL — keeps rapid navigations snappy without making writes feel stale.
+// Mutating actions below call `invalidate("projects:")` to drop these.
+const LIST_TTL_MS = 10_000;
+
 type Ok<T> = { success: true; data?: T; message?: string; id?: unknown };
 type Fail = { success: false; message: string };
 type Result<T = unknown> = Ok<T> | Fail;
@@ -34,7 +39,13 @@ function f(formData: FormData, key: string): string {
 
 export async function getProjects(opts: { summary?: boolean } = {}): Promise<Result<unknown[]>> {
   try {
-    return ok({ data: await listProjects({ summary: !!opts.summary }) });
+    const summary = !!opts.summary;
+    const data = await cached(
+      `projects:list:${summary ? "summary" : "full"}`,
+      LIST_TTL_MS,
+      () => listProjects({ summary }),
+    );
+    return ok({ data });
   } catch (e) { return fail((e as Error).message); }
 }
 
@@ -74,13 +85,20 @@ export async function createProjectAction(formData: FormData): Promise<Result> {
       imageUrl,
     });
 
+    invalidate("projects:");
     return ok({ message: "Created", id: projectId });
   } catch (e) { return fail((e as Error).message); }
 }
 
 export async function getProject(id: string, opts: { includeContracts?: boolean } = {}): Promise<Result<unknown>> {
   try {
-    const project = await getProjectById(cleanText(id), { includeContracts: !!opts.includeContracts });
+    const clean = cleanText(id);
+    const includeContracts = !!opts.includeContracts;
+    const project = await cached(
+      `projects:detail:${clean}:${includeContracts ? "with-contracts" : "plain"}`,
+      LIST_TTL_MS,
+      () => getProjectById(clean, { includeContracts }),
+    );
     if (!project) return fail("Project not found");
     return ok({ data: project });
   } catch (e) { return fail((e as Error).message); }
@@ -90,6 +108,7 @@ export async function updateProjectAction(id: string, payload: Record<string, un
   try {
     const updated = await updateProjectStage(cleanText(id), payload || {});
     if (!updated) return fail("No valid fields to update");
+    invalidate("projects:");
     return ok({ message: "Updated" });
   } catch (e) { return fail((e as Error).message); }
 }
@@ -97,6 +116,7 @@ export async function updateProjectAction(id: string, payload: Record<string, un
 export async function deleteProjectAction(id: string): Promise<Result> {
   try {
     await deleteProjectCascade(cleanText(id));
+    invalidate("projects:");
     return ok({ message: "Deleted" });
   } catch (e) { return fail((e as Error).message); }
 }
@@ -139,6 +159,7 @@ export async function editProjectAction(id: string, formData: FormData): Promise
       imageUrl,
     });
 
+    invalidate("projects:");
     return ok({ message: "Updated" });
   } catch (e) { return fail((e as Error).message); }
 }
@@ -150,6 +171,7 @@ export async function approveProjectAction(id: string, payload: { username?: str
       contractNo: payload?.contract_no,
     });
     if (!updated) return fail("No pending contract found for this project");
+    invalidate("projects:");
     return ok({ message: "Approved" });
   } catch (e) { return fail((e as Error).message); }
 }
@@ -157,6 +179,7 @@ export async function approveProjectAction(id: string, payload: { username?: str
 export async function updateProjectLocationsAction(id: string, payload: Record<string, unknown>): Promise<Result> {
   try {
     await updateProjectLocations(cleanText(id), payload || {});
+    invalidate("projects:");
     return ok({ message: "Locations updated" });
   } catch (e) { return fail((e as Error).message); }
 }
@@ -171,13 +194,15 @@ export async function deleteProjectContract(id: string, contractNo: string): Pro
   try {
     const result = await deleteProjectContractCascade(cleanText(id), cleanText(decodeURIComponent(contractNo)));
     if (!result) return fail("Contract not found");
+    invalidate("projects:");
     return ok({ message: "Contract deleted", data: result });
   } catch (e) { return fail((e as Error).message); }
 }
 
 export async function getProjectInstallments(): Promise<Result<unknown[]>> {
   try {
-    const result = await query(`
+    const data = await cached("projects:installments", LIST_TTL_MS, async () => {
+      const result = await query(`
       SELECT
         p.id,
         p.project_name,
@@ -193,19 +218,31 @@ export async function getProjectInstallments(): Promise<Result<unknown[]>> {
       LEFT JOIN odg_projects_item i ON i.contract_no::text = c.contract_no::text
       ORDER BY p.id DESC, c.contract_no, i.installment_no
     `);
-    return ok({ data: result.rows });
+      return result.rows;
+    });
+    return ok({ data });
   } catch (e) { return fail((e as Error).message); }
 }
 
 export async function getProjectDashboardStats(): Promise<Result> {
   try {
-    return { success: true, ...(await getDashboardStats() as Record<string, unknown>) };
+    const stats = await cached(
+      "projects:dashboard-stats",
+      LIST_TTL_MS,
+      () => getDashboardStats() as Promise<Record<string, unknown>>,
+    );
+    return { success: true, ...stats };
   } catch (e) { return fail((e as Error).message); }
 }
 
 export async function getProjectRevenueStats(): Promise<Result> {
   try {
-    return { success: true, ...(await getRevenueStats() as Record<string, unknown>) };
+    const stats = await cached(
+      "projects:revenue-stats",
+      LIST_TTL_MS,
+      () => getRevenueStats() as Promise<Record<string, unknown>>,
+    );
+    return { success: true, ...stats };
   } catch (e) { return fail((e as Error).message); }
 }
 
@@ -215,98 +252,115 @@ export async function getProjectsBoq(opts: { projectId?: string; summary?: boole
     const summary = !!opts.summary;
     const contracts = !!opts.contracts;
 
+    // Per-project detail is page-specific; the three list variants below all
+    // hit large joined queries we want to dedupe across navigations.
+    const cacheKey = projectId
+      ? null
+      : `projects:boq:${contracts ? "contracts" : summary ? "summary" : "all"}`;
+
     if (projectId) {
-      const result = await query(
-        `
-        WITH boq_by_contract AS (
-          SELECT
-            contract_id,
-            json_agg(
-              json_build_object(
-                'doc_no', doc_no,
-                'doc_date', doc_date,
-                'approve_status', approve_status
-              )
-              ORDER BY doc_no DESC
-            ) AS boq_list
-          FROM odg_projects_boq
-          WHERE contract_id IS NOT NULL
-          GROUP BY contract_id
-        )
-        SELECT
-          p.*,
-          pv.name_1 AS province_name,
-          d.name_1 AS district_name,
-          v.name_1 AS village_name,
-          json_agg(
-            json_build_object(
-              'contract_no', c.contract_no,
-              'contract_name', c.contract_name,
-              'amount', c.amount,
-              'contract_value', c.amount,
-              'project_id', c.project_id,
-              'cust_code', c.cust_code,
-              'roworder', c.roworder,
-              'contract_id', c.roworder,
-              'approve_status_1', c.approve_status_1,
-              'approve_status_2', c.approve_status_2,
-              'acc_approve', c.acc_approve,
-              'has_boq', b.contract_id IS NOT NULL,
-              'boq_status', CASE WHEN b.contract_id IS NOT NULL THEN 'done' ELSE 'pending' END,
-              'boq_list', COALESCE(b.boq_list, '[]'::json)
+      const data = await cached(
+        `projects:boq:detail:${projectId}`,
+        LIST_TTL_MS,
+        async () => {
+          const result = await query(
+            `
+            WITH boq_by_contract AS (
+              SELECT
+                contract_id,
+                json_agg(
+                  json_build_object(
+                    'doc_no', doc_no,
+                    'doc_date', doc_date,
+                    'approve_status', approve_status
+                  )
+                  ORDER BY doc_no DESC
+                ) AS boq_list
+              FROM odg_projects_boq
+              WHERE contract_id IS NOT NULL
+              GROUP BY contract_id
             )
-            ORDER BY c.created_at DESC, c.roworder DESC
-          ) FILTER (WHERE c.contract_no IS NOT NULL) AS contractlist
-        FROM odg_projects p
-        LEFT JOIN erp_province pv ON pv.code = p.province
-        LEFT JOIN erp_amper d ON d.code = p.district AND d.province = p.province
-        LEFT JOIN erp_tambon v ON v.code = p.village AND v.amper = p.district AND v.province = p.province
-        LEFT JOIN odg_projects_contract c ON c.project_id::int = p.id
-        LEFT JOIN boq_by_contract b ON b.contract_id = c.roworder
-        WHERE p.id = $1
-        GROUP BY p.id, pv.name_1, d.name_1, v.name_1
-        `,
-        [projectId],
+            SELECT
+              p.*,
+              pv.name_1 AS province_name,
+              d.name_1 AS district_name,
+              v.name_1 AS village_name,
+              json_agg(
+                json_build_object(
+                  'contract_no', c.contract_no,
+                  'contract_name', c.contract_name,
+                  'amount', c.amount,
+                  'contract_value', c.amount,
+                  'project_id', c.project_id,
+                  'cust_code', c.cust_code,
+                  'roworder', c.roworder,
+                  'contract_id', c.roworder,
+                  'approve_status_1', c.approve_status_1,
+                  'approve_status_2', c.approve_status_2,
+                  'acc_approve', c.acc_approve,
+                  'has_boq', b.contract_id IS NOT NULL,
+                  'boq_status', CASE WHEN b.contract_id IS NOT NULL THEN 'done' ELSE 'pending' END,
+                  'boq_list', COALESCE(b.boq_list, '[]'::json)
+                )
+                ORDER BY c.created_at DESC, c.roworder DESC
+              ) FILTER (WHERE c.contract_no IS NOT NULL) AS contractlist
+            FROM odg_projects p
+            LEFT JOIN erp_province pv ON pv.code = p.province
+            LEFT JOIN erp_amper d ON d.code = p.district AND d.province = p.province
+            LEFT JOIN erp_tambon v ON v.code = p.village AND v.amper = p.district AND v.province = p.province
+            LEFT JOIN odg_projects_contract c ON c.project_id::int = p.id
+            LEFT JOIN boq_by_contract b ON b.contract_id = c.roworder
+            WHERE p.id = $1
+            GROUP BY p.id, pv.name_1, d.name_1, v.name_1
+            `,
+            [projectId],
+          );
+          return result.rows;
+        },
       );
-      return ok({ data: result.rows });
+      return ok({ data });
     }
 
     if (contracts) {
-      const result = await query(`
-        WITH boq_contracts AS (
-          SELECT DISTINCT contract_id
-          FROM odg_projects_boq
-          WHERE contract_id IS NOT NULL
-        )
-        SELECT
-          c.contract_no, c.contract_name, c.amount, c.amount AS contract_value,
-          c.cust_code, c.roworder, c.roworder AS contract_id,
-          c.approve_status_1, c.approve_status_2, c.acc_approve,
-          c.created_at AS contract_created_at,
-          (bc.contract_id IS NOT NULL) AS has_boq,
-          CASE WHEN bc.contract_id IS NOT NULL THEN 'done' ELSE 'pending' END AS boq_status,
-          p.id AS project_id, p.project_name, p.sml_code, p.project_status,
-          p.coordinator, p.phone,
-          pv.name_1 AS province_name, d.name_1 AS district_name, v.name_1 AS village_name
-        FROM odg_projects_contract c
-        INNER JOIN odg_projects p ON p.id = c.project_id::int
-        LEFT JOIN erp_province pv ON pv.code = p.province
-        LEFT JOIN erp_amper d ON d.code = p.district AND d.province = p.province
-        LEFT JOIN erp_tambon v ON v.code = p.village AND v.amper = p.district AND v.province = p.province
-        LEFT JOIN boq_contracts bc ON bc.contract_id = c.roworder
-        WHERE p.project_status IN (
-          'ຂັ້ນຕອນດຳເນີນໂຄງການ',
-          'ສາມາດເບີກຂອງໃດ້',
-          'ດຳເນີນການຕິດຕັ້ງ',
-          'ລໍຖ້າອະນຸມັດປິດໂຄງການ'
-        )
-        ORDER BY p.id DESC, c.created_at DESC, c.roworder DESC
-      `);
-      return ok({ data: result.rows });
+      const data = await cached(cacheKey!, LIST_TTL_MS, async () => {
+        const result = await query(`
+          WITH boq_contracts AS (
+            SELECT DISTINCT contract_id
+            FROM odg_projects_boq
+            WHERE contract_id IS NOT NULL
+          )
+          SELECT
+            c.contract_no, c.contract_name, c.amount, c.amount AS contract_value,
+            c.cust_code, c.roworder, c.roworder AS contract_id,
+            c.approve_status_1, c.approve_status_2, c.acc_approve,
+            c.created_at AS contract_created_at,
+            (bc.contract_id IS NOT NULL) AS has_boq,
+            CASE WHEN bc.contract_id IS NOT NULL THEN 'done' ELSE 'pending' END AS boq_status,
+            p.id AS project_id, p.project_name, p.sml_code, p.project_status,
+            p.coordinator, p.phone,
+            pv.name_1 AS province_name, d.name_1 AS district_name, v.name_1 AS village_name
+          FROM odg_projects_contract c
+          INNER JOIN odg_projects p ON p.id = c.project_id::int
+          LEFT JOIN erp_province pv ON pv.code = p.province
+          LEFT JOIN erp_amper d ON d.code = p.district AND d.province = p.province
+          LEFT JOIN erp_tambon v ON v.code = p.village AND v.amper = p.district AND v.province = p.province
+          LEFT JOIN boq_contracts bc ON bc.contract_id = c.roworder
+          WHERE p.project_status IN (
+            'ຂັ້ນຕອນດຳເນີນໂຄງການ',
+            'ສາມາດເບີກຂອງໃດ້',
+            'ດຳເນີນການຕິດຕັ້ງ',
+            'ລໍຖ້າອະນຸມັດປິດໂຄງການ'
+          )
+          ORDER BY p.id DESC, c.created_at DESC, c.roworder DESC
+        `);
+        return result.rows;
+      });
+      return ok({ data });
     }
 
     if (summary) {
-      const result = await query(`
+      const data = await cached(cacheKey!, LIST_TTL_MS, async () => {
+        const result = await query(`
         WITH boq_contracts AS (
           SELECT DISTINCT contract_id
           FROM odg_projects_boq
@@ -364,24 +418,30 @@ export async function getProjectsBoq(opts: { projectId?: string; summary?: boole
         GROUP BY p.id, pv.name_1, d.name_1, v.name_1
         ORDER BY p.id DESC
       `);
-      return ok({ data: result.rows });
+        return result.rows;
+      });
+      return ok({ data });
     }
 
-    const result = await query(`
-      SELECT p.*, pv.name_1 AS province_name, d.name_1 AS district_name, v.name_1 AS village_name
-      FROM odg_projects p
-      LEFT JOIN erp_province pv ON pv.code = p.province
-      LEFT JOIN erp_amper d ON d.code = p.district AND d.province = p.province
-      LEFT JOIN erp_tambon v ON v.code = p.village AND v.amper = p.district AND v.province = p.province
-      ORDER BY p.id DESC
-    `);
-    return ok({ data: result.rows });
+    const data = await cached(cacheKey!, LIST_TTL_MS, async () => {
+      const result = await query(`
+        SELECT p.*, pv.name_1 AS province_name, d.name_1 AS district_name, v.name_1 AS village_name
+        FROM odg_projects p
+        LEFT JOIN erp_province pv ON pv.code = p.province
+        LEFT JOIN erp_amper d ON d.code = p.district AND d.province = p.province
+        LEFT JOIN erp_tambon v ON v.code = p.village AND v.amper = p.district AND v.province = p.province
+        ORDER BY p.id DESC
+      `);
+      return result.rows;
+    });
+    return ok({ data });
   } catch (e) { return fail((e as Error).message); }
 }
 
 export async function getProjectsBoqClose(): Promise<Result<unknown[]>> {
   try {
-    const result = await query(`
+    const data = await cached("projects:boq:close", LIST_TTL_MS, async () => {
+      const result = await query(`
       SELECT
         p.id, p.project_name, p.sml_code, p.project_status,
         p.coordinator, p.phone,
@@ -395,13 +455,20 @@ export async function getProjectsBoqClose(): Promise<Result<unknown[]>> {
       WHERE p.project_status IN ('ລໍຖ້າອະນຸມັດປິດໂຄງການ', 'ປິດໂຄງການ')
       ORDER BY p.id DESC
     `);
-    return ok({ data: result.rows });
+      return result.rows;
+    });
+    return ok({ data });
   } catch (e) { return fail((e as Error).message); }
 }
 
 export async function getProjectsWaitingApprove(): Promise<Result<unknown[]>> {
   try {
-    return ok({ data: await listPendingProjectApprovals() });
+    const data = await cached(
+      "projects:waiting-approve",
+      LIST_TTL_MS,
+      () => listPendingProjectApprovals(),
+    );
+    return ok({ data });
   } catch (e) { return fail((e as Error).message); }
 }
 
@@ -414,6 +481,7 @@ export async function createProjectRequestAction(payload: Record<string, unknown
       return fail("contract_no and contract_name are required");
     }
     const result = await createProjectRequest(payload);
+    invalidate("projects:");
     return ok({ message: "Request submitted", data: result });
   } catch (e) { return fail((e as Error).message); }
 }

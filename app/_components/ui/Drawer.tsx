@@ -63,7 +63,7 @@ export function Drawer({
       <div
         onClick={closeOnBackdrop ? onClose : undefined}
         className={cn(
-          "absolute inset-0 bg-[#0f2137]/55 backdrop-blur-sm transition-opacity duration-200",
+          "absolute inset-0 bg-black/40 transition-opacity duration-200",
           open ? "opacity-100" : "opacity-0",
         )}
       />
@@ -71,9 +71,11 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         className={cn(
-          "absolute top-0 bottom-0 flex flex-col bg-white shadow-[var(--theme-shadow-lg)] transition-transform duration-300 ease-out",
+          "absolute top-0 bottom-0 flex flex-col",
+          "bg-[var(--surface)] border-[var(--border)] shadow-[var(--shadow-lg)]",
+          "transition-transform duration-250 ease-out",
           widthStyles[width],
-          side === "right" ? "right-0" : "left-0",
+          side === "right" ? "right-0 border-l" : "left-0 border-r",
           open
             ? "translate-x-0"
             : side === "right"
@@ -82,13 +84,13 @@ export function Drawer({
         )}
       >
         {(title || description) && (
-          <div className="flex items-start justify-between gap-3 border-b border-[var(--theme-border)] px-5 py-3.5">
+          <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-3.5">
             <div className="min-w-0">
               {title && (
-                <h3 className="text-sm font-bold text-[var(--theme-text)] truncate">{title}</h3>
+                <h3 className="text-[14px] font-semibold text-[var(--text)] truncate">{title}</h3>
               )}
               {description && (
-                <p className="mt-0.5 text-[11px] text-[var(--theme-text-soft)]">{description}</p>
+                <p className="mt-0.5 text-[12px] text-[var(--text-soft)]">{description}</p>
               )}
             </div>
             <IconButton
@@ -100,9 +102,11 @@ export function Drawer({
             />
           </div>
         )}
-        <div className="theme-scrollbar flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="theme-scrollbar flex-1 overflow-y-auto px-5 py-4 text-[var(--text)]">
+          {children}
+        </div>
         {footer && (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--theme-border)] bg-[var(--theme-surface-muted)] px-5 py-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] bg-[var(--surface-soft)] px-5 py-3">
             {footer}
           </div>
         )}

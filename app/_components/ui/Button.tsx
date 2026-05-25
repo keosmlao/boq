@@ -16,24 +16,24 @@ export type ButtonSize = "xs" | "sm" | "md" | "lg";
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    "bg-[linear-gradient(135deg,var(--theme-primary)_0%,var(--theme-primary-strong)_100%)] text-white border border-[rgba(15,118,110,0.22)] shadow-[0_16px_28px_-22px_rgba(15,94,89,0.7)] hover:brightness-95 active:brightness-90",
+    "bg-[var(--brand)] text-white border border-[var(--brand)] hover:bg-[var(--brand-hover)] hover:border-[var(--brand-hover)]",
   secondary:
-    "bg-white text-[var(--theme-text)] border border-[var(--theme-border)] hover:bg-[var(--theme-primary-tint)] hover:border-[var(--theme-primary-soft)]",
+    "bg-[var(--surface)] text-[var(--text)] border border-[var(--border)] hover:bg-[var(--bg-subtle)] hover:border-[var(--border-strong)]",
   ghost:
-    "bg-transparent text-[var(--theme-text)] hover:bg-[var(--theme-primary-tint)]",
+    "bg-transparent text-[var(--text-soft)] border border-transparent hover:bg-[var(--bg-subtle)] hover:text-[var(--text)]",
   outline:
-    "bg-transparent text-[var(--theme-primary)] border border-[var(--theme-primary-soft)] hover:bg-[var(--theme-primary-tint)]",
+    "bg-transparent text-[var(--brand)] border border-[var(--brand)] hover:bg-[var(--brand-soft)]",
   danger:
-    "bg-rose-500 text-white border border-rose-600/20 shadow-[0_18px_30px_-22px_rgba(190,18,60,0.55)] hover:bg-rose-600",
+    "bg-[var(--danger)] text-white border border-[var(--danger)] hover:opacity-90",
   success:
-    "bg-emerald-500 text-white border border-emerald-600/20 shadow-[0_18px_30px_-22px_rgba(5,150,105,0.55)] hover:bg-emerald-600",
+    "bg-[var(--success)] text-white border border-[var(--success)] hover:opacity-90",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  xs: "h-7 px-2.5 text-[11px] gap-1 rounded",
-  sm: "h-8 px-3 text-xs gap-1.5 rounded-md",
-  md: "h-9 px-3.5 text-[13px] gap-2 rounded-md",
-  lg: "h-10 px-5 text-sm gap-2 rounded-lg",
+  xs: "h-7 px-2.5 text-[11px] gap-1 rounded-[var(--radius-sm)]",
+  sm: "h-8 px-3 text-xs gap-1.5 rounded-[var(--radius-sm)]",
+  md: "h-9 px-3.5 text-[13px] gap-2 rounded-[var(--radius-sm)]",
+  lg: "h-10 px-5 text-sm gap-2 rounded-[var(--radius-md)]",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -67,9 +67,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex items-center justify-center font-semibold whitespace-nowrap transition-all select-none",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--theme-primary-soft)] focus-visible:ring-offset-1 focus-visible:ring-offset-white",
-        "disabled:opacity-55 disabled:cursor-not-allowed disabled:shadow-none",
+        "inline-flex items-center justify-center font-medium whitespace-nowrap transition-colors select-none",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg)]",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
         sizeStyles[size],
         variantStyles[variant],
         fullWidth && "w-full",
@@ -99,10 +99,10 @@ export function IconButton({
   ...rest
 }: IconButtonProps) {
   const square: Record<ButtonSize, string> = {
-    xs: "h-7 w-7 rounded",
-    sm: "h-8 w-8 rounded-md",
-    md: "h-9 w-9 rounded-md",
-    lg: "h-10 w-10 rounded-lg",
+    xs: "h-7 w-7",
+    sm: "h-8 w-8",
+    md: "h-9 w-9",
+    lg: "h-10 w-10",
   };
   return (
     <Button

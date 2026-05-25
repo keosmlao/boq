@@ -19,25 +19,26 @@ const sizeStyles = {
 };
 
 const statusColor = {
-  online: "bg-emerald-400",
-  offline: "bg-slate-300",
-  away: "bg-amber-400",
+  online: "bg-[var(--success)]",
+  offline: "bg-[var(--text-mute)]",
+  away: "bg-[var(--warning)]",
 };
 
 export function Avatar({ name, src, size = "md", status, className }: AvatarProps) {
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s.charAt(0).toUpperCase())
-    .join("") || "U";
+  const initials =
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((s) => s.charAt(0).toUpperCase())
+      .join("") || "U";
 
   return (
     <div className={cn("relative inline-flex flex-shrink-0", className)}>
       <div
         className={cn(
-          "flex items-center justify-center rounded-lg font-semibold text-white",
-          "bg-[linear-gradient(145deg,var(--theme-primary-soft)_0%,var(--theme-primary)_100%)]",
+          "flex items-center justify-center rounded-[var(--radius-sm)] font-semibold",
+          "bg-[var(--bg-subtle)] text-[var(--text-soft)] border border-[var(--border)]",
           sizeStyles[size],
         )}
       >
@@ -45,7 +46,7 @@ export function Avatar({ name, src, size = "md", status, className }: AvatarProp
           <img
             src={src}
             alt={name}
-            className="h-full w-full rounded-lg object-cover"
+            className="h-full w-full rounded-[var(--radius-sm)] object-cover"
           />
         ) : (
           initials
@@ -54,7 +55,7 @@ export function Avatar({ name, src, size = "md", status, className }: AvatarProp
       {status && (
         <span
           className={cn(
-            "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white",
+            "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[var(--surface)]",
             statusColor[status],
           )}
         />

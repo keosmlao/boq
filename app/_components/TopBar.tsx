@@ -5,15 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
-  ChevronDown,
-  Grid3X3,
+  ChevronRight,
   LogOut,
   Plus,
   Search,
   Settings,
-  UserCircle2,
 } from "lucide-react";
 import { usePageHeaderState } from "./PageHeader";
+import { ThemeToggle } from "./theme/ThemeToggle";
 
 const LABELS: Record<string, string> = {
   "sale-admin": "ການຂາຍ",
@@ -52,7 +51,7 @@ export default function TopBar() {
   useEffect(() => {
     try {
       const u = JSON.parse(localStorage.getItem("user") || "{}");
-      setUserName(u.name || u.username || u.email || "ຜູ້ໃຊ້");
+      setUserName(u.name_1 || u.name || u.username || u.email || "ຜູ້ໃຊ້");
     } catch {
       setUserName("ຜູ້ໃຊ້");
     }
@@ -90,21 +89,23 @@ export default function TopBar() {
       }));
   }, [pathname]);
 
-  const appName = crumbs[0]?.label || "ODG";
   const title = pageHeader.title || crumbs[crumbs.length - 1]?.label || "ໜ້າຫຼັກ";
 
-  const actionClass = (primary = false) =>
-    [
-      "inline-flex h-8 items-center gap-1.5 rounded px-2.5 text-[12px] font-semibold transition",
+  const renderAction = (
+    action: NonNullable<typeof pageHeader.primaryAction>,
+    primary = false,
+  ) => {
+    const cls = [
+      "inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-sm)] px-3 text-[12px] font-medium transition-colors whitespace-nowrap",
       primary
-        ? "bg-[var(--theme-accent)] text-white hover:bg-[var(--theme-accent-strong)]"
-        : "border border-[var(--theme-border)] bg-white text-[var(--theme-text-soft)] hover:border-[var(--theme-primary-soft)] hover:bg-[var(--theme-primary-tint)] hover:text-[var(--theme-primary)]",
+        ? "bg-[var(--brand)] text-white hover:bg-[var(--brand-hover)]"
+        : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--bg-subtle)] hover:border-[var(--border-strong)]",
+      action.disabled ? "opacity-50 cursor-not-allowed" : "",
     ].join(" ");
 
-  const renderAction = (action: NonNullable<typeof pageHeader.primaryAction>, primary = false) => {
     if (action.href) {
       return (
-        <Link key={action.label} href={action.href} className={actionClass(primary)} aria-disabled={action.disabled}>
+        <Link key={action.label} href={action.href} className={cls} aria-disabled={action.disabled}>
           {action.icon}
           {action.label}
         </Link>
@@ -117,7 +118,7 @@ export default function TopBar() {
         type="button"
         onClick={action.onClick}
         disabled={action.disabled}
-        className={`${actionClass(primary)} ${action.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+        className={cls}
       >
         {action.icon}
         {action.label}
@@ -127,25 +128,41 @@ export default function TopBar() {
 
   return (
     <header className="sticky top-0 z-30">
-      <div className="flex h-11 items-center gap-2 bg-[var(--theme-primary)] px-3 text-white shadow-[0_1px_0_rgba(0,0,0,0.18)]">
-        <button type="button" className="hidden h-8 w-8 items-center justify-center rounded hover:bg-white/10 md:flex" aria-label="ແອັບ">
-          <Grid3X3 size={16} />
-        </button>
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-semibold">ODG</span>
-          <span className="hidden text-white/35 md:inline">/</span>
-          <span className="hidden truncate text-sm text-white/85 md:inline">{appName}</span>
+      {/* Row 1: page title + breadcrumb + global controls */}
+      <div className="flex h-14 items-center gap-3 border-b border-[var(--border)] bg-[var(--topbar-bg)] px-4">
+        <div className="min-w-0 flex-1">
+          {crumbs.length > 1 && (
+            <nav className="mb-0.5 hidden items-center gap-1 text-[11px] text-[var(--text-mute)] md:flex">
+              {crumbs.slice(0, -1).map((crumb, i) => (
+                <span key={crumb.href} className="flex items-center gap-1">
+                  <span className="truncate">{crumb.label}</span>
+                  {i < crumbs.length - 2 && <ChevronRight size={11} className="opacity-60" />}
+                  {i === crumbs.length - 2 && <ChevronRight size={11} className="opacity-60" />}
+                </span>
+              ))}
+            </nav>
+          )}
+          <div className="flex items-baseline gap-2 min-w-0">
+            <h1 className="truncate text-[15px] font-semibold leading-5 tracking-tight text-[var(--text)]">
+              {title}
+            </h1>
+            {pageHeader.subtitle && (
+              <span className="truncate text-[12px] text-[var(--text-mute)]">
+                {pageHeader.subtitle}
+              </span>
+            )}
+          </div>
         </div>
 
-        <nav className="ml-4 hidden h-full items-center text-[13px] md:flex">
-          {["ການດຳເນີນງານ", "ລາຍງານ", "ຕັ້ງຄ່າ"].map((item) => (
-            <button key={item} type="button" className="h-full px-3 text-white/82 transition hover:bg-white/10 hover:text-white">
-              {item}
-            </button>
-          ))}
-        </nav>
-
-        <div className="ml-auto flex items-center gap-1">
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-soft)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)] transition-colors"
+            aria-label="ແຈ້ງເຕືອນ"
+          >
+            <Bell size={15} />
+          </button>
           <div ref={settingsRef} className="relative">
             <button
               type="button"
@@ -153,20 +170,29 @@ export default function TopBar() {
               aria-haspopup="menu"
               aria-expanded={settingsOpen}
               aria-label="ຕັ້ງຄ່າ"
-              className={`flex h-8 w-8 items-center justify-center rounded transition ${settingsOpen ? "bg-white/15 text-white" : "text-white/82 hover:bg-white/10 hover:text-white"}`}
+              className={[
+                "inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] transition-colors",
+                settingsOpen
+                  ? "bg-[var(--bg-subtle)] text-[var(--text)]"
+                  : "text-[var(--text-soft)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)]",
+              ].join(" ")}
             >
               <Settings size={15} />
             </button>
             {settingsOpen && (
               <div
                 role="menu"
-                className="absolute right-0 top-9 z-40 w-56 overflow-hidden rounded-md border border-[var(--theme-border)] bg-white text-[var(--theme-text)] shadow-lg"
+                className="absolute right-0 top-9 z-40 w-56 overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-fade-in"
               >
-                <div className="flex items-center gap-2 border-b border-[var(--theme-border-subtle)] px-3 py-2.5">
-                  <UserCircle2 size={28} className="text-[var(--theme-text-mute)]" />
+                <div className="flex items-center gap-2.5 border-b border-[var(--border)] px-3 py-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-subtle)] text-[11px] font-semibold text-[var(--text-soft)]">
+                    {(userName || "U").charAt(0).toUpperCase()}
+                  </div>
                   <div className="min-w-0">
-                    <div className="truncate text-[12px] font-semibold">{userName}</div>
-                    <div className="text-[10px] text-[var(--theme-text-mute)]">ODG Workspace</div>
+                    <div className="truncate text-[12.5px] font-semibold text-[var(--text)]">
+                      {userName}
+                    </div>
+                    <div className="text-[10.5px] text-[var(--text-mute)]">ODG Workspace</div>
                   </div>
                 </div>
                 <button
@@ -176,7 +202,7 @@ export default function TopBar() {
                     setSettingsOpen(false);
                     logout();
                   }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-[var(--theme-text)] transition hover:bg-[var(--theme-primary-tint)] hover:text-[var(--theme-primary)]"
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12.5px] text-[var(--text-soft)] hover:bg-[var(--bg-subtle)] hover:text-[var(--danger)] transition-colors"
                 >
                   <LogOut size={14} />
                   ອອກຈາກລະບົບ
@@ -184,88 +210,67 @@ export default function TopBar() {
               </div>
             )}
           </div>
-          <button type="button" className="flex h-8 w-8 items-center justify-center rounded text-white/82 hover:bg-white/10 hover:text-white" aria-label="ແຈ້ງເຕືອນ">
-            <Bell size={15} />
-          </button>
-          <button type="button" className="hidden h-8 items-center gap-1 rounded px-2 text-[12px] font-semibold text-white/82 hover:bg-white/10 hover:text-white sm:flex">
-            ຜູ້ໃຊ້ ODG
-            <ChevronDown size={13} />
-          </button>
         </div>
       </div>
 
-      <div className="border-b border-[var(--theme-border)] bg-white">
-        <div className="flex min-h-[56px] flex-col gap-2 px-3 py-2 lg:flex-row lg:items-center">
-          <div className="min-w-0 flex-1">
-            {crumbs.length > 1 && (
-              <nav className="mb-0.5 hidden items-center gap-1.5 text-[11px] text-[var(--theme-text-mute)] md:flex">
-                {crumbs.slice(0, -1).map((crumb) => (
-                  <span key={crumb.href} className="flex items-center gap-1.5">
-                    <span className="truncate">{crumb.label}</span>
-                    <span className="text-[var(--theme-border-strong)]">/</span>
-                  </span>
-                ))}
-              </nav>
-            )}
-            <div className="flex items-baseline gap-2">
-              <h1 className="truncate text-[18px] font-semibold leading-6 text-[var(--theme-text)]">{title}</h1>
-              {pageHeader.subtitle && (
-                <span className="truncate text-[12px] text-[var(--theme-text-mute)]">{pageHeader.subtitle}</span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {pageHeader.primaryAction ? renderAction(pageHeader.primaryAction, true) : (
-              <button type="button" className={actionClass(true)}>
-                <Plus size={13} />
-                ສ້າງໃໝ່
-              </button>
-            )}
-            {pageHeader.secondaryActions?.map((action) => renderAction(action))}
-
-            <div className="flex h-8 min-w-[260px] items-center gap-2 rounded border border-[var(--theme-border)] bg-white px-2.5 focus-within:border-[var(--theme-primary)] focus-within:ring-2 focus-within:ring-[var(--theme-primary)]/15">
-              <Search size={14} className="text-[var(--theme-text-mute)]" />
-              {pageHeader.search ? (
+      {/* Row 2: page actions + search (only when something is registered) */}
+      {(pageHeader.primaryAction ||
+        pageHeader.secondaryActions?.length ||
+        pageHeader.search ||
+        pageHeader.filterChips?.length) && (
+        <div className="border-b border-[var(--border)] bg-[var(--surface)]">
+          <div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+            {pageHeader.search && (
+              <div className="flex h-8 min-w-[240px] max-w-sm flex-1 items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-soft)] px-2.5 focus-within:border-[var(--brand)] focus-within:ring-2 focus-within:ring-[var(--brand-ring)] transition-colors">
+                <Search size={13} className="text-[var(--text-mute)]" />
                 <input
                   value={pageHeader.search.value}
-                  onChange={(event) => pageHeader.search?.onChange(event.target.value)}
+                  onChange={(e) => pageHeader.search?.onChange(e.target.value)}
                   placeholder={pageHeader.search.placeholder || "ຄົ້ນຫາ..."}
-                  className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--theme-text)] outline-none placeholder:text-[var(--theme-text-mute)]"
+                  className="min-w-0 flex-1 bg-transparent text-[12.5px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
                 />
-              ) : (
-                <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--theme-text-mute)]">Search...</span>
-              )}
+              </div>
+            )}
+
+            <div className={["flex flex-wrap items-center gap-2", pageHeader.search ? "ml-auto" : "ml-auto"].join(" ")}>
+              {pageHeader.secondaryActions?.map((action) => renderAction(action))}
+              {pageHeader.primaryAction && renderAction(pageHeader.primaryAction, true)}
             </div>
-
           </div>
+
+          {pageHeader.filterChips && pageHeader.filterChips.length > 0 && (
+            <div className="theme-scrollbar flex items-center gap-1.5 overflow-x-auto border-t border-[var(--border-soft)] bg-[var(--surface-soft)] px-4 py-2">
+              {pageHeader.filterChips.map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={chip.onClick}
+                  className={[
+                    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-colors",
+                    chip.active
+                      ? "border-transparent bg-[var(--text)] text-[var(--text-inverse)]"
+                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)]",
+                  ].join(" ")}
+                >
+                  {chip.label}
+                  {chip.count !== undefined && (
+                    <span
+                      className={[
+                        "rounded-full px-1.5 py-0 text-[9.5px] font-semibold",
+                        chip.active
+                          ? "bg-white/20 text-[var(--text-inverse)]"
+                          : "bg-[var(--bg-subtle)] text-[var(--text-soft)]",
+                      ].join(" ")}
+                    >
+                      {chip.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-
-        {pageHeader.filterChips && pageHeader.filterChips.length > 0 && (
-          <div className="theme-scrollbar flex items-center gap-1.5 overflow-x-auto border-t border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)] px-3 py-1.5">
-            {pageHeader.filterChips.map((chip) => (
-              <button
-                key={chip.id}
-                type="button"
-                onClick={chip.onClick}
-                className={[
-                  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition",
-                  chip.active
-                    ? "border-[var(--theme-primary)] bg-[var(--theme-primary-tint)] text-[var(--theme-primary)]"
-                    : "border-[var(--theme-border)] bg-white text-[var(--theme-text-soft)] hover:border-[var(--theme-primary-soft)] hover:text-[var(--theme-primary)]",
-                ].join(" ")}
-              >
-                {chip.label}
-                {chip.count !== undefined && (
-                  <span className={chip.active ? "rounded-full bg-[var(--theme-primary)] px-1.5 py-px text-[9px] font-semibold text-white" : "rounded-full bg-[var(--theme-bg-muted)] ring-1 ring-[var(--theme-border-subtle)] px-1.5 py-px text-[9px] font-semibold text-[var(--theme-text-soft)]"}>
-                    {chip.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      )}
     </header>
   );
 }

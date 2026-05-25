@@ -12,13 +12,20 @@ import { cn } from "./cn";
 type Size = "sm" | "md" | "lg";
 
 const sizeStyles: Record<Size, string> = {
-  sm: "h-8 px-2.5 text-xs rounded",
-  md: "h-9 px-3 text-[13px] rounded-md",
-  lg: "h-10 px-3.5 text-sm rounded-lg",
+  sm: "h-8 px-2.5 text-xs rounded-[var(--radius-sm)]",
+  md: "h-9 px-3 text-[13px] rounded-[var(--radius-sm)]",
+  lg: "h-10 px-3.5 text-sm rounded-[var(--radius-sm)]",
 };
 
 const baseField =
-  "theme-input w-full transition-all placeholder:text-[#8ea0b9] disabled:opacity-60 disabled:cursor-not-allowed";
+  "w-full bg-[var(--surface)] text-[var(--text)] border border-[var(--border)] " +
+  "placeholder:text-[var(--text-mute)] transition-colors " +
+  "hover:border-[var(--border-strong)] " +
+  "focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-ring)] " +
+  "disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--bg-subtle)]";
+
+const invalidField =
+  "border-[var(--danger)] focus:border-[var(--danger)] focus:ring-[color-mix(in_srgb,var(--danger)_24%,transparent)]";
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
   inputSize?: Size;
@@ -35,7 +42,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     return (
       <div className="relative w-full">
         {leftIcon && (
-          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8ea0b9]">
+          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-mute)]">
             {leftIcon}
           </span>
         )}
@@ -46,13 +53,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
             sizeStyles[inputSize],
             leftIcon && "pl-8",
             rightIcon && "pr-8",
-            invalid && "border-rose-400 focus:border-rose-400 focus:ring-rose-200",
+            invalid && invalidField,
             className,
           )}
           {...rest}
         />
         {rightIcon && (
-          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8ea0b9]">
+          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-mute)]">
             {rightIcon}
           </span>
         )}
@@ -65,7 +72,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       className={cn(
         baseField,
         sizeStyles[inputSize],
-        invalid && "border-rose-400 focus:border-rose-400",
+        invalid && invalidField,
         className,
       )}
       {...rest}
@@ -87,8 +94,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       rows={rows}
       className={cn(
         baseField,
-        "py-2 px-3 text-[13px] rounded-md resize-y min-h-[64px]",
-        invalid && "border-rose-400 focus:border-rose-400",
+        "py-2 px-3 text-[13px] rounded-[var(--radius-sm)] resize-y min-h-[64px]",
+        invalid && invalidField,
         className,
       )}
       {...rest}
@@ -112,8 +119,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       className={cn(
         baseField,
         sizeStyles[selectSize],
-        "pr-8 appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%235e728e%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%226 9 12 15 18 9%22/></svg>')] bg-no-repeat bg-[right_0.65rem_center]",
-        invalid && "border-rose-400 focus:border-rose-400",
+        "pr-8 appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23737373%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%226 9 12 15 18 9%22/></svg>')] bg-no-repeat bg-[right_0.65rem_center]",
+        invalid && invalidField,
         className,
       )}
       {...rest}
@@ -135,21 +142,21 @@ export interface FieldProps {
 
 export function Field({ label, hint, error, required, htmlFor, children, className }: FieldProps) {
   return (
-    <div className={cn("flex flex-col gap-1", className)}>
+    <div className={cn("flex flex-col gap-1.5", className)}>
       {label && (
         <label
           htmlFor={htmlFor}
-          className="text-[11px] font-semibold text-[var(--theme-text)]"
+          className="text-[12px] font-medium text-[var(--text)]"
         >
           {label}
-          {required && <span className="ml-1 text-rose-500">*</span>}
+          {required && <span className="ml-0.5 text-[var(--danger)]">*</span>}
         </label>
       )}
       {children}
       {error ? (
-        <div className="text-[11px] font-medium text-rose-500">{error}</div>
+        <div className="text-[11px] font-medium text-[var(--danger)]">{error}</div>
       ) : hint ? (
-        <div className="text-[11px] text-[var(--theme-text-soft)]">{hint}</div>
+        <div className="text-[11px] text-[var(--text-mute)]">{hint}</div>
       ) : null}
     </div>
   );

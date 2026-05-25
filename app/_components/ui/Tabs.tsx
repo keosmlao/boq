@@ -32,7 +32,7 @@ export function Tabs({
     return (
       <div
         className={cn(
-          "inline-flex items-center gap-0.5 rounded-lg border border-[var(--theme-border)] bg-white/80 p-1 shadow-sm",
+          "inline-flex items-center gap-0.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-soft)] p-1",
           fullWidth && "w-full",
           className,
         )}
@@ -48,11 +48,11 @@ export function Tabs({
               disabled={t.disabled}
               onClick={() => onChange(t.value)}
               className={cn(
-                "inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-semibold transition",
+                "inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-[12px] font-medium transition-colors",
                 fullWidth && "flex-1",
                 active
-                  ? "bg-[var(--theme-primary)] text-white shadow-md"
-                  : "text-[var(--theme-text-soft)] hover:bg-[var(--theme-primary-tint)] hover:text-[var(--theme-primary)]",
+                  ? "bg-[var(--surface)] text-[var(--text)] shadow-[var(--shadow-xs)]"
+                  : "text-[var(--text-soft)] hover:text-[var(--text)]",
                 t.disabled && "opacity-50 cursor-not-allowed",
               )}
             >
@@ -79,10 +79,10 @@ export function Tabs({
               disabled={t.disabled}
               onClick={() => onChange(t.value)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-semibold transition",
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium transition-colors",
                 active
-                  ? "border-transparent bg-[var(--theme-primary)] text-white shadow-md"
-                  : "border-[var(--theme-border)] bg-white text-[var(--theme-text-soft)] hover:border-[var(--theme-primary-soft)] hover:text-[var(--theme-primary)]",
+                  ? "border-transparent bg-[var(--brand)] text-white"
+                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)]",
                 t.disabled && "opacity-50 cursor-not-allowed",
               )}
             >
@@ -99,7 +99,7 @@ export function Tabs({
   return (
     <div
       className={cn(
-        "flex items-center gap-1 border-b border-[var(--theme-border)]",
+        "flex items-center gap-1 border-b border-[var(--border)]",
         className,
       )}
       role="tablist"
@@ -114,10 +114,10 @@ export function Tabs({
             disabled={t.disabled}
             onClick={() => onChange(t.value)}
             className={cn(
-              "relative inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold transition -mb-px border-b-2",
+              "relative inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium transition-colors -mb-px border-b-2",
               active
-                ? "border-[var(--theme-primary)] text-[var(--theme-primary)]"
-                : "border-transparent text-[var(--theme-text-soft)] hover:text-[var(--theme-text)]",
+                ? "border-[var(--text)] text-[var(--text)]"
+                : "border-transparent text-[var(--text-soft)] hover:text-[var(--text)]",
               t.disabled && "opacity-50 cursor-not-allowed",
             )}
           >

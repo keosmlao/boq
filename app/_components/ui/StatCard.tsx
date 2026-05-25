@@ -16,11 +16,11 @@ export interface StatCardProps {
 }
 
 const toneIconStyles = {
-  neutral: "bg-slate-100 text-slate-600",
-  primary: "bg-[var(--theme-primary-tint)] text-[var(--theme-primary)]",
-  success: "bg-emerald-50 text-emerald-600",
-  warning: "bg-amber-50 text-amber-600",
-  danger: "bg-rose-50 text-rose-600",
+  neutral: "bg-[var(--bg-subtle)] text-[var(--text-soft)]",
+  primary: "bg-[var(--brand-soft)] text-[var(--brand)]",
+  success: "bg-[var(--success-soft)] text-[var(--success)]",
+  warning: "bg-[var(--warning-soft)] text-[var(--warning)]",
+  danger:  "bg-[var(--danger-soft)] text-[var(--danger)]",
 };
 
 export function StatCard({
@@ -39,18 +39,20 @@ export function StatCard({
       onClick={onClick}
       disabled={!onClick}
       className={cn(
-        "theme-stat-card group flex w-full flex-col gap-3 rounded-lg p-4 text-left transition",
-        onClick && "theme-card-hover cursor-pointer",
+        "group flex w-full flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition-colors",
+        onClick && "hover:border-[var(--border-strong)] cursor-pointer",
         !onClick && "cursor-default",
         className,
       )}
     >
       <div className="flex items-center justify-between">
-        <span className="theme-stat-label">{label}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-mute)]">
+          {label}
+        </span>
         {icon && (
           <span
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-md",
+              "flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)]",
               toneIconStyles[tone],
             )}
           >
@@ -59,16 +61,16 @@ export function StatCard({
         )}
       </div>
       <div>
-        <div className="theme-stat-value">{value}</div>
+        <div className="text-[24px] font-bold tracking-tight text-[var(--text)]">{value}</div>
         {(hint || trend) && (
-          <div className="mt-1 flex items-center gap-2 text-[11px] text-[var(--theme-text-soft)]">
+          <div className="mt-1 flex items-center gap-2 text-[11px] text-[var(--text-soft)]">
             {trend && (
               <span
                 className={cn(
                   "inline-flex items-center gap-0.5 font-semibold",
-                  trend.direction === "up" && "text-emerald-600",
-                  trend.direction === "down" && "text-rose-500",
-                  trend.direction === "flat" && "text-slate-500",
+                  trend.direction === "up" && "text-[var(--success)]",
+                  trend.direction === "down" && "text-[var(--danger)]",
+                  trend.direction === "flat" && "text-[var(--text-mute)]",
                 )}
               >
                 {trend.direction === "up" && <ArrowUpRight size={11} />}

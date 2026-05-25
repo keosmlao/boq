@@ -14,9 +14,9 @@ export interface SearchInputProps
 }
 
 const sizeStyles = {
-  sm: "h-8 text-xs rounded-md pl-7 pr-7",
-  md: "h-9 text-[13px] rounded-lg pl-8 pr-8",
-  lg: "h-11 text-sm rounded-md pl-9 pr-9",
+  sm: "h-8 text-xs pl-7 pr-7",
+  md: "h-9 text-[13px] pl-8 pr-8",
+  lg: "h-11 text-sm pl-9 pr-9",
 };
 
 const iconSize = { sm: 13, md: 14, lg: 16 };
@@ -29,7 +29,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
     <div className={cn("relative w-full", className)}>
       <Search
         size={iconSize[size]}
-        className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8ea0b9]"
+        className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-mute)]"
       />
       <input
         ref={ref}
@@ -38,7 +38,10 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "theme-input w-full transition-all",
+          "w-full rounded-[var(--radius-sm)] bg-[var(--surface)] border border-[var(--border)] text-[var(--text)]",
+          "placeholder:text-[var(--text-mute)] transition-colors",
+          "hover:border-[var(--border-strong)]",
+          "focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-ring)]",
           sizeStyles[size],
         )}
         {...rest}
@@ -51,7 +54,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
             onClear?.();
           }}
           aria-label="ລ້າງ"
-          className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-[#8ea0b9] hover:bg-black/5"
+          className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-[var(--text-mute)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text)]"
         >
           <X size={iconSize[size]} />
         </button>

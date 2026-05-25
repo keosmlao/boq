@@ -13,13 +13,19 @@ export type BadgeTone =
   | "violet";
 
 const toneStyles: Record<BadgeTone, string> = {
-  neutral: "bg-slate-100 text-slate-700 border-[var(--theme-border-subtle)]",
-  primary: "bg-[var(--theme-primary-tint)] text-[var(--theme-primary)] border-[rgba(15,118,110,0.18)]",
-  success: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  warning: "bg-amber-50 text-amber-700 border-amber-200",
-  danger: "bg-rose-50 text-rose-700 border-rose-200",
-  info: "bg-sky-50 text-sky-700 border-sky-200",
-  violet: "bg-violet-50 text-violet-700 border-violet-200",
+  neutral: "bg-[var(--bg-subtle)] text-[var(--text-soft)] border border-[var(--border)]",
+  primary: "bg-[var(--brand-soft)] text-[var(--brand)] border border-transparent",
+  success: "bg-[var(--success-soft)] text-[var(--success)] border border-transparent",
+  warning: "bg-[var(--warning-soft)] text-[var(--warning)] border border-transparent",
+  danger:  "bg-[var(--danger-soft)] text-[var(--danger)] border border-transparent",
+  info:    "bg-[var(--info-soft)] text-[var(--info)] border border-transparent",
+  violet:  "bg-[color-mix(in_srgb,#8b5cf6_14%,transparent)] text-[#7c3aed] border border-transparent",
+};
+
+const sizeStyles = {
+  xs: "h-5 px-1.5 text-[10px] gap-1 rounded",
+  sm: "h-6 px-2 text-[11px] gap-1 rounded-[var(--radius-sm)]",
+  md: "h-7 px-2.5 text-xs gap-1.5 rounded-[var(--radius-sm)]",
 };
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -28,12 +34,6 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   icon?: ReactNode;
   size?: "xs" | "sm" | "md";
 }
-
-const sizeStyles = {
-  xs: "h-5 px-1.5 text-[10px] gap-1 rounded",
-  sm: "h-6 px-2 text-[11px] gap-1 rounded-md",
-  md: "h-7 px-2.5 text-xs gap-1.5 rounded-md",
-};
 
 export function Badge({
   tone = "neutral",
@@ -47,7 +47,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center font-semibold border whitespace-nowrap",
+        "inline-flex items-center font-medium whitespace-nowrap",
         toneStyles[tone],
         sizeStyles[size],
         className,
