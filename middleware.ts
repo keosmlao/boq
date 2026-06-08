@@ -21,13 +21,13 @@ export async function middleware(request) {
   // Check for auth cookie (set during login)
   const authCookie = request.cookies.get("odg-auth");
   if (!authCookie?.value) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/v2/login", request.url));
   }
 
   // Verify JWT session
   const session = await verifySession(authCookie.value);
   if (!session) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/v2/login", request.url));
   }
 
   return NextResponse.next();
