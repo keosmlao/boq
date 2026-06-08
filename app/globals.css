@@ -1,0 +1,605 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Lao:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', var(--font-lao), "Noto Sans Lao", system-ui, sans-serif;
+}
+
+/* =========================================================================
+   Design tokens — Modern Minimal
+   Light is the default. Dark overrides via [data-theme="dark"].
+   ========================================================================= */
+
+:root,
+[data-theme="light"] {
+  /* Surfaces */
+  --bg:            #fafafa;
+  --bg-subtle:     #f4f4f5;
+  --surface:       #ffffff;
+  --surface-soft:  #fafafa;
+  --surface-sunken:#f4f4f5;
+
+  /* Borders */
+  --border:        #e5e7eb;
+  --border-soft:   #f1f1f4;
+  --border-strong: #d4d4d8;
+
+  /* Text */
+  --text:          #0a0a0a;
+  --text-soft:     #525252;
+  --text-mute:     #a3a3a3;
+  --text-inverse:  #fafafa;
+
+  /* Brand — single neutral-leaning blue accent */
+  --brand:         #2563eb;
+  --brand-hover:   #1d4ed8;
+  --brand-soft:    #eff6ff;
+  --brand-ring:    rgba(37, 99, 235, 0.18);
+
+  /* Semantic */
+  --success:       #16a34a;
+  --success-soft:  #f0fdf4;
+  --warning:       #d97706;
+  --warning-soft:  #fffbeb;
+  --danger:        #dc2626;
+  --danger-soft:   #fef2f2;
+  --info:          #0284c7;
+  --info-soft:     #f0f9ff;
+
+  /* Elevation */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.04);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shell-specific */
+  --sidebar-bg:    #ffffff;
+  --topbar-bg:     #ffffff;
+  --selection-bg:  rgba(37, 99, 235, 0.16);
+}
+
+[data-theme="dark"] {
+  --bg:            #0a0a0a;
+  --bg-subtle:     #0f0f0f;
+  --surface:       #171717;
+  --surface-soft:  #1c1c1c;
+  --surface-sunken:#0f0f0f;
+
+  --border:        #262626;
+  --border-soft:   #1f1f1f;
+  --border-strong: #404040;
+
+  --text:          #fafafa;
+  --text-soft:     #a3a3a3;
+  --text-mute:     #737373;
+  --text-inverse:  #0a0a0a;
+
+  --brand:         #3b82f6;
+  --brand-hover:   #60a5fa;
+  --brand-soft:    rgba(59, 130, 246, 0.12);
+  --brand-ring:    rgba(59, 130, 246, 0.32);
+
+  --success:       #22c55e;
+  --success-soft:  rgba(34, 197, 94, 0.12);
+  --warning:       #f59e0b;
+  --warning-soft:  rgba(245, 158, 11, 0.12);
+  --danger:        #ef4444;
+  --danger-soft:   rgba(239, 68, 68, 0.12);
+  --info:          #38bdf8;
+  --info-soft:     rgba(56, 189, 248, 0.12);
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.4);
+
+  --sidebar-bg:    #0f0f0f;
+  --topbar-bg:     #0f0f0f;
+  --selection-bg:  rgba(59, 130, 246, 0.24);
+}
+
+/* =========================================================================
+   Legacy token aliases — keep old `--theme-*` variables in sync so existing
+   pages continue to render with the new palette without rewriting markup.
+   ========================================================================= */
+:root,
+[data-theme="light"],
+[data-theme="dark"] {
+  --theme-primary:        var(--brand);
+  --theme-primary-strong: var(--brand-hover);
+  --theme-primary-soft:   var(--brand-hover);
+  --theme-primary-tint:   var(--brand-soft);
+  --theme-accent:         var(--brand);
+  --theme-accent-strong:  var(--brand-hover);
+  --theme-accent-tint:    var(--brand-soft);
+  --theme-danger:         var(--danger);
+  --theme-success:        var(--success);
+  --theme-info:           var(--info);
+
+  --theme-bg:             var(--bg);
+  --theme-bg-muted:       var(--bg-subtle);
+  --theme-surface:        var(--surface);
+  --theme-surface-strong: var(--surface-soft);
+  --theme-surface-muted:  var(--surface-sunken);
+
+  --theme-border:         var(--border);
+  --theme-border-strong:  var(--border-strong);
+  --theme-border-subtle:  var(--border-soft);
+
+  --theme-text:           var(--text);
+  --theme-text-soft:      var(--text-soft);
+  --theme-text-mute:      var(--text-mute);
+
+  --theme-shadow-sm:      var(--shadow-sm);
+  --theme-shadow:         var(--shadow-md);
+  --theme-shadow-lg:      var(--shadow-lg);
+
+  --theme-page:           var(--bg);
+  --theme-hero:           var(--surface);
+  --theme-sidebar:        var(--sidebar-bg);
+}
+
+/* =========================================================================
+   Base
+   ========================================================================= */
+
+html {
+  background: var(--bg);
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-lao), "Noto Sans Lao", 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--text);
+}
+
+* {
+  border-color: var(--border);
+}
+
+/* =========================================================================
+   Semantic utility classes (replace legacy theme-*)
+   These keep existing markup working without rewriting every page.
+   ========================================================================= */
+
+.theme-shell-bg     { background: var(--bg); }
+.theme-dashboard-shell { background: transparent; color: var(--text); }
+.theme-divider      { border-color: var(--border); }
+.theme-accent-bar   { background: var(--brand); }
+
+/* Surfaces / cards */
+.theme-page-surface,
+.theme-page-surface-strong {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.theme-page-muted {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+}
+
+.theme-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.theme-card-soft {
+  background: var(--surface-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+}
+
+.theme-card-hover {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.theme-card-hover:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* Typography */
+.theme-section-title {
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.theme-section-copy {
+  color: var(--text-soft);
+  font-size: 0.8125rem;
+}
+
+.theme-kicker {
+  color: var(--text-mute);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.theme-heading {
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.theme-copy {
+  color: var(--text-soft);
+}
+
+/* Stat cards */
+.theme-stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.theme-stat-label {
+  color: var(--text-mute);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.theme-stat-value {
+  color: var(--text);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Tables */
+.theme-table-shell {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+}
+
+.theme-table-head {
+  background: var(--surface-sunken);
+  color: var(--text-soft);
+}
+
+.theme-table-head th {
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 10px 14px;
+  color: var(--text-soft);
+}
+
+.theme-table-row {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-soft);
+  transition: background-color 0.12s ease;
+}
+
+.theme-table-row:last-child { border-bottom: 0; }
+
+.theme-table-row:hover {
+  background: var(--bg-subtle);
+}
+
+.theme-table-row td {
+  padding: 10px 14px;
+  color: var(--text);
+}
+
+/* Empty */
+.theme-empty-state {
+  background: var(--surface-soft);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.theme-hero-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+}
+
+/* Buttons (legacy classes) */
+.theme-btn-primary {
+  background: var(--brand);
+  border: 1px solid var(--brand);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.theme-btn-primary:hover {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+
+.theme-btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.theme-btn-secondary:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+}
+
+.theme-btn-ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-soft);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.theme-btn-ghost:hover {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+
+/* Inputs */
+.theme-input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.theme-input::placeholder {
+  color: var(--text-mute);
+}
+
+.theme-input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}
+
+/* Chips */
+.theme-chip {
+  background: var(--brand-soft);
+  border: 1px solid transparent;
+  color: var(--brand);
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.theme-chip-ghost {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.theme-icon-badge {
+  background: var(--brand-soft);
+  border: 1px solid transparent;
+  color: var(--brand);
+  border-radius: var(--radius-sm);
+}
+
+/* Sidebar (legacy) */
+.theme-sidebar {
+  background: var(--sidebar-bg);
+  color: var(--text);
+  border-right: 1px solid var(--border);
+}
+
+.theme-sidebar-soft {
+  background: var(--surface-sunken);
+  border-color: var(--border-soft);
+}
+
+.theme-sidebar-link {
+  color: var(--text-soft);
+  border-radius: var(--radius-sm);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.theme-sidebar-link:hover {
+  background: var(--bg-subtle);
+  color: var(--text);
+}
+
+.theme-sidebar-link-active {
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.theme-sidebar-section-label {
+  color: var(--text-mute);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 12px;
+}
+
+/* Top bar */
+.theme-topbar {
+  background: var(--topbar-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Status chip variants */
+.theme-status-success {
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.theme-status-warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.theme-status-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.theme-status-info {
+  background: var(--brand-soft);
+  color: var(--brand);
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.theme-status-neutral {
+  background: var(--bg-subtle);
+  color: var(--text-soft);
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+
+/* Odoo legacy panels */
+.odoo-appbar {
+  background: var(--surface);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.odoo-control-panel {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.odoo-action {
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 0 12px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.odoo-action:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.odoo-action-primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.odoo-action-primary:hover {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  color: #fff;
+}
+
+/* Scrollbar */
+.theme-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.theme-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.theme-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+.theme-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-mute);
+}
+.theme-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* =========================================================================
+   Animations (kept minimal)
+   ========================================================================= */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+.animate-shake { animation: shake 0.2s ease-in-out; }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in { animation: fade-in 0.18s ease-out; }
+
+/* =========================================================================
+   Print — preserve exact layout/colors for PDF & paper
+   ========================================================================= */
+@media print {
+  :root, [data-theme="light"], [data-theme="dark"] {
+    --bg: #fff;
+    --surface: #fff;
+    --text: #000;
+    --text-soft: #333;
+    --text-mute: #666;
+    --border: #ddd;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: #fff;
+    color: #000;
+  }
+  .no-print, .print\:hidden { display: none !important; }
+  .page-break { break-before: page; }
+}
+
+@page {
+  size: A4;
+  margin: 12mm;
+}

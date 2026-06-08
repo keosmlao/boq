@@ -1,0 +1,169 @@
+"use client";
+
+import { ReactNode, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
+import { cn } from "./cn";
+import { IconButton } from "./Button";
+
+export interface ModalProps {
+  open: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  description?: ReactNode;
+  size?: "sm" | "md" | "lg" | "xl" | "full";
+  closeOnBackdrop?: boolean;
+  footer?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}
+
+const sizeStyles = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-2xl",
+  xl: "max-w-4xl",
+  full: "max-w-[min(96vw,1400px)]",
+};
+
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  size = "md",
+  closeOnBackdrop = true,
+  footer,
+  children,
+  className,
+}: ModalProps) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+  if (typeof window === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4 animate-fade-in">
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={closeOnBackdrop ? onClose : undefined}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className={cn(
+          "relative z-10 flex w-full flex-col overflow-hidden",
+          "bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-lg)]",
+          "rounded-t-[var(--radius-lg)] sm:rounded-[var(--radius-lg)]",
+          "max-h-[92vh] sm:max-h-[85vh]",
+          sizeStyles[size],
+          className,
+        )}
+      >
+        {(title || description) && (
+          <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-3.5">
+            <div className="min-w-0">
+              {title && (
+                <h3 className="text-[14px] font-semibold text-[var(--text)] truncate">{title}</h3>
+              )}
+              {description && (
+                <p className="mt-0.5 text-[12px] text-[var(--text-soft)]">{description}</p>
+              )}
+            </div>
+            <IconButton
+              icon={<X size={16} />}
+              label="ປິດ"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+            />
+          </div>
+        )}
+
+        <div className="theme-scrollbar flex-1 overflow-y-auto px-5 py-4 text-[var(--text)]">
+          {children}
+        </div>
+
+        {footer && (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] bg-[var(--surface-soft)] px-5 py-3">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+export interface ConfirmModalProps {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void | Promise<void>;
+  title: ReactNode;
+  description?: ReactNode;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  tone?: "primary" | "danger";
+  loading?: boolean;
+}
+
+export function ConfirmModal({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmLabel = "ຢືນຢັນ",
+  cancelLabel = "ຍົກເລີກ",
+  tone = "primary",
+  loading = false,
+}: ConfirmModalProps) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      description={description}
+      size="sm"
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="h-8 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3.5 text-[12px] font-medium text-[var(--text)] hover:bg-[var(--bg-subtle)] disabled:opacity-60"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className={cn(
+              "h-8 rounded-[var(--radius-sm)] px-3.5 text-[12px] font-medium text-white disabled:opacity-60",
+              tone === "danger"
+                ? "bg-[var(--danger)] hover:opacity-90"
+                : "bg-[var(--brand)] hover:bg-[var(--brand-hover)]",
+            )}
+          >
+            {loading ? "ກຳລັງດຳເນີນ..." : confirmLabel}
+          </button>
+        </>
+      }
+    >
+      <div />
+    </Modal>
+  );
+}
