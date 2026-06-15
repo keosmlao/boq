@@ -7,7 +7,6 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, X, Send, Loader2, Users } from "lucide-react";
-import { getChatMessages, sendChatMessage } from "@/_actions/chat";
 import { type ChatMessage } from "@/_lib/chat-core";
 import { getV2User } from "../../_lib/session";
 
@@ -59,8 +58,10 @@ export default function ChatWidget() {
     if (busy.current) return;
     busy.current = true;
     try {
-      const res = await getChatMessages(lastId.current || undefined);
-      if (res?.success && res.data.length) {
+      const resp = await fetch(`/api/chat${lastId.current ? `?sinceId=${lastId.current}` : ""}`, { cache: "no-store" });
+      const json = resp.ok ? await resp.json().catch(() => null) : null;
+      const res = { success: resp.ok, data: (json?.data as ChatMessage[]) || [] };
+      if (res.success && res.data.length) {
         const fresh = res.data;
         lastId.current = Math.max(lastId.current, ...fresh.map((m) => Number(m.id)));
         setMsgs((prev) => {
@@ -124,8 +125,10 @@ export default function ChatWidget() {
     setSending(true);
     setText("");
     try {
-      const res = await sendChatMessage(body);
-      if (res?.success) {
+      const resp = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) });
+      const json = await resp.json().catch(() => null);
+      const res = { success: resp.ok && json?.success !== false, data: json?.data as ChatMessage };
+      if (res.success && res.data) {
         lastId.current = Math.max(lastId.current, Number(res.data.id));
         setMsgs((prev) => (prev.some((m) => m.id === res.data.id) ? prev : [...prev, res.data].slice(-300)));
         scrollToBottom();
