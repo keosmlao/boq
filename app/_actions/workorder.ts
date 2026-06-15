@@ -72,13 +72,16 @@ export async function getWorkOrders(opts: { projectId?: string; projectCode?: st
     }));
 
     // Merge legacy ERP work orders (odg_work_orders, linked by project_code).
+    // Skip any ERP order already mirrored into a v2 work order (legacy_code) so
+    // the list doesn't show duplicates.
+    const mirrored = new Set(rows.map((x) => x.legacy_code).filter(Boolean).map(String));
     try {
       if (opts.projectCode) {
         const lg = await query(`${LEGACY_WO_SELECT} WHERE w.project_code = $1 ORDER BY w.created_at DESC`, [String(opts.projectCode)]);
-        for (const w of lg.rows as any[]) rows.push(mapLegacyWo(w));
+        for (const w of lg.rows as any[]) if (!mirrored.has(String(w.code))) rows.push(mapLegacyWo(w));
       } else if (!opts.projectId) {
         const lg = await query(`${LEGACY_WO_SELECT} ORDER BY w.created_at DESC LIMIT 500`);
-        for (const w of lg.rows as any[]) rows.push(mapLegacyWo(w));
+        for (const w of lg.rows as any[]) if (!mirrored.has(String(w.code))) rows.push(mapLegacyWo(w));
       }
     } catch {
       /* legacy WO table/cols differ — v2 still returned */

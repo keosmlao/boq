@@ -17,6 +17,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const body = await req.json().catch(() => ({}));
-  const res = await createMaterialRequestAs(user, String(id), Array.isArray(body?.items) ? body.items : [], body?.note ? String(body.note) : undefined);
+  const res = await createMaterialRequestAs(
+    user,
+    String(id),
+    Array.isArray(body?.items) ? body.items : [],
+    body?.note ? String(body.note) : undefined,
+    {
+      wh_code: body?.wh_code ? String(body.wh_code) : undefined,
+      wh_name: body?.wh_name ? String(body.wh_name) : undefined,
+      shelf_code: body?.shelf_code ? String(body.shelf_code) : undefined,
+      shelf_name: body?.shelf_name ? String(body.shelf_name) : undefined,
+    },
+  );
   return NextResponse.json(res, { status: res.success ? 200 : 400 });
 }

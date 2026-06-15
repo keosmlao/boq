@@ -278,6 +278,7 @@ export async function createMaterialRequestAs(
   id: string,
   items: Array<{ name?: string; unit?: string; qty?: number }>,
   note?: string,
+  wh?: { wh_code?: string; wh_name?: string; shelf_code?: string; shelf_name?: string },
 ): Promise<Ok | Fail> {
   try {
     await ensureWorkOrderSchema();
@@ -287,11 +288,21 @@ export async function createMaterialRequestAs(
     const clean = (Array.isArray(items) ? items : [])
       .map((m) => ({ name: String(m?.name || "").trim(), unit: String(m?.unit || "").trim(), qty: Number(m?.qty) || 0 }))
       .filter((m) => m.name && m.qty > 0);
-    if (!clean.length) return fail("ກະລຸນາใส่ລາຍການວັດສະດຸ");
+    if (!clean.length) return fail("ກະລຸນາໃສ່ລາຍການວັດສະດຸ");
     const r = await query(
-      `INSERT INTO odg_wo_material_request (work_order_id, project_id, requested_by, items, note)
-       VALUES ($1,$2,$3,$4::jsonb,$5) RETURNING *`,
-      [String(id), wo.project_id ? String(wo.project_id) : null, actorName(user), JSON.stringify(clean), note || null],
+      `INSERT INTO odg_wo_material_request (work_order_id, project_id, requested_by, items, note, wh_code, wh_name, shelf_code, shelf_name)
+       VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9) RETURNING *`,
+      [
+        String(id),
+        wo.project_id ? String(wo.project_id) : null,
+        actorName(user),
+        JSON.stringify(clean),
+        note || null,
+        wh?.wh_code || null,
+        wh?.wh_name || null,
+        wh?.shelf_code || null,
+        wh?.shelf_name || null,
+      ],
     );
     return { success: true, data: r.rows[0] };
   } catch (e) {
@@ -303,7 +314,7 @@ export async function listMaterialRequests(id: string): Promise<{ success: true;
   try {
     await ensureWorkOrderSchema();
     const r = await query(
-      `SELECT id::text, work_order_id, project_id, requested_by, items, note, status, created_at
+      `SELECT id::text, work_order_id, project_id, requested_by, items, note, status, wh_code, wh_name, shelf_code, shelf_name, created_at
          FROM odg_wo_material_request WHERE work_order_id = $1 ORDER BY created_at DESC`,
       [String(id)],
     );

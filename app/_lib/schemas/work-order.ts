@@ -76,8 +76,16 @@ export function ensureWorkOrderSchema(): Promise<void> {
           items         JSONB DEFAULT '[]',
           note          TEXT,
           status        TEXT DEFAULT 'pending',
+          wh_code       TEXT,
+          wh_name       TEXT,
+          shelf_code    TEXT,
+          shelf_name    TEXT,
           created_at    TIMESTAMPTZ DEFAULT now()
         );
+        ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS wh_code TEXT;
+        ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS wh_name TEXT;
+        ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS shelf_code TEXT;
+        ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS shelf_name TEXT;
         CREATE INDEX IF NOT EXISTS odg_wo_matreq_wo_idx ON odg_wo_material_request(work_order_id);
         -- Inspection close (after ລໍຖ້າກວດສອບ → ປິດງານແລ້ວ), by a manager/inspector
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
