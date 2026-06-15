@@ -42,6 +42,8 @@ export function ensureWorkOrderSchema(): Promise<void> {
         -- user (or a manager) may accept/check-in/check-out. When null, any logged-in
         -- user holding the work order may act (no username↔technician map exists yet).
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS assigned_username TEXT;
+        -- Links a v2 work order back to the legacy ERP one it was mirrored from.
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS legacy_code TEXT;
         -- Head-craftsman accept / reject of an approved work order
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS accept_status TEXT DEFAULT 'pending'; -- pending | accepted | rejected
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS accepted_by TEXT;

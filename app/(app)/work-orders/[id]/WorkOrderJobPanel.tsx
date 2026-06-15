@@ -11,7 +11,8 @@
  * the buttons here are just the matching UX.
  */
 import React, { useRef, useState } from "react";
-import { CheckCircle2, XCircle, MapPin, Camera, ShieldCheck, Clock, LogIn, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckCircle2, XCircle, MapPin, Camera, ShieldCheck, Clock, LogIn, LogOut, Smartphone } from "lucide-react";
 import { Card, Btn } from "../../_components/ui";
 import { getV2User } from "../../../_lib/session";
 import { isManager, can } from "@/_lib/permissions";
@@ -21,6 +22,7 @@ import {
   checkInWorkOrder,
   checkOutWorkOrder,
   closeWorkOrder,
+  startWorkOrderFromErp,
 } from "@/_actions/workorder";
 
 const fmtTime = (v: unknown) => (v ? new Date(String(v)).toLocaleString("en-GB") : "-");
@@ -67,17 +69,57 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChanged: () => void }) {
+  const router = useRouter();
   const [busy, setBusy] = useState<string>("");
   const [err, setErr] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingKind = useRef<Kind | null>(null);
 
-  // erp-* legacy work orders are read-only for this flow.
-  if (!wo || wo.src === "erp" || String(wo.id || "").startsWith("erp-")) return null;
+  if (!wo) return null;
 
   const user = getV2User();
   const access = user ? { role: user.role, permissions: user.permissions } : null;
   const canApprove = can(access, "work-orders", "approve");
+  const isErp = wo.src === "erp" || String(wo.id || "").startsWith("erp-");
+
+  // Legacy ERP work order: offer to mirror → v2 + approve so it enters the mobile flow.
+  if (isErp) {
+    if (!canApprove) return null;
+    return (
+      <Card className="overflow-hidden border-t-4 border-t-emerald-500 shadow-sm">
+        <div className="flex items-center gap-2 border-b border-[var(--theme-border-subtle)] bg-slate-50/50 px-4 py-3">
+          <Smartphone size={16} className="text-emerald-600" />
+          <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">ສົ່ງເຂົ້າແອັບมือถือ</h2>
+        </div>
+        <div className="space-y-3 p-4">
+          <p className="text-[12.5px] text-[var(--theme-text-mute)]">
+            ໃບງານນີ້ແມ່ນລະບົບເກົ່າ (ERP). ກົດ "ມອບໝາຍ & ອະນຸມັດ" ເພື່ອสร้างสำเนาให้ช่างฮับ/check-in/out ผ่านมือถือ — ຊ່າງຈະໄດ້ຮັບການແຈ້ງเตือน.
+          </p>
+          {err && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] font-medium text-red-700">{err}</div>}
+          <Btn
+            variant="primary"
+            className="w-full"
+            disabled={!!busy}
+            onClick={async () => {
+              setErr("");
+              setBusy("start");
+              try {
+                const res: any = await startWorkOrderFromErp(String(wo.id));
+                if (res?.success === false) setErr(res.message || "ດຳເນີນການບໍ່ສຳເລັດ");
+                else if (res?.data?.id) router.push(`/work-orders/${res.data.id}`);
+              } catch (e) {
+                setErr((e as Error).message);
+              } finally {
+                setBusy("");
+              }
+            }}
+          >
+            <CheckCircle2 size={15} /> {busy === "start" ? "ກຳລັງดำเนินการ..." : "ມອບໝາຍ & ອະນຸມັດ"}
+          </Btn>
+        </div>
+      </Card>
+    );
+  }
   const assigned = wo.assigned_username ? String(wo.assigned_username) : "";
   const canAct = !!user && (isManager(access) || !assigned || assigned === user.username);
 

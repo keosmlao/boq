@@ -5,6 +5,7 @@ import { invalidate } from "@/_lib/cache";
 import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { ensureProjectTaskSchema } from "@/_lib/schemas/tasks";
 import { requireUser } from "@/_lib/server-auth";
+import { can } from "@/_lib/permissions";
 import {
   approveWorkOrderAs,
   respondWorkOrderAs,
@@ -377,6 +378,57 @@ export async function closeWorkOrder(id: string, opts: { note?: string } = {}) {
   try {
     const user = await requireUser();
     return await closeWorkOrderAs(user, id, opts);
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/**
+ * Make a legacy ERP work order usable by the mobile flow: mirror it into a v2
+ * odg_work_order (idempotent via legacy_code) and approve it in one step, so
+ * the assigned craftsman can accept it on mobile. Returns the v2 work order id.
+ */
+async function mirrorErpToV2(erpId: string): Promise<string | null> {
+  const realId = String(erpId).replace(/^erp-/, "");
+  const lg = await query(`${LEGACY_WO_SELECT} WHERE w.id = $1 LIMIT 1`, [realId]);
+  if (!lg.rows.length) return null;
+  const w: any = lg.rows[0];
+  const existing = await query(`SELECT id FROM odg_work_order WHERE legacy_code = $1 LIMIT 1`, [w.code]);
+  if (existing.rows.length) return String(existing.rows[0].id);
+  const tasks = [{ title: w.title || w.task_name || "ວຽກ", actual_hours: 0 }];
+  const ins = await query(
+    `INSERT INTO odg_work_order
+       (work_no, project_id, contract_id, work_date, end_date, technician_code, technician_name,
+        status, notes, tasks, materials, assigned_username, legacy_code)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'open',$8,$9::jsonb,'[]'::jsonb,$10,$11) RETURNING id`,
+    [
+      w.code,
+      w.project_code || null,
+      w.contract_no || null,
+      w.scheduled_date || null,
+      w.due_date || null,
+      w.technician_id || null,
+      w.technician_name_resolved || w.technician_id || null,
+      w.description || null,
+      JSON.stringify(tasks),
+      w.technician_id || null,
+      w.code,
+    ],
+  );
+  return String(ins.rows[0].id);
+}
+
+export async function startWorkOrderFromErp(erpId: string): Promise<{ success: true; data: { id: string } } | Fail> {
+  try {
+    const user = await requireUser();
+    if (!can(user, "work-orders", "approve")) return fail("ບໍ່ມີສິດອະນຸມັດ");
+    await ensureWorkOrderSchema();
+    const id = await mirrorErpToV2(String(erpId));
+    if (!id) return fail("ບໍ່ພົບໃບງານ ERP");
+    // Approve immediately (the manager issuing it IS the approval) → notifies craftsman.
+    await approveWorkOrderAs(user, id, { approve: true });
+    invalidate("wo:");
+    return { success: true, data: { id } };
   } catch (e) {
     return fail((e as Error).message);
   }
