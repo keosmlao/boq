@@ -34,6 +34,18 @@ export function isDbConnectionError(e: any): boolean {
     msg.includes("terminating connection") || msg.includes("server closed");
 }
 
+/** Change an employee's password (odg_employee) after verifying the old one. */
+export async function changeEmployeePassword(username: unknown, oldPw: unknown, newPw: unknown): Promise<{ ok: true } | { ok: false; message: string }> {
+  const u = cleanText(username);
+  const np = cleanText(newPw);
+  if (!u) return { ok: false, message: "ບໍ່ພົບຜູ້ໃຊ້" };
+  if (np.length < 4) return { ok: false, message: "ລະຫັດໃໝ່ສັ້ນເກີນໄປ (ຢ່າງໜ້ອຍ 4 ໂຕ)" };
+  const auth = await authenticateUser(u, oldPw);
+  if (!auth.ok) return { ok: false, message: "ລະຫັດເກົ່າບໍ່ຖືກຕ້ອງ" };
+  await query(`UPDATE odg_employee SET password = $1 WHERE employee_code = $2`, [bcrypt.hashSync(np, 10), u]);
+  return { ok: true };
+}
+
 /** Verify a username/password against the v2 (odg_app_user) + ERP credential stores. */
 export async function authenticateUser(usernameRaw: unknown, passwordRaw: unknown): Promise<AuthResult> {
   const username = cleanText(usernameRaw);

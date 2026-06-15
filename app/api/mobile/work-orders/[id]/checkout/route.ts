@@ -15,6 +15,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     photoBase64: body?.photoBase64 ? String(body.photoBase64) : undefined,
     photos: Array.isArray(body?.photos) ? body.photos.map(String) : undefined,
     note: body?.note ? String(body.note) : undefined,
+    signatureBase64: body?.signatureBase64 ? String(body.signatureBase64) : undefined,
   });
   return NextResponse.json(res, { status: res.success ? 200 : 400 });
 }

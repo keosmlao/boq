@@ -173,7 +173,7 @@ export async function checkInWorkOrderAs(
 export async function checkOutWorkOrderAs(
   user: ActingUser,
   id: string,
-  opts: { lat: number; lng: number; photoBase64?: string; photos?: string[]; note?: string },
+  opts: { lat: number; lng: number; photoBase64?: string; photos?: string[]; note?: string; signatureBase64?: string },
 ): Promise<Ok | Fail> {
   try {
     const bad = assertV2Id(String(id));
@@ -194,13 +194,18 @@ export async function checkOutWorkOrderAs(
     const urls = await savePhotos(input, `checkout-${id}`);
     if (!urls.length) return fail("ບັນທຶກຮູບບໍ່ສຳເລັດ");
 
+    let signatureUrl: string | null = null;
+    if (opts.signatureBase64) {
+      signatureUrl = await saveBase64File({ base64: opts.signatureBase64, fileName: `signature-${id}.png`, relativeDir: "static/uploads" });
+    }
+
     const r = await query(
       `UPDATE odg_work_order
           SET checkout_at = now(), checkout_lat = $2, checkout_lng = $3,
               checkout_photo = $4, checkout_photos = $5::jsonb, checkout_note = $6,
-              checkout_by = $7, status = 'awaiting_review'
+              checkout_signature = $8, checkout_by = $7, status = 'awaiting_review'
         WHERE id = $1 RETURNING *`,
-      [String(id), lat, lng, urls[0], JSON.stringify(urls), opts.note || null, actorName(user)],
+      [String(id), lat, lng, urls[0], JSON.stringify(urls), opts.note || null, actorName(user), signatureUrl],
     );
     invalidate("wo:");
     return { success: true, data: r.rows[0] };
@@ -233,6 +238,67 @@ export async function closeWorkOrderAs(
     );
     invalidate("wo:");
     return { success: true, data: r.rows[0] };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/* ── Checklist: mark a work-order task done/undone (stored in the tasks JSONB) ── */
+export async function setTaskDoneAs(user: ActingUser, id: string, index: number, done: boolean): Promise<Ok | Fail> {
+  try {
+    const bad = assertV2Id(String(id));
+    if (bad) return fail(bad);
+    await ensureWorkOrderSchema();
+    const wo = await loadWoRow(String(id));
+    if (!wo) return fail("ບໍ່ພົບໃບງານ");
+    if (!canActAsCraftsman(user, wo)) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
+    const tasks = Array.isArray(wo.tasks) ? wo.tasks : [];
+    if (index < 0 || index >= tasks.length) return fail("ບໍ່ພົບໜ້າວຽກ");
+    tasks[index] = { ...tasks[index], done: !!done };
+    const r = await query(`UPDATE odg_work_order SET tasks = $2::jsonb WHERE id = $1 RETURNING *`, [String(id), JSON.stringify(tasks)]);
+    invalidate("wo:");
+    return { success: true, data: r.rows[0] };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/* ── Material request (ໃບຂໍເບີກ) raised by the craftsman from the app ── */
+export async function createMaterialRequestAs(
+  user: ActingUser,
+  id: string,
+  items: Array<{ name?: string; unit?: string; qty?: number }>,
+  note?: string,
+): Promise<Ok | Fail> {
+  try {
+    await ensureWorkOrderSchema();
+    const wo = await loadWoRow(String(id));
+    if (!wo) return fail("ບໍ່ພົບໃບງານ");
+    if (!canActAsCraftsman(user, wo)) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
+    const clean = (Array.isArray(items) ? items : [])
+      .map((m) => ({ name: String(m?.name || "").trim(), unit: String(m?.unit || "").trim(), qty: Number(m?.qty) || 0 }))
+      .filter((m) => m.name && m.qty > 0);
+    if (!clean.length) return fail("ກະລຸນາใส่ລາຍການວັດສະດຸ");
+    const r = await query(
+      `INSERT INTO odg_wo_material_request (work_order_id, project_id, requested_by, items, note)
+       VALUES ($1,$2,$3,$4::jsonb,$5) RETURNING *`,
+      [String(id), wo.project_id ? String(wo.project_id) : null, actorName(user), JSON.stringify(clean), note || null],
+    );
+    return { success: true, data: r.rows[0] };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+export async function listMaterialRequests(id: string): Promise<{ success: true; data: any[] } | Fail> {
+  try {
+    await ensureWorkOrderSchema();
+    const r = await query(
+      `SELECT id::text, work_order_id, project_id, requested_by, items, note, status, created_at
+         FROM odg_wo_material_request WHERE work_order_id = $1 ORDER BY created_at DESC`,
+      [String(id)],
+    );
+    return { success: true, data: r.rows };
   } catch (e) {
     return fail((e as Error).message);
   }

@@ -62,7 +62,21 @@ export function ensureWorkOrderSchema(): Promise<void> {
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_photo TEXT;
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_photos JSONB DEFAULT '[]';
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_note TEXT;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_signature TEXT; -- customer sign-off image (url)
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_by TEXT;
+
+        -- Material requests raised by the craftsman from the app (app-owned).
+        CREATE TABLE IF NOT EXISTS odg_wo_material_request (
+          id            BIGSERIAL PRIMARY KEY,
+          work_order_id TEXT,
+          project_id    TEXT,
+          requested_by  TEXT,
+          items         JSONB DEFAULT '[]',
+          note          TEXT,
+          status        TEXT DEFAULT 'pending',
+          created_at    TIMESTAMPTZ DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS odg_wo_matreq_wo_idx ON odg_wo_material_request(work_order_id);
         -- Inspection close (after ລໍຖ້າກວດສອບ → ປິດງານແລ້ວ), by a manager/inspector
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS closed_by TEXT;
