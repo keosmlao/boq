@@ -25,6 +25,7 @@ export default function BoqDetailPage() {
   const [b, setB] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [confirmStatus, setConfirmStatus] = useState<number | null>(null); // 1=approve, 2=reject
 
   const docNo = decodeURIComponent(String(id));
   const user = getV2User();
@@ -150,10 +151,10 @@ export default function BoqDetailPage() {
           <div className="flex items-center gap-2.5 self-end sm:self-center">
             {canApprove && status === "ລໍຖ້າອະນຸມັດ" && (
               <>
-                <Btn variant="primary" disabled={busy} onClick={() => doApprove(1)}>
+                <Btn variant="primary" disabled={busy} onClick={() => setConfirmStatus(1)}>
                   <CheckCircle2 size={15} /> ອະນຸມັດ
                 </Btn>
-                <Btn variant="danger" disabled={busy} onClick={() => doApprove(2)}>
+                <Btn variant="danger" disabled={busy} onClick={() => setConfirmStatus(2)}>
                   <XCircle size={15} /> ປະຕິເສດ
                 </Btn>
               </>
@@ -266,6 +267,36 @@ export default function BoqDetailPage() {
         </div>
       )}
     <div className="mt-5"><ActivityFeed entityType="boq" entityId={docNo} /></div>
+
+      {confirmStatus !== null && (
+        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-[20vh]" onClick={() => !busy && setConfirmStatus(null)}>
+          <div className="w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-[var(--theme-shadow-lg)]" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 pt-6 pb-4 text-center">
+              <div className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full ring-1 ${confirmStatus === 1 ? "bg-emerald-50 text-emerald-600 ring-emerald-100" : "bg-rose-50 text-rose-600 ring-rose-100"}`}>
+                {confirmStatus === 1 ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
+              </div>
+              <div className="text-[14px] font-semibold text-[var(--theme-text)]">
+                {confirmStatus === 1 ? "ຢືນຢັນການອະນຸມັດ" : "ຢືນຢັນການປະຕິເສດ"}
+              </div>
+              <p className="mt-1 text-[12.5px] text-[var(--theme-text-mute)]">
+                {confirmStatus === 1 ? "ອະນຸມັດ BOQ ໃບນີ້?" : "ປະຕິເສດ BOQ ໃບນີ້?"} ({b.boq_no})
+              </p>
+            </div>
+            <div className="flex gap-2 border-t border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)] p-3">
+              <button onClick={() => setConfirmStatus(null)} disabled={busy} className="flex-1 rounded-md border border-[var(--theme-border-subtle)] bg-white py-2 text-[12px] font-semibold text-[var(--theme-text-soft)] hover:bg-[var(--theme-bg-muted)] disabled:opacity-60">
+                ຍົກເລີກ
+              </button>
+              <button
+                onClick={async () => { const s = confirmStatus; setConfirmStatus(null); await doApprove(s!); }}
+                disabled={busy}
+                className={`flex-1 rounded-md py-2 text-[12px] font-semibold text-white disabled:opacity-60 ${confirmStatus === 1 ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}
+              >
+                {confirmStatus === 1 ? "ອະນຸມັດ" : "ປະຕິເສດ"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Page>
   );
 }
