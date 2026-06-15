@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
 import { ArrowLeft, PackageOpen, Truck, FolderKanban, User, CalendarClock, Warehouse, MapPin } from "lucide-react";
 import { getRequestDetail, deleteRequest, setRequestStatus } from "@/_actions/request-v2";
-import { Page, Card, tblCls, thCls, tdCls } from "../../_components/ui";
+import { Page, Card, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
 
 const num = (v: unknown) => {
@@ -151,7 +151,9 @@ export default function RequestDetailPage() {
                       <th className={`${thCls} w-10 text-center pl-4`}>#</th>
                       <th className={`${thCls} pl-2`}>ລາຍການ</th>
                       <th className={`${thCls} w-24 text-center`}>ໜ່ວຍ</th>
-                      <th className={`${thCls} w-24 text-right pr-4`}>ຈຳນວນ</th>
+                      <th className={`${thCls} w-24 text-right`}>ຈຳນວນຂໍ</th>
+                      <th className={`${thCls} w-24 text-right`}>ເບີກແລ້ວ</th>
+                      <th className={`${thCls} w-28 text-center pr-4`}>ສະຖານະ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--theme-border-subtle)] bg-white">
@@ -166,7 +168,13 @@ export default function RequestDetailPage() {
                             {it.unit || it.unit_code || "-"}
                           </span>
                         </td>
-                        <td className={`${tdCls} text-right pr-4 font-semibold text-slate-900 tabular-nums`}>{num(it.qty)}</td>
+                        <td className={`${tdCls} text-right font-semibold text-slate-900 tabular-nums`}>{num(it.qty)}</td>
+                        <td className={`${tdCls} text-right font-semibold tabular-nums ${Number(it.withdrawn_qty) > 0 ? "text-emerald-600" : "text-slate-400"}`}>
+                          {num(it.withdrawn_qty)}
+                        </td>
+                        <td className={`${tdCls} text-center pr-4`}>
+                          <ItemStatus status={it.item_status} />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -324,6 +332,17 @@ function Info({ icon, label, value }: { icon: React.ReactNode; label: string; va
       <div className="font-medium text-[var(--theme-text)]">{value || "-"}</div>
     </div>
   );
+}
+
+function ItemStatus({ status }: { status: unknown }) {
+  const value = String(status || "requested");
+  if (value === "withdrawn") {
+    return <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700">ເບີກແລ້ວ</span>;
+  }
+  if (value === "partial") {
+    return <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10.5px] font-bold text-blue-700">ເບີກບາງສ່ວນ</span>;
+  }
+  return <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10.5px] font-bold text-amber-700">ລໍຖ້າເບີກ</span>;
 }
 
 function SidebarInfo({ icon, label, value }: { icon: React.ReactNode; label: string; value: any }) {

@@ -37,7 +37,6 @@ async function loadWoRow(id: string): Promise<any | null> {
 
 /** May this user act on this work order as the assigned craftsman? */
 function canActAsCraftsman(user: ActingUser, wo: any): boolean {
-  if (isManager(user)) return true;
   // The assigned head craftsman: matched by assigned_username, or by the work
   // order's technician_code (= the craftsman's employee_code).
   const assigned = wo?.assigned_username ? String(wo.assigned_username) : "";

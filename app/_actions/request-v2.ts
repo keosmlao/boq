@@ -5,6 +5,7 @@ import { logActivity } from "./chatter";
 import { invalidate } from "@/_lib/cache";
 import { ensureRequestSchema } from "@/_lib/schemas/request";
 import { requirePermission } from "@/_lib/server-auth";
+import { getProjectMaterials } from "@/_actions/boq-v2";
 import {
   getRequests as getLegacyRequests,
   deleteRequest as deleteLegacyRequest,
@@ -24,6 +25,76 @@ const isV2Id = (id: unknown) => /^\d+$/.test(String(id));
 
 /** The only statuses a request may hold (odg_request.status is an unconstrained TEXT column). */
 const REQUEST_STATUSES = new Set(["requested", "withdrawn", "rejected"]);
+
+async function validateLocationStock(items: any[]): Promise<string | null> {
+  const first = items[0];
+  const warehouse = String(first?.wh_code || "").trim();
+  const location = String(first?.shelf_code || "").trim();
+  if (!warehouse || !location) return "ກະລຸນາເລືອກສາງ ແລະ ທີ່ຈັດເກັບ";
+
+  const requested = new Map<string, number>();
+  for (const item of items) {
+    const code = String(item?.item_code || "").trim();
+    if (!code) return "ບໍ່ສາມາດກວດ stock ໄດ້: ລາຍການວັດສະດຸບໍ່ມີລະຫັດ";
+    if (String(item?.wh_code || "").trim() !== warehouse || String(item?.shelf_code || "").trim() !== location) {
+      return "ລາຍການທັງໝົດຕ້ອງໃຊ້ສາງ ແລະ ທີ່ຈັດເກັບດຽວກັນ";
+    }
+    requested.set(code, (requested.get(code) || 0) + num(item.qty));
+  }
+
+  const codes = [...requested.keys()];
+  const stock = await query(
+    `SELECT trim(s.ic_code) AS ic_code, coalesce(sum(s.balance_qty), 0)::numeric AS balance_qty
+     FROM unnest($2::text[]) AS requested(ic_code)
+     CROSS JOIN LATERAL public.sml_ic_function_stock_balance_warehouse_location(
+       $1, requested.ic_code, $3, $4
+     ) AS s
+     WHERE trim(s.ic_code) = requested.ic_code
+     GROUP BY trim(s.ic_code)`,
+    ["2099-12-31", codes, warehouse, location],
+  );
+  const balances = new Map((stock.rows as any[]).map((row) => [String(row.ic_code).trim(), Math.max(num(row.balance_qty), 0)]));
+  for (const [code, qty] of requested) {
+    const balance = balances.get(code) || 0;
+    if (qty > balance) return `ລາຍການ ${code} ຂໍເບີກ ${qty} ເກີນ stock ຄົງເຫຼືອ ${balance}`;
+  }
+  return null;
+}
+
+async function validateBoqAvailability(projectId: string, items: any[], editingId?: string): Promise<string | null> {
+  const currentQty = new Map<string, number>();
+  if (editingId) {
+    if (isV2Id(editingId)) {
+      const existing = await query(`SELECT items FROM odg_request WHERE id = $1 LIMIT 1`, [editingId]);
+      for (const item of Array.isArray(existing.rows[0]?.items) ? existing.rows[0].items : []) {
+        const code = String(item?.item_code || "").trim();
+        if (code) currentQty.set(code, (currentQty.get(code) || 0) + num(item.qty));
+      }
+    } else {
+      const existing = await query(`SELECT item_code, qty FROM odg_requests_detail WHERE doc_no = $1`, [editingId]);
+      for (const item of existing.rows as any[]) {
+        const code = String(item?.item_code || "").trim();
+        if (code) currentQty.set(code, (currentQty.get(code) || 0) + num(item.qty));
+      }
+    }
+  }
+
+  const materials = await getProjectMaterials(projectId);
+  if (!materials.success) return materials.message;
+  const available = new Map(
+    materials.data.map((item: any) => [String(item.item_code || "").trim(), num(item.remaining)]),
+  );
+  const requested = new Map<string, number>();
+  for (const item of items) {
+    const code = String(item?.item_code || "").trim();
+    requested.set(code, (requested.get(code) || 0) + num(item.qty));
+  }
+  for (const [code, qty] of requested) {
+    const canRequest = (available.get(code) || 0) + (currentQty.get(code) || 0);
+    if (qty > canRequest) return `ລາຍການ ${code} ຂໍເບີກ ${qty} ເກີນ BOQ ຄົງເຫຼືອທີ່ເບີກເພີ່ມໄດ້ ${canRequest}`;
+  }
+  return null;
+}
 
 export async function getRequests(opts: { projectId?: string } = {}): Promise<{ success: true; data: any[] } | Fail> {
   try {
@@ -90,11 +161,16 @@ export async function getRequestDetail(id: string): Promise<{ success: true; dat
       const r = await query(`SELECT * FROM odg_request WHERE id = $1 LIMIT 1`, [sid]);
       if (r.rows.length) {
         const x: any = r.rows[0];
+        const isWithdrawn = String(x.status) === "withdrawn";
         return {
           success: true,
           data: {
             ...x,
-            items: Array.isArray(x.items) ? x.items : [],
+            items: (Array.isArray(x.items) ? x.items : []).map((item: any) => ({
+              ...item,
+              withdrawn_qty: isWithdrawn ? num(item.qty) : 0,
+              item_status: isWithdrawn ? "withdrawn" : "requested",
+            })),
             withdrawals: [],
             src: "v2",
           },
@@ -183,6 +259,28 @@ export async function getRequestDetail(id: string): Promise<{ success: true; dat
       w.withdrawer = (w.withdrawerCodes || []).map((c: string) => empMap[String(c)] || c).join(", ");
     }
     const requesterName = empMap[String(head.creator_code)] || head.requester_name || head.creator_code || null;
+    const withdrawnByItem = new Map<string, number>();
+    for (const withdrawal of withdrawals) {
+      for (const item of Array.isArray(withdrawal.items) ? withdrawal.items : []) {
+        const code = String(item.item_code || "").trim();
+        if (code) withdrawnByItem.set(code, (withdrawnByItem.get(code) || 0) + num(item.qty));
+      }
+    }
+    const remainingWithdrawnByItem = new Map(withdrawnByItem);
+    const requestItems = (det.rows as any[]).map((x) => {
+      const requestedQty = num(x.qty);
+      const code = String(x.item_code || "").trim();
+      const withdrawnQty = Math.min(requestedQty, remainingWithdrawnByItem.get(code) || 0);
+      remainingWithdrawnByItem.set(code, Math.max((remainingWithdrawnByItem.get(code) || 0) - withdrawnQty, 0));
+      return {
+        item_code: x.item_code,
+        description: x.item_name,
+        unit: x.unit_code,
+        qty: x.qty,
+        withdrawn_qty: withdrawnQty,
+        item_status: withdrawnQty >= requestedQty ? "withdrawn" : withdrawnQty > 0 ? "partial" : "requested",
+      };
+    });
 
     return {
       success: true,
@@ -195,7 +293,7 @@ export async function getRequestDetail(id: string): Promise<{ success: true; dat
         requester: requesterName,
         notes: head.remark || null,
         status: withdrawals.length ? "withdrawn" : "requested",
-        items: (det.rows as any[]).map((x) => ({ item_code: x.item_code, description: x.item_name, unit: x.unit_code, qty: x.qty })),
+        items: requestItems,
         withdrawals,
         src: "erp",
       },
@@ -223,6 +321,10 @@ export async function createRequest(body: any): Promise<{ success: true; data: a
     if (!body?.project_id) return fail("project_id is required");
     const items = (Array.isArray(body.items) ? body.items : []).filter((it: any) => num(it.qty) > 0);
     if (!items.length) return fail("ກະລຸນາໃສ່ລາຍການທີ່ຕ້ອງເບີກ");
+    const boqError = await validateBoqAvailability(String(body.project_id), items);
+    if (boqError) return fail(boqError);
+    const stockError = await validateLocationStock(items);
+    if (stockError) return fail(stockError);
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, "0");
     const reqNo = body.request_no || `RQ-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
@@ -285,6 +387,15 @@ export async function updateRequest(id: string, body: any): Promise<{ success: t
     await ensureRequestSchema();
     const items = (Array.isArray(body?.items) ? body.items : []).filter((it: any) => num(it.qty) > 0);
     if (!items.length) return fail("ກະລຸນາໃສ່ລາຍການທີ່ຕ້ອງເບີກ");
+    const projectResult = isV2Id(id)
+      ? await query(`SELECT project_id FROM odg_request WHERE id = $1 LIMIT 1`, [id])
+      : await query(`SELECT project_id::text AS project_id FROM odg_requests WHERE doc_no = $1 LIMIT 1`, [id]);
+    const projectId = String(projectResult.rows[0]?.project_id || "");
+    if (!projectId) return fail("ບໍ່ພົບໂຄງການຂອງໃບຂໍເບີກ");
+    const boqError = await validateBoqAvailability(projectId, items, id);
+    if (boqError) return fail(boqError);
+    const stockError = await validateLocationStock(items);
+    if (stockError) return fail(stockError);
 
     if (isV2Id(id)) {
       const r = await query(

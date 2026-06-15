@@ -10,11 +10,13 @@ export default function ProjectPickerModal({
   onClose,
   onPick,
   title = "ເລືອກໂຄງການ",
+  requireBoq = false,
 }: {
   open: boolean;
   onClose: () => void;
   onPick: (project: any) => void;
   title?: string;
+  requireBoq?: boolean;
 }) {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,13 +29,14 @@ export default function ProjectPickerModal({
     (async () => {
       try {
         const res: any = await getProjects({ summary: true });
-        if (alive) setRows(res?.success ? res.data || [] : Array.isArray(res) ? res : []);
+        const projects = res?.success ? res.data || [] : Array.isArray(res) ? res : [];
+        if (alive) setRows(requireBoq ? projects.filter((project: any) => Number(project.boq_count) > 0) : projects);
       } finally {
         if (alive) setLoading(false);
       }
     })();
     return () => { alive = false; };
-  }, [open]);
+  }, [open, requireBoq]);
 
   const filtered = useMemo(() => {
     const kw = q.trim().toLowerCase();
@@ -61,7 +64,9 @@ export default function ProjectPickerModal({
           {loading ? (
             <div className="py-10 text-center text-[12px] text-[var(--theme-text-mute)]">ກຳລັງໂຫຼດ...</div>
           ) : filtered.length === 0 ? (
-            <div className="py-10 text-center text-[12px] text-[var(--theme-text-mute)]">ບໍ່ພົບໂຄງການ</div>
+            <div className="py-10 text-center text-[12px] text-[var(--theme-text-mute)]">
+              {requireBoq ? "ບໍ່ພົບໂຄງການທີ່ມີ BOQ" : "ບໍ່ພົບໂຄງການ"}
+            </div>
           ) : (
             filtered.map((p, i) => (
               <button

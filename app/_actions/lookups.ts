@@ -317,3 +317,38 @@ export async function getStockBalance(
     return ok(rows);
   } catch (e) { return fail((e as Error).message); }
 }
+
+/** Stock on-hand for multiple item codes at one warehouse + location. */
+export async function getStockBalancesAtLocation(
+  itemCodes: string[],
+  warehouse: string,
+  location: string,
+  opts: { asOf?: string } = {},
+): Promise<Result<unknown[]>> {
+  try {
+    const codes = [...new Set((Array.isArray(itemCodes) ? itemCodes : []).map(cleanText).filter(Boolean))];
+    const wh = cleanText(warehouse);
+    const loc = cleanText(location);
+    const asOf = cleanText(opts.asOf) || "2099-12-31";
+    if (!wh || !loc || !codes.length) return ok([]);
+
+    const result = await query(
+      `SELECT
+         trim(stock.ic_code) AS ic_code,
+         max(stock.ic_name) AS ic_name,
+         $3::text AS warehouse,
+         $4::text AS location,
+         coalesce(sum(stock.balance_qty), 0)::numeric AS balance_qty,
+         max(stock.ic_unit_code) AS ic_unit_code
+       FROM unnest($2::text[]) AS requested(ic_code)
+       CROSS JOIN LATERAL public.sml_ic_function_stock_balance_warehouse_location(
+         $1, requested.ic_code, $3, $4
+       ) AS stock
+       WHERE trim(stock.ic_code) = requested.ic_code
+       GROUP BY trim(stock.ic_code)
+       ORDER BY trim(stock.ic_code)`,
+      [asOf, codes, wh, loc],
+    );
+    return ok(result.rows);
+  } catch (e) { return fail((e as Error).message); }
+}

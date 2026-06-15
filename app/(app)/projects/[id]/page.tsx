@@ -75,6 +75,13 @@ export default function V2PipelinePage() {
   const [confirmDel, setConfirmDel] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const selectTab = async (key: TabKey) => {
+    setTab(key);
+    if (key !== "materials") return;
+    const result: any = await getProjectMaterials(String(id));
+    if (result?.success) setMaterials(result.data || []);
+  };
+
   const doDelete = async () => {
     setDeleting(true);
     try {
@@ -382,7 +389,7 @@ export default function V2PipelinePage() {
               return (
                 <button
                   key={t.key}
-                  onClick={() => setTab(t.key)}
+                  onClick={() => selectTab(t.key)}
                   className={`flex-shrink-0 whitespace-nowrap px-3.5 py-2.5 text-xs font-bold rounded-xl flex items-center gap-2 transition-all ${
                     isActive
                       ? "bg-white text-blue-600 shadow-2xs ring-1 ring-blue-100"
@@ -728,11 +735,15 @@ function MaterialsSummary({ rows }: { rows: any[] }) {
             <th className="px-4 py-3 text-right">ຂໍເບີກ</th>
             <th className="px-4 py-3 text-right">ເບີກແລ້ວ</th>
             <th className="px-4 py-3 text-right">ຄົງເຫຼືອ</th>
+            <th className="px-4 py-3 text-center">ສະຖານະ</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {rows.map((r, i) => {
             const remain = Number(r.remaining) || 0;
+            const requested = Number(r.request_qty) || 0;
+            const withdrawn = Number(r.withdraw_qty) || 0;
+            const status = withdrawn > 0 ? "withdrawn" : requested > 0 ? "requested" : "available";
             return (
               <tr key={i} className="hover:bg-slate-50/50">
                 <td className="px-4 py-3 font-bold text-slate-900">{r.description || r.item_code || "-"}</td>
@@ -741,6 +752,15 @@ function MaterialsSummary({ rows }: { rows: any[] }) {
                 <td className="px-4 py-3 text-right font-mono font-semibold text-amber-600">{(Number(r.request_qty) || 0).toLocaleString("en-US")}</td>
                 <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-600">{(Number(r.withdraw_qty) || 0).toLocaleString("en-US")}</td>
                 <td className={`px-4 py-3 text-right font-mono font-bold ${remain > 0 ? "text-slate-900" : "text-slate-400"}`}>{remain.toLocaleString("en-US")}</td>
+                <td className="px-4 py-3 text-center">
+                  {status === "withdrawn" ? (
+                    <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">ເບີກແລ້ວ</span>
+                  ) : status === "requested" ? (
+                    <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">ລໍຖ້າເບີກ</span>
+                  ) : (
+                    <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">ຍັງບໍ່ຂໍເບີກ</span>
+                  )}
+                </td>
               </tr>
             );
           })}
@@ -752,6 +772,7 @@ function MaterialsSummary({ rows }: { rows: any[] }) {
             <td className="px-4 py-3 text-right font-mono text-amber-600">{sum("request_qty").toLocaleString("en-US")}</td>
             <td className="px-4 py-3 text-right font-mono text-emerald-600">{sum("withdraw_qty").toLocaleString("en-US")}</td>
             <td className="px-4 py-3 text-right font-mono text-blue-600">{sum("remaining").toLocaleString("en-US")}</td>
+            <td className="px-4 py-3" />
           </tr>
         </tfoot>
       </table>

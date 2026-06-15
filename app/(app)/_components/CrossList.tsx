@@ -22,6 +22,7 @@ export default function CrossList({
   groupBy,
   subGroupBy,
   groupLabel = "ຈັດກຸ່ມ",
+  aboveTable,
 }: {
   title: string;
   subtitle?: (n: number) => string;
@@ -42,6 +43,7 @@ export default function CrossList({
   /** Optional second-level grouping rendered as sub-sections inside each group. */
   subGroupBy?: (r: any) => string;
   groupLabel?: string;
+  aboveTable?: React.ReactNode;
 }) {
   const router = useRouter();
   const seeded = initialRows !== undefined;
@@ -185,6 +187,7 @@ export default function CrossList({
             </button>
           )}
         </div>
+        {aboveTable}
 
         {loading ? (
           <div className="flex h-56 items-center justify-center gap-3 text-slate-400">

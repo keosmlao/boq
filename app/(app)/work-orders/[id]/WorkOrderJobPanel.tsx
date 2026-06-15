@@ -121,7 +121,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
     );
   }
   const assigned = wo.assigned_username ? String(wo.assigned_username) : "";
-  const canAct = !!user && (isManager(access) || !assigned || assigned === user.username);
+  const canAct = !!user && (!assigned || assigned === user.username);
 
   const approvalStatus = String(wo.approval_status || "pending");
   const acceptStatus = String(wo.accept_status || "pending");

@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
 import { ArrowLeft, ListChecks, FolderKanban, User, UserCheck, CalendarClock, Boxes } from "lucide-react";
-import { getBoq, deleteBoq, approveBoq } from "@/_actions/boq";
+import { deleteBoq, approveBoq } from "@/_actions/boq";
 import { Page, Card, Pill, Btn } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
 import { getV2User } from "../../../_lib/session";
@@ -31,7 +31,9 @@ export default function BoqDetailPage() {
   const canApprove = can(user ? { role: user.role, permissions: user.permissions } : null, "boq", "approve");
 
   const load = React.useCallback(async () => {
-    const lr: any = await getBoq(docNo);
+    const response = await fetch(`/api/boq/${encodeURIComponent(docNo)}`, { cache: "no-store" });
+    const payload: any = await response.json().catch(() => null);
+    const lr: any = payload?.data ?? payload;
     if (lr && lr.success !== false) {
       const apv = Number(lr.approve_status);
       setB({

@@ -50,6 +50,7 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
         onClose={() => setPick(false)}
         onPick={(p) => router.push(`/projects/${p.id}/request/new`)}
         title="ເລືອກໂຄງການເພື່ອຂໍເບີກ"
+        requireBoq
       />
     </>
   );

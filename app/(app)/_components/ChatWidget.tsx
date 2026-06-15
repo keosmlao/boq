@@ -31,13 +31,21 @@ export default function ChatWidget() {
   const [loading, setLoading] = useState(true);
 
   const lastId = useRef(0);
+  const lastRead = useRef(0); // persisted: newest message id the user has seen
   const openRef = useRef(false);
   const busy = useRef(false);
   const me = useRef("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  const markRead = useCallback(() => {
+    lastRead.current = lastId.current;
+    try { localStorage.setItem("odg_chat_lastread", String(lastRead.current)); } catch {}
+  }, []);
+
   useEffect(() => {
     me.current = getV2User()?.username || "";
+    const v = Number(localStorage.getItem("odg_chat_lastread") || 0);
+    lastRead.current = Number.isFinite(v) ? v : 0;
   }, []);
 
   const scrollToBottom = useCallback(() => {
@@ -61,9 +69,11 @@ export default function ChatWidget() {
           return merged.slice(-300);
         });
         if (!openRef.current) {
-          const incoming = fresh.filter((m) => m.username !== me.current).length;
+          // Only count messages newer than what the user has already seen.
+          const incoming = fresh.filter((m) => m.username !== me.current && Number(m.id) > lastRead.current).length;
           if (incoming) setUnread((u) => u + incoming);
         } else {
+          markRead();
           scrollToBottom();
         }
       }
@@ -71,7 +81,7 @@ export default function ChatWidget() {
       busy.current = false;
       setLoading(false);
     }
-  }, [scrollToBottom]);
+  }, [scrollToBottom, markRead]);
 
   // Initial load + adaptive polling.
   useEffect(() => {
@@ -100,6 +110,7 @@ export default function ChatWidget() {
       openRef.current = next;
       if (next) {
         setUnread(0);
+        markRead();
         scrollToBottom();
       }
       window.dispatchEvent(new Event("odg-chat-rearm"));

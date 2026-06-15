@@ -95,11 +95,30 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
         for (const r of ld.rows as any[]) add(r.item_code, r.item_name, r.unit_code, r.qty);
 
         const rq = await query(
-          `SELECT d.item_code,
-                  SUM(CASE WHEN COALESCE(r.doc_success,0)=0 THEN d.qty ELSE 0 END)::numeric AS req,
-                  SUM(CASE WHEN COALESCE(r.doc_success,0)=1 THEN d.qty ELSE 0 END)::numeric AS wd
-           FROM odg_requests r JOIN odg_requests_detail d ON d.doc_no = r.doc_no
-           WHERE r.doc_ref = ANY($1::text[]) GROUP BY d.item_code`,
+          `WITH requested AS (
+             SELECT r.doc_no, d.item_code, SUM(d.qty)::numeric AS qty
+             FROM odg_requests r
+             JOIN odg_requests_detail d ON d.doc_no = r.doc_no
+             WHERE r.doc_ref = ANY($1::text[])
+             GROUP BY r.doc_no, d.item_code
+           ),
+           withdrawn AS (
+             SELECT t.doc_ref AS request_no, d.item_code, SUM(d.qty)::numeric AS qty
+             FROM ic_trans t
+             JOIN ic_trans_detail d ON d.doc_no = t.doc_no
+             WHERE t.doc_ref IN (SELECT doc_no FROM requested)
+               AND t.doc_no <> t.doc_ref
+               AND COALESCE(t.is_cancel, 0) = 0
+             GROUP BY t.doc_ref, d.item_code
+           )
+           SELECT requested.item_code,
+                  SUM(GREATEST(requested.qty - COALESCE(withdrawn.qty, 0), 0))::numeric AS req,
+                  SUM(LEAST(requested.qty, COALESCE(withdrawn.qty, 0)))::numeric AS wd
+           FROM requested
+           LEFT JOIN withdrawn
+             ON withdrawn.request_no = requested.doc_no
+            AND withdrawn.item_code = requested.item_code
+           GROUP BY requested.item_code`,
           [docNos],
         );
         for (const r of rq.rows as any[]) {
@@ -137,10 +156,21 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
       console.error("getProjectMaterials: v2 request read failed:", e);
     }
 
-    const data = Array.from(map.values()).map((e) => ({
-      ...e,
-      remaining: Math.max(num(e.boq_qty) - num(e.request_qty) - num(e.withdraw_qty), 0),
-    }));
+    const data = Array.from(map.values()).map((e) => {
+      const boqQty = num(e.boq_qty);
+      const pendingRequestQty = num(e.request_qty);
+      const withdrawnQty = num(e.withdraw_qty);
+      const availableQty = Math.max(boqQty - pendingRequestQty - withdrawnQty, 0);
+      return {
+        ...e,
+        boq_qty: boqQty,
+        request_qty: pendingRequestQty,
+        pending_request_qty: pendingRequestQty,
+        withdraw_qty: withdrawnQty,
+        available_qty: availableQty,
+        remaining: availableQty,
+      };
+    });
     data.sort((a, b) => String(a.description).localeCompare(String(b.description)));
     return { success: true, data };
   } catch (e) {
