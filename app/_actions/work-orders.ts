@@ -1,6 +1,7 @@
 "use server";
 
 import { query, withTransaction } from "@/_lib/db";
+import { invalidate } from "@/_lib/cache";
 import { cleanText, toNumber } from "@/_lib/http";
 
 type Fail = { success: false; message: string };
@@ -140,6 +141,8 @@ export async function createWorkOrder(payload: any): Promise<{ success: true; da
       return inserted.rows[0];
     });
 
+    invalidate("wo:");
+    invalidate("tasks:");
     return { success: true, data: result, id: result.id, code: result.code };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -189,6 +192,8 @@ export async function updateWorkOrder(id: string | number, payload: any): Promis
       }
     });
 
+    invalidate("wo:");
+    invalidate("tasks:");
     return { success: true, data: await fetchWorkOrder(workOrderId) };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -203,6 +208,8 @@ export async function deleteWorkOrder(id: string | number): Promise<{ success: t
       await client.query(`DELETE FROM odg_work_order_tasks WHERE work_order_id = $1`, [workOrderId]);
       await client.query(`DELETE FROM odg_work_orders WHERE id = $1`, [workOrderId]);
     });
+    invalidate("wo:");
+    invalidate("tasks:");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -241,6 +248,7 @@ export async function saveWorkSchedule(payload: any): Promise<{ success: true } 
       }
     });
 
+    invalidate("wo:");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }
 }

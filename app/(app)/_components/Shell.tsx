@@ -31,6 +31,7 @@ import { clearV2User, getV2User, type V2User } from "../../_lib/session";
 import NavProgress from "./NavProgress";
 import ChatWidget from "./ChatWidget";
 import MyActivitiesBell from "./MyActivitiesBell";
+import NotificationsBell from "./NotificationsBell";
 
 type NavItem = { label: string; href: string; icon: React.ReactNode };
 type NavSection = { section?: string; items: NavItem[] };
@@ -272,6 +273,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 <BarChart3 size={14} /> ລາຍງານ
               </Link>
             )}
+            <NotificationsBell />
             <MyActivitiesBell />
             <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
 

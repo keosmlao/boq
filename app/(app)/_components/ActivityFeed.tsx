@@ -10,6 +10,7 @@ import { MessageSquare, Send, Loader2, Trash2, Activity } from "lucide-react";
 import { getFeed, addComment, deleteFeedItem, type FeedItem } from "@/_actions/chatter";
 import { getV2User } from "../../_lib/session";
 import ActivitiesPanel from "./ActivitiesPanel";
+import Followers from "./Followers";
 
 const POLL_MS = 4000;
 
@@ -92,15 +93,18 @@ export default function ActivityFeed({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="grid items-start gap-4 lg:grid-cols-2 xl:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
       <ActivitiesPanel entityType={entityType} entityId={id} />
       <div className="rounded-3xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
         <MessageSquare size={16} className="text-blue-600" />
         <h2 className="text-[13px] font-black text-slate-800">{title}</h2>
         {items.length > 0 && (
-          <span className="ml-auto rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">{items.length}</span>
+          <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">{items.length}</span>
         )}
+        <div className="ml-auto">
+          <Followers entityType={entityType} entityId={id} />
+        </div>
       </div>
 
       {/* Timeline */}

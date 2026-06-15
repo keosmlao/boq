@@ -11,6 +11,7 @@
 import { asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/_db/client";
 import { boqDocs, boqLines, contracts, materialRequests, materialRequestLines, projects } from "@/_db/schema";
+import { invalidate } from "@/_lib/cache";
 
 type Ok = { success: true; message?: string };
 type Fail = { success: false; message: string };
@@ -96,6 +97,7 @@ export async function deleteBoq(docNo: string): Promise<Ok | Fail> {
   try {
     const res = await db.delete(boqDocs).where(eq(boqDocs.docNo, decodeURIComponent(docNo))).returning({ id: boqDocs.id });
     if (!res.length) return fail("BOQ not found");
+    invalidate("projects:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -110,6 +112,7 @@ export async function approveBoq(docNo: string, payload: { status?: number; user
       .where(eq(boqDocs.docNo, decodeURIComponent(docNo)))
       .returning({ id: boqDocs.id });
     if (!res.length) return fail("BOQ not found");
+    invalidate("projects:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -225,6 +228,7 @@ export async function saveBoq(
       return dno;
     });
 
+    invalidate("projects:");
     return { success: true, message: `Created ${docNo}`, doc_no: docNo, total_items: validItems.length };
   } catch (e) {
     return fail((e as Error).message);

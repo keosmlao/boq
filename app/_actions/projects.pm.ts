@@ -15,6 +15,7 @@ import { and, desc, eq, or } from "drizzle-orm";
 import { db } from "@/_db/client";
 import { projects } from "@/_db/schema";
 import { erpProvince, erpAmper, erpTambon } from "@/_db/erp";
+import { invalidate } from "@/_lib/cache";
 
 type Ok = { success: true; message?: string; id?: unknown };
 type Fail = { success: false; message: string };
@@ -112,6 +113,7 @@ export async function advanceProjectStage(projectId: string, target: string): Pr
     if (pid == null) return fail("Project not found");
     const next = STAGE_TO_ENUM[String(target)] ?? "in_progress";
     await db.update(projects).set({ status: next, updatedAt: new Date() }).where(eq(projects.id, pid));
+    invalidate("projects:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -124,6 +126,7 @@ export async function deleteProjectAction(projectId: string): Promise<Ok | Fail>
     if (pid == null) return fail("Project not found");
     // FK cascades remove quotations/contracts/boq/surveys/tasks/etc.
     await db.delete(projects).where(eq(projects.id, pid));
+    invalidate("projects:");
     return { success: true, message: "Deleted" };
   } catch (e) {
     return fail((e as Error).message);

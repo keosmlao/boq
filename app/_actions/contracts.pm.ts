@@ -12,6 +12,7 @@
 import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/_db/client";
 import { contracts, quotations, projects } from "@/_db/schema";
+import { invalidate } from "@/_lib/cache";
 
 type Fail = { success: false; message: string; [k: string]: unknown };
 const fail = (message: string, extra: Record<string, unknown> = {}): Fail => ({ success: false, message, ...extra });
@@ -192,6 +193,7 @@ export async function createContract(body: any, opts: { fromQuotation?: string }
         pdfUrl: body.contract_pdf_url || null,
       })
       .returning();
+    invalidate("projects:");
     return { success: true, data: inserted[0] };
   } catch (e) {
     return fail((e as Error).message);
@@ -253,6 +255,7 @@ export async function updateContract(id: string, body: any): Promise<{ success: 
     }
     const res = await db.update(contracts).set(set).where(eq(contracts.id, n)).returning();
     if (!res.length) return fail("Contract not found");
+    invalidate("projects:");
     return { success: true, data: res[0] };
   } catch (e) {
     return fail((e as Error).message);
@@ -265,6 +268,7 @@ export async function deleteContract(id: string): Promise<{ success: true } | Fa
     if (n == null) return fail("Contract not found");
     const res = await db.delete(contracts).where(eq(contracts.id, n)).returning({ id: contracts.id });
     if (!res.length) return fail("Contract not found");
+    invalidate("projects:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -307,6 +311,7 @@ export async function setContractApproval(
       return true;
     });
     if (!found) return fail("Contract not found");
+    invalidate("projects:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);

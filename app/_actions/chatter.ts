@@ -10,6 +10,8 @@ import { query } from "@/_lib/db";
 import { cleanText } from "@/_lib/http";
 import { getSessionUser } from "@/_lib/server-auth";
 import { isManager } from "@/_lib/permissions";
+import { ensureFollower } from "./followers";
+import { notifyFollowers } from "./notifications";
 
 type Ok<T> = { success: true; data: T };
 type Fail = { success: false; message: string };
@@ -103,6 +105,8 @@ export async function addComment(entityType: string, entityId: string, body: str
        RETURNING id::text, entity_type, entity_id, kind, action, body, username, user_name, created_at`,
       [type, id, text, user.username, user.name],
     );
+    await ensureFollower(type, id, user.username, user.name); // commenting subscribes you
+    await notifyFollowers(type, id, "comment", `${user.name}: ${text}`.slice(0, 200), user.username);
     return ok(result.rows[0] as FeedItem);
   } catch (e) { return fail((e as Error).message); }
 }

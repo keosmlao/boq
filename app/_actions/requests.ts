@@ -1,6 +1,7 @@
 "use server";
 
 import { query, withTransaction } from "@/_lib/db";
+import { invalidate } from "@/_lib/cache";
 import { cleanText, dateOrNull, ensureRequestsSchema, generateRequestDocNo, num } from "@/_lib/schemas/requests";
 
 type Fail = { success: false; message: string };
@@ -195,6 +196,8 @@ export async function createRequest(body: any): Promise<{ success: true; doc_no:
       });
     });
 
+    invalidate("req:");
+    invalidate("ic:");
     return { success: true, doc_no: docNo, data: { doc_no: docNo } };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -246,6 +249,8 @@ export async function updateRequest(docNo: string, body: any): Promise<{ success
         items,
       });
     });
+    invalidate("req:");
+    invalidate("ic:");
     return { success: true, doc_no: decoded };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -264,6 +269,8 @@ export async function deleteRequest(docNo: string): Promise<{ success: true; mes
       await client.query(`DELETE FROM ic_trans WHERE doc_no = $1 AND trans_type = $2 AND trans_flag = $3`,
         [decoded, IC_TRANS_REQUEST_TYPE, IC_TRANS_REQUEST_FLAG]);
     });
+    invalidate("req:");
+    invalidate("ic:");
     return { success: true, message: "Deleted" };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -333,6 +340,8 @@ export async function createSparepartRequest(body: any): Promise<{ success: true
       });
     });
 
+    invalidate("req:");
+    invalidate("ic:");
     return { success: true, doc_no: docNo };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -424,6 +433,8 @@ export async function updateSparepartRequest(docNo: string, body: any): Promise<
       });
     });
 
+    invalidate("req:");
+    invalidate("ic:");
     return { success: true, message: "Updated" };
   } catch (e) { return fail((e as Error).message); }
 }

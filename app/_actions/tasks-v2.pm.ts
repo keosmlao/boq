@@ -12,6 +12,7 @@
 import { asc, desc, eq, or } from "drizzle-orm";
 import { db } from "@/_db/client";
 import { projectTasks, projects, workOrders } from "@/_db/schema";
+import { invalidate } from "@/_lib/cache";
 
 type Fail = { success: false; message: string };
 const fail = (message: string): Fail => ({ success: false, message });
@@ -75,6 +76,7 @@ export async function deleteTaskPlan(projectId: string): Promise<{ success: true
   try {
     const pid = await resolvePmProjectId(projectId);
     if (pid != null) await db.delete(projectTasks).where(eq(projectTasks.projectId, pid));
+    invalidate("tasks:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -158,6 +160,7 @@ export async function saveTaskPlan(
         );
       }
     });
+    invalidate("tasks:");
     return { success: true, count: valid.length };
   } catch (e) {
     return fail((e as Error).message);

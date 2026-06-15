@@ -1,6 +1,7 @@
 "use server";
 
 import { query } from "@/_lib/db";
+import { invalidate } from "@/_lib/cache";
 import { logActivity } from "./chatter";
 import { dateOrNull, ensureContractSchema, generateContractNo, num } from "@/_lib/schemas/contracts";
 
@@ -126,6 +127,7 @@ export async function createContract(body: any, opts: { fromQuotation?: string }
         body.contract_pdf_url || null,
       ],
     );
+    invalidate("projects:");
     return { success: true, data: result.rows[0] };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -206,6 +208,7 @@ export async function updateContract(id: string, body: any): Promise<{ success: 
       ],
     );
     if (!result.rows.length) return fail("Contract not found");
+    invalidate("projects:");
     return { success: true, data: result.rows[0] };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -215,6 +218,7 @@ export async function deleteContract(id: string): Promise<{ success: true } | Fa
     await ensureContractSchema();
     const result = await query(`DELETE FROM odg_contract WHERE id = $1 RETURNING id`, [id]);
     if (!result.rows.length) return fail("Contract not found");
+    invalidate("projects:");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -254,6 +258,7 @@ export async function setContractApproval(
     );
     if (!result.rows.length) return fail("Contract not found");
     await logActivity("contract", id, `${approved ? "ອະນຸມັດ" : "ຍົກເລີກອະນຸມັດ"} (${which === "sales" ? "ຝ່າຍຂາຍ" : "ບັນຊີ"})`);
+    invalidate("projects:");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }
 }

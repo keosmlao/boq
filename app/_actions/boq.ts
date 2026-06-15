@@ -1,6 +1,7 @@
 "use server";
 
 import { query, withTransaction } from "@/_lib/db";
+import { invalidate } from "@/_lib/cache";
 import { logActivity } from "./chatter";
 import { cleanText, toNumber } from "@/_lib/http";
 import { approveAccounting } from "@/_lib/projects";
@@ -195,6 +196,7 @@ export async function deleteBoq(docNo: string): Promise<Ok | Fail> {
       await client.query(`DELETE FROM odg_projects_boq_detail WHERE doc_no = $1`, [decodedDocNo]);
       await client.query(`DELETE FROM odg_projects_boq WHERE doc_no = $1`, [decodedDocNo]);
     });
+    invalidate("projects:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -337,6 +339,7 @@ export async function saveBoq(payload: Record<string, unknown>): Promise<{ succe
 
     if (result.missingContract) return fail("ບໍ່ພົບສັນຍາສຳລັບອອກ BOQ");
 
+    invalidate("projects:");
     return {
       success: true,
       message: `Created ${result.doc_no}`,
@@ -394,6 +397,7 @@ export async function updateBoqErp(
     });
 
     if (result.notFound) return fail("ບໍ່ພົບ BOQ");
+    invalidate("projects:");
     return { success: true, doc_no: decodedDocNo, total_items: validItems.length };
   } catch (e) {
     return fail((e as Error).message);
@@ -410,6 +414,7 @@ export async function approveBoq(docNo: string, payload: { status?: number; user
       [status, username, decodedDocNo],
     );
     await logActivity("boq", decodedDocNo, status > 0 ? "ອະນຸມັດ BOQ" : "ຍົກເລີກການອະນຸມັດ BOQ");
+    invalidate("projects:");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }
 }

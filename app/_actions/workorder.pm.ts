@@ -18,6 +18,7 @@ import {
   projectTasks,
   projects,
 } from "@/_db/schema";
+import { invalidate } from "@/_lib/cache";
 
 type Fail = { success: false; message: string };
 const fail = (message: string): Fail => ({ success: false, message });
@@ -102,6 +103,8 @@ export async function deleteWorkOrder(id: string): Promise<{ success: true } | F
         .where(eq(projectTasks.workOrderId, n));
       await tx.delete(workOrders).where(eq(workOrders.id, n));
     });
+    invalidate("wo:");
+    invalidate("tasks:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -239,6 +242,8 @@ export async function createWorkOrder(body: any): Promise<{ success: true; data:
       return wo;
     });
 
+    invalidate("wo:");
+    invalidate("tasks:");
     return { success: true, data: created };
   } catch (e) {
     return fail((e as Error).message);

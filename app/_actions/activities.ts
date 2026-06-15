@@ -12,6 +12,8 @@ import { cleanText } from "@/_lib/http";
 import { getSessionUser } from "@/_lib/server-auth";
 import { isManager } from "@/_lib/permissions";
 import { logActivity } from "./chatter";
+import { ensureFollower } from "./followers";
+import { notifyFollowers, notifyUser } from "./notifications";
 
 type Ok<T> = { success: true; data: T };
 type Fail = { success: false; message: string };
@@ -149,6 +151,12 @@ export async function scheduleActivity(input: {
        RETURNING ${COLS}`,
       [type, id, atype, summary, cleanText(input.note) || null, assigneeU, assigneeN, due, me.username, me.name],
     );
+    // Creator and assignee follow the record.
+    await ensureFollower(type, id, me.username, me.name);
+    if (assigneeU && assigneeU !== me.username) {
+      await ensureFollower(type, id, assigneeU, assigneeN);
+      await notifyUser(assigneeU, type, id, "activity", `ມອບໝາຍກິດจะกรรม: ${summary}`, me.username, me.name);
+    }
     return ok(r.rows[0] as Activity);
   } catch (e) { return fail((e as Error).message); }
 }
@@ -169,6 +177,7 @@ export async function markActivityDone(id: string | number): Promise<Ok<true> | 
     const row = r.rows[0];
     if (row) {
       await logActivity(String(row.entity_type), String(row.entity_id), "ເຮັດกิจกรรมສຳເລັດ", String(row.summary ?? ""));
+      await notifyFollowers(String(row.entity_type), String(row.entity_id), "activity_done", `${me.name} ເຮັດກິດจะกรรมສຳເລັດ: ${row.summary ?? ""}`.slice(0, 200), me.username);
     }
     return ok(true);
   } catch (e) { return fail((e as Error).message); }

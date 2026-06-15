@@ -13,6 +13,7 @@ import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/_db/client";
 import { query } from "@/_lib/db";
 import { materialRequests, materialRequestLines, projects } from "@/_db/schema";
+import { invalidate } from "@/_lib/cache";
 
 type Fail = { success: false; message: string };
 const fail = (message: string): Fail => ({ success: false, message });
@@ -221,6 +222,7 @@ export async function createRequest(body: any): Promise<{ success: true; data: a
       );
       return created;
     });
+    invalidate("req:");
     return { success: true, data: req };
   } catch (e) {
     return fail((e as Error).message);
@@ -235,6 +237,7 @@ export async function setRequestStatus(id: string, status: string): Promise<{ su
       .where(eq(materialRequests.id, Number(id)))
       .returning({ id: materialRequests.id });
     if (!res.length) return fail("Request not found");
+    invalidate("req:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -245,6 +248,7 @@ export async function deleteRequest(id: string): Promise<{ success: true } | Fai
   try {
     const res = await db.delete(materialRequests).where(eq(materialRequests.id, Number(id))).returning({ id: materialRequests.id });
     if (!res.length) return fail("Request not found");
+    invalidate("req:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -281,6 +285,7 @@ export async function updateRequest(id: string, body: any): Promise<{ success: t
       return true;
     });
     if (!found) return fail("Request not found");
+    invalidate("req:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);

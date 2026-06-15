@@ -18,6 +18,7 @@
 import { and, asc, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { db } from "@/_db/client";
 import { quotations, quotationLines, projects } from "@/_db/schema";
+import { invalidate } from "@/_lib/cache";
 
 type Fail = { success: false; message: string };
 const fail = (message: string): Fail => ({ success: false, message });
@@ -209,6 +210,7 @@ export async function createQuotation(body: any): Promise<{ success: true; data:
       await replaceLines(tx, inserted[0].id, body.items);
       return inserted[0];
     });
+    invalidate("quotations:");
     return { success: true, data: created };
   } catch (e) {
     return fail((e as Error).message);
@@ -245,6 +247,7 @@ export async function updateQuotation(id: string, body: any): Promise<{ success:
       return res[0];
     });
     if (!updated) return fail("Quotation not found");
+    invalidate("quotations:");
     return { success: true, data: updated };
   } catch (e) {
     return fail((e as Error).message);
@@ -262,6 +265,7 @@ export async function approveQuotation(id: string, status: string): Promise<{ su
       .where(eq(quotations.id, n))
       .returning({ id: quotations.id });
     if (!res.length) return fail("Quotation not found");
+    invalidate("quotations:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -277,6 +281,7 @@ export async function deleteQuotation(id: string): Promise<{ success: true } | F
       .where(eq(quotations.id, n))
       .returning({ id: quotations.id });
     if (!res.length) return fail("Quotation not found");
+    invalidate("quotations:");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);

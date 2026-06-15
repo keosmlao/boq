@@ -7,7 +7,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, X, Send, Loader2, Users } from "lucide-react";
-import { getChatMessages, sendChatMessage, type ChatMessage } from "@/_actions/chat";
+import { getChatMessages, sendChatMessage } from "@/_actions/chat";
+import { type ChatMessage } from "@/_lib/chat-core";
 import { getV2User } from "../../_lib/session";
 
 const OPEN_POLL = 3000;

@@ -31,6 +31,34 @@ export function ensureWorkOrderSchema(): Promise<void> {
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS technician_name TEXT;
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS materials JSONB DEFAULT '[]';
         CREATE INDEX IF NOT EXISTS odg_work_order_project_idx ON odg_work_order(project_id);
+
+        -- ── Mobile head-craftsman lifecycle: approve → accept/reject → check-in → check-out ──
+        -- Manager approval gate
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS approval_status TEXT DEFAULT 'pending'; -- pending | approved | rejected
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS approver TEXT;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS approve_note TEXT;
+        -- Optional: login user of the assigned head craftsman. When set, only that
+        -- user (or a manager) may accept/check-in/check-out. When null, any logged-in
+        -- user holding the work order may act (no username↔technician map exists yet).
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS assigned_username TEXT;
+        -- Head-craftsman accept / reject of an approved work order
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS accept_status TEXT DEFAULT 'pending'; -- pending | accepted | rejected
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS accepted_by TEXT;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS reject_reason TEXT;
+        -- On-site check-in (before starting): photo + GPS
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkin_at TIMESTAMPTZ;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkin_lat NUMERIC(10,6);
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkin_lng NUMERIC(10,6);
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkin_photo TEXT;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkin_by TEXT;
+        -- On completion check-out (closes the job): photo + GPS
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_at TIMESTAMPTZ;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_lat NUMERIC(10,6);
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_lng NUMERIC(10,6);
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_photo TEXT;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_by TEXT;
         `,
         [],
       );

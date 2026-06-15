@@ -4,6 +4,13 @@ import { query, withTransaction } from "@/_lib/db";
 import { invalidate } from "@/_lib/cache";
 import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { ensureProjectTaskSchema } from "@/_lib/schemas/tasks";
+import { requireUser } from "@/_lib/server-auth";
+import {
+  approveWorkOrderAs,
+  respondWorkOrderAs,
+  checkInWorkOrderAs,
+  checkOutWorkOrderAs,
+} from "@/_lib/workorder-core";
 
 type Fail = { success: false; message: string };
 function fail(message: string): Fail {
@@ -215,6 +222,51 @@ export async function createWorkOrder(body: any): Promise<{ success: true; data:
     invalidate("wo:");
     invalidate("tasks:");
     return { success: true, data: result };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Mobile head-craftsman lifecycle (web entrypoints)
+ *   issue → (manager) approve → (head craftsman) accept/reject
+ *         → on-site check-in (photo + GPS) → check-out (photo + GPS) = close
+ * The shared rules live in @/_lib/workorder-core; these thin wrappers add the
+ * cookie-session auth. The mobile REST API calls the same core with a Bearer
+ * user. erp-* (legacy) ids are rejected inside the core.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export async function approveWorkOrder(id: string, opts: { approve: boolean; note?: string } = { approve: true }) {
+  try {
+    const user = await requireUser();
+    return await approveWorkOrderAs(user, id, opts);
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+export async function respondWorkOrder(id: string, opts: { accept: boolean; reason?: string }) {
+  try {
+    const user = await requireUser();
+    return await respondWorkOrderAs(user, id, opts);
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+export async function checkInWorkOrder(id: string, opts: { lat: number; lng: number; photoBase64: string; photoName?: string }) {
+  try {
+    const user = await requireUser();
+    return await checkInWorkOrderAs(user, id, opts);
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+export async function checkOutWorkOrder(id: string, opts: { lat: number; lng: number; photoBase64: string; photoName?: string }) {
+  try {
+    const user = await requireUser();
+    return await checkOutWorkOrderAs(user, id, opts);
   } catch (e) {
     return fail((e as Error).message);
   }

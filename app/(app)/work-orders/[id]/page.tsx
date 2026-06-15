@@ -8,6 +8,7 @@ import { ArrowLeft, Wrench, FolderKanban, Users, CalendarClock, Clock, DollarSig
 import { getWorkOrderById, deleteWorkOrder } from "@/_actions/workorder";
 import { Page, Card, Btn, tblCls, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
+import WorkOrderJobPanel from "./WorkOrderJobPanel";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -21,18 +22,22 @@ export default function WorkOrderDetailPage() {
   const [w, setW] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const load = React.useCallback(async () => {
+    const res: any = await getWorkOrderById(String(id));
+    setW(res?.success ? res.data : null);
+  }, [id]);
+
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const res: any = await getWorkOrderById(String(id));
-        if (alive) setW(res?.success ? res.data : null);
+        await load();
       } finally {
         if (alive) setLoading(false);
       }
     })();
     return () => { alive = false; };
-  }, [id]);
+  }, [id, load]);
 
   if (loading) {
     return (
@@ -81,12 +86,15 @@ export default function WorkOrderDetailPage() {
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-100">ເລກທີໃບງານ</span>
                   <h1 className="font-mono text-2xl font-black leading-none tracking-tight">{w.work_no || "-"}</h1>
                   <p className="mt-1 truncate text-xs text-white/85 font-medium">
-                    {w.technician_name ? `ຊ່າງຫຼັກ: ${w.technician_name}` : "—"}
+                    {w.technician_name ? `ຊ່າງຫຼັກ: ${w.technician_name}${w.technician_code ? ` (${w.technician_code})` : ""}` : "—"}
                   </p>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Mobile head-craftsman lifecycle: approve → accept → check-in → check-out */}
+          <WorkOrderJobPanel wo={w} onChanged={load} />
 
           {/* Tasks/Work list Card */}
           <Card className="overflow-hidden border-t-4 border-t-emerald-500 shadow-sm">
@@ -183,7 +191,7 @@ export default function WorkOrderDetailPage() {
             </h3>
 
             <div className="space-y-3.5">
-              <SidebarInfo icon={<Users size={15} className="text-emerald-600" />} label="ຊ່າງຫຼັກ" value={w.technician_name} />
+              <SidebarInfo icon={<Users size={15} className="text-emerald-600" />} label="ຊ່າງຫຼັກ" value={w.technician_code ? `${w.technician_name || "-"} (${w.technician_code})` : w.technician_name} />
               <SidebarInfo
                 icon={<Users size={15} className="text-emerald-600" />}
                 label="ຜູ້ຊ່ວຍຊ່າງ"

@@ -13,6 +13,7 @@ export default function CrossList({
   subtitle,
   columns,
   load,
+  initialRows,
   searchText,
   rowHref,
   searchPlaceholder = "ຄົ້ນຫາ...",
@@ -26,6 +27,12 @@ export default function CrossList({
   subtitle?: (n: number) => string;
   columns: Column[];
   load: () => Promise<any>;
+  /**
+   * When provided, the list is seeded from these rows (fetched on the server)
+   * and the initial client-side mount fetch is skipped — removing the
+   * navigation waterfall. Manual refresh still re-pulls via `load`.
+   */
+  initialRows?: any[];
   searchText: (r: any) => string;
   rowHref?: (r: any) => string;
   searchPlaceholder?: string;
@@ -37,8 +44,9 @@ export default function CrossList({
   groupLabel?: string;
 }) {
   const router = useRouter();
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const seeded = initialRows !== undefined;
+  const [rows, setRows] = useState<any[]>(initialRows ?? []);
+  const [loading, setLoading] = useState(!seeded);
   const [q, setQ] = useState("");
   const [grouped, setGrouped] = useState(true);
   const [error, setError] = useState("");
@@ -64,6 +72,8 @@ export default function CrossList({
     }
   };
   useEffect(() => {
+    // Rows seeded from the server (initialRows) skip the mount fetch.
+    if (seeded) return;
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

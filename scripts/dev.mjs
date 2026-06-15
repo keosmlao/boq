@@ -88,7 +88,10 @@ for (const dir of distDirs) {
 
 const child = spawn(
   process.platform === "win32" ? "next.cmd" : "next",
-  ["dev", "-H", "0.0.0.0", "-p", port],
+  // --turbopack: Next 15 stable dev compiler. Compiles routes on-demand far
+  // faster than Webpack, which is the main cause of "first visit to each page
+  // is slow" in dev. Drop the flag if a plugin proves incompatible.
+  ["dev", "--turbopack", "-H", "0.0.0.0", "-p", port],
   {
     cwd,
     stdio: "inherit",
