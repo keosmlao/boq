@@ -79,13 +79,59 @@ export async function authenticateUser(usernameRaw: unknown, passwordRaw: unknow
     }
   }
 
+  // 3) ERP employee store — craftsmen / staff log in with their employee_code.
+  //    (odg_employee.employee_code === odg_technicians.code === work order technician_code)
+  let emp:
+    | { employee_code: string; fullname_lo: string | null; password: string | null; app_role: string | null; pos_pin_hash: string | null }
+    | undefined;
   if (!authed) {
-    if (!cfg && !erp) return { ok: false, message: "ບໍ່ພົບຊື່ຜູ້ໃຊ້ນີ້" };
+    try {
+      const empRes = await query(
+        `SELECT employee_code, fullname_lo, password, app_role, pos_pin_hash FROM odg_employee WHERE employee_code = $1 LIMIT 1`,
+        [username],
+      );
+      emp = empRes.rows[0] as typeof emp;
+    } catch {
+      /* odg_employee not reachable */
+    }
+    if (emp) {
+      const pw = cleanText(emp.password);
+      if (pw) {
+        const isHashed = pw.startsWith("$2a$") || pw.startsWith("$2b$");
+        authed = isHashed ? bcrypt.compareSync(password, pw) : pw === password;
+      }
+      // Fallback: POS PIN (bcrypt-hashed) — lets a craftsman sign in with their PIN.
+      if (!authed && emp.pos_pin_hash) {
+        try {
+          authed = bcrypt.compareSync(password, String(emp.pos_pin_hash));
+        } catch {
+          /* not a bcrypt hash */
+        }
+      }
+      if (authed) displayName = displayName || emp.fullname_lo;
+    }
+  }
+
+  if (!authed) {
+    if (!cfg && !erp && !emp) return { ok: false, message: "ບໍ່ພົບຊື່ຜູ້ໃຊ້ນີ້" };
     return { ok: false, message: "ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ" };
   }
 
-  const role = cfg ? String(cfg.role || "staff") : "admin";
-  const permissions = cfg ? normalizePermissions(cfg.permissions) : {};
+  let role: string;
+  let permissions: Permissions;
+  if (cfg) {
+    role = String(cfg.role || "staff");
+    permissions = normalizePermissions(cfg.permissions);
+  } else if (erp) {
+    role = "admin"; // existing behaviour: ERP manager users get full access
+    permissions = {};
+  } else {
+    // odg_employee user: role from app_role (default staff). Craftsmen are staff;
+    // work-order action authz is by assignment (technician_code), not the matrix.
+    const ar = String(emp?.app_role || "staff").trim().toLowerCase();
+    role = ar === "admin" || ar === "manager" || ar === "staff" ? ar : "staff";
+    permissions = {};
+  }
   const name = displayName || username;
   return { ok: true, user: { username, role, name, permissions } };
 }
