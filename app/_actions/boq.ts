@@ -5,12 +5,34 @@ import { invalidate } from "@/_lib/cache";
 import { logActivity } from "./chatter";
 import { cleanText, toNumber } from "@/_lib/http";
 import { approveAccounting } from "@/_lib/projects";
+import { getSessionUser } from "@/_lib/server-auth";
+import { isAdmin } from "@/_lib/permissions";
 
 type Ok<T = unknown> = { success: true } & T;
 type Fail = { success: false; message: string; [extra: string]: unknown };
 
 function fail(message: string, extra: Record<string, unknown> = {}): Fail {
   return { success: false, message, ...extra };
+}
+
+/**
+ * Is this BOQ the FIRST document for its project? The first BOQ of a project may
+ * be approved by a manager; every subsequent (2nd+) BOQ must be approved by an
+ * admin (ຜູ້ດູແລລะບົບ) only.
+ */
+async function isFirstBoqForProject(decodedDocNo: string): Promise<boolean> {
+  const r = await query(
+    `SELECT COUNT(*)::int AS earlier
+       FROM odg_projects_boq b2
+       JOIN odg_projects_boq b ON b.doc_no = $1
+      WHERE b2.project_id = b.project_id
+        AND b2.doc_no <> b.doc_no
+        AND (b2.doc_date < b.doc_date
+             OR (b2.doc_date = b.doc_date AND b2.roworder < b.roworder)
+             OR (b2.doc_date IS NULL AND b2.roworder < b.roworder))`,
+    [decodedDocNo],
+  );
+  return Number(r.rows[0]?.earlier ?? 0) === 0;
 }
 
 export async function getListBoq(opts: { includeItems?: boolean; itemSearch?: string } = {}): Promise<unknown[]> {
@@ -175,8 +197,11 @@ export async function getBoq(docNo: string): Promise<Record<string, unknown> | {
     const requestTotal = details.rows.reduce((sum, item) => sum + Number(item.request_qty || 0), 0);
     const withdrawTotal = details.rows.reduce((sum, item) => sum + Number(item.withdraw || 0), 0);
 
+    const isFirst = await isFirstBoqForProject(decodedDocNo);
+
     return {
       ...header.rows[0],
+      is_first: isFirst,
       boq_list: details.rows,
       total_items: details.rows.length,
       boq_total_qty: boqTotal,
@@ -409,6 +434,14 @@ export async function approveBoq(docNo: string, payload: { status?: number; user
     const decodedDocNo = decodeURIComponent(docNo);
     const status = toNumber(payload?.status, 0);
     const username = payload?.username ? String(payload.username) : null;
+
+    // Subsequent (2nd+) BOQ of a project may only be approved/rejected by an admin.
+    const sessionUser = await getSessionUser();
+    const firstBoq = await isFirstBoqForProject(decodedDocNo);
+    if (!firstBoq && !isAdmin(sessionUser)) {
+      return fail("ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບອະນຸມັດເທົ່ານັ້ນ");
+    }
+
     await query(
       `UPDATE odg_projects_boq SET approve_status = $1, approver = $2 WHERE doc_no = $3`,
       [status, username, decodedDocNo],

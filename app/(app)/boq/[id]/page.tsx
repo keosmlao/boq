@@ -29,7 +29,12 @@ export default function BoqDetailPage() {
 
   const docNo = decodeURIComponent(String(id));
   const user = getV2User();
-  const canApprove = can(user ? { role: user.role, permissions: user.permissions } : null, "boq", "approve");
+  const isAdminUser = String(user?.role || "").trim().toLowerCase() === "admin";
+  // The first BOQ of a project: manager (boq.approve) can approve. Subsequent
+  // (2nd+) BOQ: only an admin (ຜູ້ດູແລລະບົບ) may approve.
+  const canApprove =
+    can(user ? { role: user.role, permissions: user.permissions } : null, "boq", "approve") &&
+    (b?.is_first !== false || isAdminUser);
 
   const load = React.useCallback(async () => {
     const response = await fetch(`/api/boq/${encodeURIComponent(docNo)}`, { cache: "no-store" });
@@ -39,6 +44,7 @@ export default function BoqDetailPage() {
       const apv = Number(lr.approve_status);
       setB({
         boq_no: lr.doc_no,
+        is_first: lr.is_first !== false,
         project_id: lr.project_id != null ? String(lr.project_id) : "",
         project_name: lr.project_name || lr.contract_no || "",
         customer_name: lr.cust_code || "",
@@ -159,6 +165,15 @@ export default function BoqDetailPage() {
                 </Btn>
               </>
             )}
+            {!canApprove &&
+              status === "ລໍຖ້າອະນຸມັດ" &&
+              b.is_first === false &&
+              !isAdminUser &&
+              can(user ? { role: user.role, permissions: user.permissions } : null, "boq", "approve") && (
+                <span className="rounded-lg bg-white/15 px-3 py-1.5 text-[11px] font-semibold text-white/90">
+                  ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບອະນຸມັດ
+                </span>
+              )}
             <DocActions
               editHref={b.project_id ? `/projects/${b.project_id}/boq/new?edit=${encodeURIComponent(b.boq_no)}` : undefined}
               onDelete={() => deleteBoq(b.boq_no)}

@@ -49,6 +49,7 @@ const emptyDraft = (): Draft => ({ username: "", name: "", password: "", role: "
 const ROLE_TONE: Record<string, string> = {
   admin: "bg-blue-600 text-white",
   manager: "bg-blue-100 text-blue-700 border border-blue-200",
+  head_craftsman: "bg-teal-100 text-teal-700 border border-teal-200",
   staff: "bg-slate-100 text-slate-600 border border-slate-200",
 };
 
@@ -88,7 +89,7 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
       username: u.username,
       name: u.name,
       password: "",
-      role: (["admin", "manager", "staff"].includes(u.role) ? u.role : "staff") as Role,
+      role: (["admin", "manager", "head_craftsman", "staff"].includes(u.role) ? u.role : "staff") as Role,
       active: u.active,
       permissions: { ...(u.permissions as Permissions) },
       isNew: false,
@@ -270,8 +271,8 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
               </Field>
 
               <Field label="ບົດບາດ (role)">
-                <div className="grid grid-cols-3 gap-2">
-                  {(["staff", "manager", "admin"] as Role[]).map((r) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {(["staff", "head_craftsman", "manager", "admin"] as Role[]).map((r) => (
                     <button
                       key={r}
                       type="button"

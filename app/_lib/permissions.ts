@@ -9,7 +9,7 @@
  *   - staff   → ONLY the modules/actions explicitly granted in `permissions`.
  * The "users" admin area is gated by role (manager+), never by the staff matrix.
  */
-export type Role = "admin" | "manager" | "staff";
+export type Role = "admin" | "manager" | "head_craftsman" | "staff";
 export type Action = "view" | "create" | "edit" | "delete" | "approve";
 export type Permissions = Record<string, Action[]>;
 
@@ -53,6 +53,7 @@ export const ACTION_LABELS: Record<Action, string> = {
 export const ROLE_LABELS: Record<Role, string> = {
   admin: "ຜູ້ດູແລລະບົບ",
   manager: "ຜູ້ຈັດການ",
+  head_craftsman: "ຫົວໜ້າຊ່າງ",
   staff: "ພະນັກງານ",
 };
 
