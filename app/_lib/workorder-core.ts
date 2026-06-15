@@ -37,9 +37,25 @@ async function loadWoRow(id: string): Promise<any | null> {
 /** May this user act on this work order as the assigned craftsman? */
 function canActAsCraftsman(user: ActingUser, wo: any): boolean {
   if (isManager(user)) return true;
+  // The assigned head craftsman: matched by assigned_username, or by the work
+  // order's technician_code (= the craftsman's employee_code).
   const assigned = wo?.assigned_username ? String(wo.assigned_username) : "";
-  if (!assigned) return true; // no specific assignee → any holder may act
-  return assigned === user.username;
+  const tech = wo?.technician_code ? String(wo.technician_code) : "";
+  if (assigned) return assigned === user.username;
+  if (tech) return tech === user.username;
+  return true; // unassigned → any holder may act
+}
+
+/** Save 1+ base64 photos → public URLs (drops empties). */
+async function savePhotos(list: string[], prefix: string): Promise<string[]> {
+  const urls: string[] = [];
+  let i = 0;
+  for (const b64 of list) {
+    if (!b64) continue;
+    const url = await saveBase64File({ base64: b64, fileName: `${prefix}-${i++}.jpg`, relativeDir: "static/uploads" });
+    if (url) urls.push(url);
+  }
+  return urls;
 }
 
 function assertV2Id(id: string): string | null {
@@ -113,11 +129,11 @@ export async function respondWorkOrderAs(
   }
 }
 
-/** On-site check-in BEFORE starting work: requires a photo and GPS location. */
+/** On-site check-in BEFORE starting work: requires photo(s) and GPS location. */
 export async function checkInWorkOrderAs(
   user: ActingUser,
   id: string,
-  opts: { lat: number; lng: number; photoBase64: string; photoName?: string },
+  opts: { lat: number; lng: number; photoBase64?: string; photos?: string[]; note?: string },
 ): Promise<Ok | Fail> {
   try {
     const bad = assertV2Id(String(id));
@@ -132,21 +148,19 @@ export async function checkInWorkOrderAs(
     const lat = numOrNull(opts.lat);
     const lng = numOrNull(opts.lng);
     if (lat === null || lng === null) return fail("ບໍ່ພົບ location — ກະລຸນາເປີດ GPS");
-    if (!opts.photoBase64) return fail("ກະລຸນາຖ່າຍຮູບກ່ອນເລີ່ມວຽກ");
 
-    const photoUrl = await saveBase64File({
-      base64: opts.photoBase64,
-      fileName: opts.photoName || `checkin-${id}.jpg`,
-      relativeDir: "static/uploads",
-    });
-    if (!photoUrl) return fail("ບັນທຶກຮູບບໍ່ສຳເລັດ");
+    const input = (opts.photos && opts.photos.length ? opts.photos : opts.photoBase64 ? [opts.photoBase64] : []).filter(Boolean);
+    if (!input.length) return fail("ກະລຸນາຖ່າຍຮູບກ່ອນເລີ່ມວຽກ");
+    const urls = await savePhotos(input, `checkin-${id}`);
+    if (!urls.length) return fail("ບັນທຶກຮູບບໍ່ສຳເລັດ");
 
     const r = await query(
       `UPDATE odg_work_order
           SET checkin_at = now(), checkin_lat = $2, checkin_lng = $3,
-              checkin_photo = $4, checkin_by = $5, status = 'in_progress'
+              checkin_photo = $4, checkin_photos = $5::jsonb, checkin_note = $6,
+              checkin_by = $7, status = 'in_progress'
         WHERE id = $1 RETURNING *`,
-      [String(id), lat, lng, photoUrl, actorName(user)],
+      [String(id), lat, lng, urls[0], JSON.stringify(urls), opts.note || null, actorName(user)],
     );
     invalidate("wo:");
     return { success: true, data: r.rows[0] };
@@ -155,11 +169,11 @@ export async function checkInWorkOrderAs(
   }
 }
 
-/** On-completion check-out (closes the job): requires a photo and GPS location. */
+/** On-completion check-out (work done → awaiting review): photo(s) + GPS. */
 export async function checkOutWorkOrderAs(
   user: ActingUser,
   id: string,
-  opts: { lat: number; lng: number; photoBase64: string; photoName?: string },
+  opts: { lat: number; lng: number; photoBase64?: string; photos?: string[]; note?: string },
 ): Promise<Ok | Fail> {
   try {
     const bad = assertV2Id(String(id));
@@ -174,21 +188,19 @@ export async function checkOutWorkOrderAs(
     const lat = numOrNull(opts.lat);
     const lng = numOrNull(opts.lng);
     if (lat === null || lng === null) return fail("ບໍ່ພົບ location — ກະລຸນາເປີດ GPS");
-    if (!opts.photoBase64) return fail("ກະລຸນາຖ່າຍຮູບຫຼັງເຮັດວຽກສຳເລັດ");
 
-    const photoUrl = await saveBase64File({
-      base64: opts.photoBase64,
-      fileName: opts.photoName || `checkout-${id}.jpg`,
-      relativeDir: "static/uploads",
-    });
-    if (!photoUrl) return fail("ບັນທຶກຮູບບໍ່ສຳເລັດ");
+    const input = (opts.photos && opts.photos.length ? opts.photos : opts.photoBase64 ? [opts.photoBase64] : []).filter(Boolean);
+    if (!input.length) return fail("ກະລຸນາຖ່າຍຮູບຫຼັງເຮັດວຽກສຳເລັດ");
+    const urls = await savePhotos(input, `checkout-${id}`);
+    if (!urls.length) return fail("ບັນທຶກຮູບບໍ່ສຳເລັດ");
 
     const r = await query(
       `UPDATE odg_work_order
           SET checkout_at = now(), checkout_lat = $2, checkout_lng = $3,
-              checkout_photo = $4, checkout_by = $5, status = 'awaiting_review'
+              checkout_photo = $4, checkout_photos = $5::jsonb, checkout_note = $6,
+              checkout_by = $7, status = 'awaiting_review'
         WHERE id = $1 RETURNING *`,
-      [String(id), lat, lng, photoUrl, actorName(user)],
+      [String(id), lat, lng, urls[0], JSON.stringify(urls), opts.note || null, actorName(user)],
     );
     invalidate("wo:");
     return { success: true, data: r.rows[0] };

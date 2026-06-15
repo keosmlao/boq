@@ -12,8 +12,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const res = await checkInWorkOrderAs(user, String(id), {
     lat: Number(body?.lat),
     lng: Number(body?.lng),
-    photoBase64: String(body?.photoBase64 || ""),
-    photoName: body?.photoName,
+    photoBase64: body?.photoBase64 ? String(body.photoBase64) : undefined,
+    photos: Array.isArray(body?.photos) ? body.photos.map(String) : undefined,
+    note: body?.note ? String(body.note) : undefined,
   });
   return NextResponse.json(res, { status: res.success ? 200 : 400 });
 }
