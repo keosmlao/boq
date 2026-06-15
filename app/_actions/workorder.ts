@@ -29,6 +29,7 @@ const mapLegacyWo = (w: any) => ({
   project_id: w.project_code || "",
   contract_no: w.contract_no || null,
   technician_name: w.technician_name_resolved || w.technician_id || "",
+  technician_code: w.technician_id || null, // ERP stores the technician code in technician_id
   title: w.title || w.task_name || "",
   work_date: w.scheduled_date || w.created_at,
   total_hours: 0,
