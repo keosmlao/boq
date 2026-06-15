@@ -35,6 +35,7 @@ export const MODULES: ModuleDef[] = [
   { key: "boq", label: "BOQ", href: "/boq", actions: ["view", "create", "edit", "delete", "approve"] },
   { key: "schedule", label: "ກຳນົດໜ້າວຽກ", href: "/schedule", actions: ["view", "create", "edit", "delete"] },
   { key: "work-orders", label: "ໃບງານ", href: "/work-orders", actions: ["view", "create", "edit", "delete", "approve"] },
+  { key: "tracking", label: "ຕິດຕາມຊ່າງ", href: "/tracking", actions: ["view"] },
   { key: "requests", label: "ຂໍເບີກ", href: "/requests", actions: ["view", "create", "edit", "delete", "approve"] },
   { key: "finance", label: "ບັນຊີ / ງວດຈ່າຍ", href: "/finance", actions: ["view"] },
   { key: "inventory", label: "ສິນຄ້າ / ສະຕັອກ", href: "/inventory", actions: ["view"] },

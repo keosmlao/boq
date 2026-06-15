@@ -25,6 +25,7 @@ import {
   Users,
   Wallet,
   Wrench,
+  MapPin,
   X,
 } from "lucide-react";
 import { logout } from "@/_actions/auth";
@@ -57,6 +58,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: "BOQ", href: "/boq", icon: <ListChecks size={16} /> },
       { label: "ຕາຕະລາງວຽກ", href: "/schedule", icon: <CalendarRange size={16} /> },
       { label: "ໃບງານ", href: "/work-orders", icon: <Wrench size={16} /> },
+      { label: "ຕິດຕາມຊ່າງ", href: "/tracking", icon: <MapPin size={16} /> },
       { label: "ການຂໍເບີກ", href: "/requests", icon: <PackageOpen size={16} /> },
       { label: "ສິນຄ້າ / ສະຕັອກ", href: "/inventory", icon: <Boxes size={16} /> },
     ],
