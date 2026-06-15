@@ -16,6 +16,7 @@ import { CheckCircle2, XCircle, MapPin, Camera, ShieldCheck, Clock, LogIn, LogOu
 import { Card, Btn } from "../../_components/ui";
 import { getV2User } from "../../../_lib/session";
 import { isManager, can } from "@/_lib/permissions";
+import { useConfirm } from "../../_components/Confirm";
 import {
   approveWorkOrder,
   respondWorkOrder,
@@ -70,6 +71,7 @@ function fileToBase64(file: File): Promise<string> {
 
 export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChanged: () => void }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState<string>("");
   const [err, setErr] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -101,6 +103,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
             className="w-full"
             disabled={!!busy}
             onClick={async () => {
+              if (!(await confirm({ title: "ມອບໝາຍ & ອະນຸມັດ", message: `ສ້າງສະບັບ flow ມືถือ ແລະ ອະນຸມັດ ${wo.work_no || "ໃບງານ"}?`, confirmLabel: "ອະນຸມັດ" }))) return;
               setErr("");
               setBusy("start");
               try {
@@ -237,7 +240,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
           {/* 1) Manager approval */}
           {approvalStatus === "pending" && canApprove && (
             <div className="grid grid-cols-2 gap-2.5">
-              <Btn variant="primary" className="w-full" disabled={!!busy} onClick={() => run("approve", () => approveWorkOrder(String(wo.id), { approve: true }))}>
+              <Btn variant="primary" className="w-full" disabled={!!busy} onClick={async () => { if (await confirm({ title: "ຢືນຢັນການອະນຸມັດ", message: `ອະນຸມັດ ${wo.work_no || "ໃບງານ"}?`, confirmLabel: "ອະນຸມັດ" })) run("approve", () => approveWorkOrder(String(wo.id), { approve: true })); }}>
                 <CheckCircle2 size={15} /> ອະນຸມັດ
               </Btn>
               <Btn variant="danger" className="w-full" disabled={!!busy} onClick={() => {

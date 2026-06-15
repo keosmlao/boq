@@ -33,6 +33,7 @@ import { clearV2User, getV2User, type V2User } from "../../_lib/session";
 import { useTheme } from "@/_components/theme/ThemeProvider";
 import NavProgress from "./NavProgress";
 import ChatWidget from "./ChatWidget";
+import ConfirmProvider from "./Confirm";
 import MyActivitiesBell from "./MyActivitiesBell";
 import NotificationsBell from "./NotificationsBell";
 
@@ -346,7 +347,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto bg-[var(--theme-page)]">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto bg-[var(--theme-page)]"><ConfirmProvider>{children}</ConfirmProvider></main>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import { deleteProjectContract, approveProjectAction } from "@/_actions/projects
 import { checkAccountingApprove } from "@/_actions/boq";
 import { Page, Card, Btn, Pill, SectionHeader, tblCls, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
+import { useConfirm } from "../../_components/Confirm";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -24,6 +25,7 @@ const d10 = (v: unknown) => (v ? String(v).slice(0, 10) : "-");
 export default function ContractDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const confirm = useConfirm();
   const [c, setC] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,6 +71,7 @@ export default function ContractDetailPage() {
 
   // v2 contracts (odg_contract): two-step toggle, supports undo.
   const setStep = async (which: "sales" | "accounting", approved: boolean) => {
+    if (approved && !(await confirm({ title: "ຢືນຢັນການອະນຸມັດ", message: which === "sales" ? "ອະນຸມັດຝ່າຍຂາຍ?" : "ອະນຸມັດຝ່າຍບັນຊີ?", confirmLabel: "ອະນຸມັດ" }))) return;
     const approver = currentUser().name || "";
     const res: any = await setContractApproval(String(id), which, approved, approver);
     if (res?.success) {
@@ -90,6 +93,7 @@ export default function ContractDetailPage() {
       alert("ສັນຍານີ້ບໍ່ມີໂຄງການ ຈຶ່ງອະນຸມັດຝ່າຍຂາຍບໍ່ໄດ້");
       return;
     }
+    if (!(await confirm({ title: "ຢືນຢັນການອະນຸມັດ", message: which === "sales" ? "ອະນຸມັດຝ່າຍຂາຍ?" : "ອະນຸມັດຝ່າຍບັນຊີ?", confirmLabel: "ອະນຸມັດ" }))) return;
     const res: any = which === "sales"
       ? await approveProjectAction(String(c.project_id), { username, contract_no: c.contract_no })
       : await checkAccountingApprove(String(c.contract_no), { username, project_id: c.project_id ? String(c.project_id) : undefined });
