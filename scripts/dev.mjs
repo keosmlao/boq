@@ -5,7 +5,7 @@ import process from "node:process";
 const cwd = process.cwd();
 const port = String(process.env.PORT || "3003");
 const nextBin = `${cwd}/node_modules/.bin/next`;
-const distDirs = [".next", ".next-dev"];
+const distDirs = [".next-dev"];
 
 function runCapture(command, args) {
   try {
@@ -92,7 +92,7 @@ const child = spawn(
   {
     cwd,
     stdio: "inherit",
-    env: process.env,
+    env: { ...process.env, NEXT_DIST_DIR: ".next-dev" },
     shell: process.platform === "win32",
   }
 );

@@ -272,6 +272,48 @@ export async function getInventory(opts: { search?: string; limit?: number } = {
       unit_cost: pickFirst(r, "average_cost", "average_cost_1", "fixed_cost"),
       // No sale price exists in ic_inventory — use cost as the starting price hint.
       sale_price: pickFirst(r, "average_cost", "average_cost_1", "fixed_cost"),
+      // On-hand balance stored on ic_inventory (probe the common SML column names).
+      balance_qty: pickFirst(r, "balance_qty", "qty_balance", "balance", "onhand_qty", "on_hand", "onhand", "stock_qty", "remain_qty"),
     })));
+  } catch (e) { return fail((e as Error).message); }
+}
+
+/**
+ * Stock on-hand balance from the ERP function
+ * `sml_ic_function_stock_balance_warehouse_location(as_of_date, ic_code, warehouse, location)`,
+ * which returns one row per warehouse + location:
+ *   ic_code, ic_name, warehouse, location, balance_qty, ic_unit_code
+ *
+ * Param 2 is the ic_code filter, so we pass the code straight in — no full
+ * scan. The JS filter is a trimmed safety net (ERP codes can be space-padded,
+ * so a raw === would wrongly drop matching rows). Cached briefly per code.
+ */
+const STOCK_BAL_TTL = 60 * 1000;
+
+export async function getStockBalance(
+  icCode?: string,
+  opts: { asOf?: string } = {},
+): Promise<Result<unknown[]>> {
+  try {
+    const code = cleanText(icCode);
+    const asOf = cleanText(opts.asOf) || "2099-12-31";
+
+    const rows = await cached(`ic:stockbal:${asOf}:${code}`, STOCK_BAL_TTL, async () => {
+      const result = await query(
+        `SELECT
+           ic_code,
+           ic_name,
+           warehouse AS wherehouse,
+           location AS colation,
+           balance_qty,
+           ic_unit_code
+           FROM public.sml_ic_function_stock_balance_warehouse_location($1, $2, '', '')`,
+        [asOf, code],
+      );
+      const out = result.rows as Record<string, unknown>[];
+      return code ? out.filter((r) => String(r.ic_code ?? "").trim() === code) : out;
+    });
+
+    return ok(rows);
   } catch (e) { return fail((e as Error).message); }
 }

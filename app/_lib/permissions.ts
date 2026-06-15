@@ -28,15 +28,17 @@ export type ModuleDef = {
 
 /** Business modules a staff member can be granted. Order = sidebar order. */
 export const MODULES: ModuleDef[] = [
-  { key: "customers", label: "ລູກຄ້າ", href: "/v2/customers", actions: ["view", "create", "edit", "delete"] },
-  { key: "projects", label: "ໂຄງການ", href: "/v2/projects", actions: ["view", "create", "edit", "delete"] },
-  { key: "quotations", label: "ໃບສະເໜີລາຄາ", href: "/v2/quotations", actions: ["view", "create", "edit", "delete", "approve"] },
-  { key: "contracts", label: "ສັນຍາ", href: "/v2/contracts", actions: ["view", "create", "edit", "delete", "approve"] },
-  { key: "boq", label: "BOQ", href: "/v2/boq", actions: ["view", "create", "edit", "delete", "approve"] },
-  { key: "schedule", label: "ກຳນົດໜ້າວຽກ", href: "/v2/schedule", actions: ["view", "create", "edit", "delete"] },
-  { key: "work-orders", label: "ໃບງານ", href: "/v2/work-orders", actions: ["view", "create", "edit", "delete"] },
-  { key: "requests", label: "ຂໍເບີກ", href: "/v2/requests", actions: ["view", "create", "edit", "delete", "approve"] },
-  { key: "finance", label: "ບັນຊີ / ງວດຈ່າຍ", href: "/v2/finance", actions: ["view"] },
+  { key: "customers", label: "ລູກຄ້າ", href: "/customers", actions: ["view", "create", "edit", "delete"] },
+  { key: "projects", label: "ໂຄງການ", href: "/projects", actions: ["view", "create", "edit", "delete"] },
+  { key: "quotations", label: "ໃບສະເໜີລາຄາ", href: "/quotations", actions: ["view", "create", "edit", "delete", "approve"] },
+  { key: "contracts", label: "ສັນຍາ", href: "/contracts", actions: ["view", "create", "edit", "delete", "approve"] },
+  { key: "boq", label: "BOQ", href: "/boq", actions: ["view", "create", "edit", "delete", "approve"] },
+  { key: "schedule", label: "ກຳນົດໜ້າວຽກ", href: "/schedule", actions: ["view", "create", "edit", "delete"] },
+  { key: "work-orders", label: "ໃບງານ", href: "/work-orders", actions: ["view", "create", "edit", "delete"] },
+  { key: "requests", label: "ຂໍເບີກ", href: "/requests", actions: ["view", "create", "edit", "delete", "approve"] },
+  { key: "finance", label: "ບັນຊີ / ງວດຈ່າຍ", href: "/finance", actions: ["view"] },
+  { key: "inventory", label: "ສິນຄ້າ / ສະຕັອກ", href: "/inventory", actions: ["view"] },
+  { key: "reports", label: "ລາຍງານ & ສະຖິຕິ", href: "/reports", actions: ["view"] },
 ];
 
 export const ACTION_LABELS: Record<Action, string> = {
@@ -54,7 +56,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 };
 
 /** Route prefix that opens the user-management area (role-gated, not in the matrix). */
-export const USERS_HREF = "/v2/users";
+export const USERS_HREF = "/users";
 
 const norm = (v: unknown) => String(v ?? "").trim().toLowerCase();
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { query } from "@/_lib/db";
+import { logActivity } from "./chatter";
 import { invalidate } from "@/_lib/cache";
 import { ensureRequestSchema } from "@/_lib/schemas/request";
 import { requirePermission } from "@/_lib/server-auth";
@@ -231,6 +232,7 @@ export async function createRequest(body: any): Promise<{ success: true; data: a
       [reqNo, String(body.project_id), body.project_name || null, body.status || "requested", JSON.stringify(items), body.notes || null, body.requester || null],
     );
     invalidate("req:");
+    await logActivity("request", String(r.rows[0]?.id ?? ""), "ສ້າງໃບຂໍເບີກ", r.rows[0]?.request_no ?? undefined);
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);
@@ -246,6 +248,7 @@ export async function setRequestStatus(id: string, status: string): Promise<{ su
     const r = await query(`UPDATE odg_request SET status = $2, updated_at = now() WHERE id = $1 RETURNING id`, [id, status]);
     if (!r.rows.length) return fail("Request not found");
     invalidate("req:");
+    await logActivity("request", id, "ປ່ຽນສະຖານະ", status);
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);

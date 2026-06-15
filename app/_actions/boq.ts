@@ -1,6 +1,7 @@
 "use server";
 
 import { query, withTransaction } from "@/_lib/db";
+import { logActivity } from "./chatter";
 import { cleanText, toNumber } from "@/_lib/http";
 import { approveAccounting } from "@/_lib/projects";
 
@@ -408,6 +409,7 @@ export async function approveBoq(docNo: string, payload: { status?: number; user
       `UPDATE odg_projects_boq SET approve_status = $1, approver = $2 WHERE doc_no = $3`,
       [status, username, decodedDocNo],
     );
+    await logActivity("boq", decodedDocNo, status > 0 ? "ອະນຸມັດ BOQ" : "ຍົກເລີກການອະນຸມັດ BOQ");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }
 }

@@ -1,6 +1,7 @@
 "use server";
 
 import { query } from "@/_lib/db";
+import { logActivity } from "./chatter";
 import { cached, invalidate } from "@/_lib/cache";
 import { dateOrNull, ensureQuotationSchema, num } from "@/_lib/schemas/quotations";
 
@@ -141,6 +142,7 @@ export async function approveQuotation(id: string, status: string): Promise<{ su
     );
     if (!result.rows.length) return fail("Quotation not found");
     invalidate("quotations:");
+    await logActivity("quotation", id, "ປ່ຽນສະຖານະ", status);
     return { success: true };
   } catch (e) { return fail((e as Error).message); }
 }

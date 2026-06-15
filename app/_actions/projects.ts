@@ -1,6 +1,7 @@
 "use server";
 
 import { query } from "@/_lib/db";
+import { logActivity } from "./chatter";
 import { cached, invalidate } from "@/_lib/cache";
 import { cleanText, isTruthyFlag } from "@/_lib/http";
 import {
@@ -86,6 +87,7 @@ export async function createProjectAction(formData: FormData): Promise<Result> {
     });
 
     invalidate("projects:");
+    await logActivity("project", String(projectId), "ລົງທະບຽນໂຄງການ", projectName);
     return ok({ message: "Created", id: projectId });
   } catch (e) { return fail((e as Error).message); }
 }
@@ -158,6 +160,7 @@ export async function advanceProjectStage(id: string, target: string): Promise<R
     if (ti <= ci) return ok({ message: "skipped" }); // already at/past this stage
     await query(`UPDATE odg_projects SET project_status = $1 WHERE id = $2`, [target, pid]);
     invalidate("projects:");
+    await logActivity("project", String(pid), "ປ່ຽນຂັ້ນຕອນ", target);
     return ok({ message: "advanced" });
   } catch (e) { return fail((e as Error).message); }
 }
@@ -221,6 +224,7 @@ export async function approveProjectAction(id: string, payload: { username?: str
     });
     if (!updated) return fail("No pending contract found for this project");
     invalidate("projects:");
+    await logActivity("project", cleanText(id), "ອະນຸມັດໂຄງການ");
     return ok({ message: "Approved" });
   } catch (e) { return fail((e as Error).message); }
 }

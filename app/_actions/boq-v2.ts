@@ -3,7 +3,6 @@
 import { query } from "@/_lib/db";
 import { num } from "@/_lib/schemas/boq";
 import { ensureRequestSchema } from "@/_lib/schemas/request";
-import { getListBoq } from "@/_actions/boq";
 
 type Fail = { success: false; message: string };
 function fail(message: string): Fail {
@@ -17,10 +16,34 @@ function fail(message: string): Fail {
  */
 export async function getAllBoqsForList(): Promise<{ success: true; data: any[] } | Fail> {
   try {
-    const legacy: any[] = (await getListBoq()) as any[];
-    const rows: any[] = (legacy || []).map((r: any) => {
+    const result = await query(`
+      SELECT
+        b.roworder AS id,
+        b.doc_no,
+        b.doc_date,
+        b.cust_code,
+        b.project_id,
+        COALESCE(euc.fullname_lo, b.user_created) AS user_created,
+        COALESCE(b.approve_status, 0)::int AS approve_status,
+        COALESCE(eap.fullname_lo, b.approver) AS approver,
+        p.project_name,
+        c.contract_no
+      FROM odg_projects_boq b
+      LEFT JOIN odg_projects p
+        ON p.id::text = b.project_id::text
+      LEFT JOIN odg_projects_contract c
+        ON c.roworder = b.contract_id
+      LEFT JOIN odg_employee euc
+        ON euc.employee_code = b.user_created
+      LEFT JOIN odg_employee eap
+        ON eap.employee_code = b.approver
+      ORDER BY b.doc_date DESC NULLS LAST, b.roworder DESC
+    `);
+
+    const rows: any[] = result.rows.map((r: any) => {
       const st = Number(r.approve_status);
       return {
+        id: r.id,
         boq_no: r.doc_no,
         project_name: r.project_name || r.contract_no || null,
         customer_name: r.cust_code || null,

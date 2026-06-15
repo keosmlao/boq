@@ -1,6 +1,7 @@
 "use server";
 
 import { query } from "@/_lib/db";
+import { logActivity } from "./chatter";
 import { dateOrNull, ensureContractSchema, generateContractNo, num } from "@/_lib/schemas/contracts";
 
 type Fail = { success: false; message: string; [k: string]: unknown };
@@ -252,6 +253,7 @@ export async function setContractApproval(
       [id, approved, approver || null],
     );
     if (!result.rows.length) return fail("Contract not found");
+    await logActivity("contract", id, `${approved ? "ອະນຸມັດ" : "ຍົກເລີກອະນຸມັດ"} (${which === "sales" ? "ຝ່າຍຂາຍ" : "ບັນຊີ"})`);
     return { success: true };
   } catch (e) { return fail((e as Error).message); }
 }
