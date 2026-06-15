@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifySession } from "./app/_lib/auth_session";
-import { canView, isManager, moduleForPath, USERS_HREF } from "./app/_lib/permissions";
+import { canView, isAdmin, moduleForPath, USERS_HREF } from "./app/_lib/permissions";
 
 const PUBLIC_PATHS = ["/login", "/unauthorized"];
 
@@ -34,9 +34,9 @@ export async function middleware(request) {
   // RBAC route gating. The token carries role + per-module permissions.
   const accessUser = { role: session.role, permissions: session.perms };
 
-  // User-management area is manager/admin only.
+  // User & permission management is admin (ຜູ້ດູແລລະບົບ) only.
   if (pathname === USERS_HREF || pathname.startsWith(USERS_HREF + "/")) {
-    if (!isManager(accessUser)) return NextResponse.redirect(new URL("/", request.url));
+    if (!isAdmin(accessUser)) return NextResponse.redirect(new URL("/", request.url));
     return NextResponse.next();
   }
 

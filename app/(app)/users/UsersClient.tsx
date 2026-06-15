@@ -294,7 +294,7 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
                 </label>
               )}
 
-              {draft.role === "staff" ? (
+              {draft.role === "staff" || draft.role === "head_craftsman" ? (
                 <div>
                   <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">ສິດເຂົ້າເຖິງ (ຕໍ່ module)</div>
                   <div className="space-y-1.5">

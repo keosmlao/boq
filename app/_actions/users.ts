@@ -3,14 +3,16 @@
 import bcrypt from "bcryptjs";
 import { query } from "@/_lib/db";
 import { ensureUsersSchema } from "@/_lib/schemas/users";
-import { requireManager } from "@/_lib/server-auth";
+import { requireAdmin } from "@/_lib/server-auth";
 import { normalizePermissions, type Role } from "@/_lib/permissions";
 
 type Fail = { success: false; message: string };
 const fail = (message: string): Fail => ({ success: false, message });
 const clean = (v: unknown) => String(v ?? "").trim();
-const VALID_ROLES: Role[] = ["admin", "manager", "staff"];
+const VALID_ROLES: Role[] = ["admin", "manager", "head_craftsman", "staff"];
 const asRole = (v: unknown): Role => (VALID_ROLES.includes(clean(v) as Role) ? (clean(v) as Role) : "staff");
+/** Roles whose access is driven by the per-module permission matrix (admin/manager = full implicit). */
+const usesPermissionMatrix = (role: Role) => role === "staff" || role === "head_craftsman";
 
 export type AppUserRow = {
   username: string;
@@ -28,7 +30,7 @@ export type AppUserRow = {
  */
 export async function getUsers(): Promise<{ success: true; data: AppUserRow[] } | Fail> {
   try {
-    await requireManager();
+    await requireAdmin();
     await ensureUsersSchema();
 
     const v2 = await query(`SELECT username, name, role, active, permissions FROM odg_app_user ORDER BY username`);
@@ -70,7 +72,7 @@ export async function createUser(body: {
   permissions?: unknown;
 }): Promise<{ success: true } | Fail> {
   try {
-    await requireManager();
+    await requireAdmin();
     await ensureUsersSchema();
     const username = clean(body?.username);
     const password = clean(body?.password);
@@ -81,7 +83,7 @@ export async function createUser(body: {
     if (dup.rows.length) return fail("ຊື່ຜູ້ໃຊ້ນີ້ມີໃນລະບົບແລ້ວ");
 
     const role = asRole(body?.role);
-    const perms = role === "staff" ? normalizePermissions(body?.permissions) : {};
+    const perms = usesPermissionMatrix(role) ? normalizePermissions(body?.permissions) : {};
     await query(
       `INSERT INTO odg_app_user (username, name, password_hash, role, active, permissions)
        VALUES ($1, $2, $3, $4, true, $5::jsonb)`,
@@ -98,13 +100,13 @@ export async function updateUser(
   body: { name?: string; role?: string; active?: boolean; password?: string; permissions?: unknown },
 ): Promise<{ success: true } | Fail> {
   try {
-    await requireManager();
+    await requireAdmin();
     await ensureUsersSchema();
     const u = clean(username);
     if (!u) return fail("ບໍ່ພົບຜູ້ໃຊ້");
 
     const role = asRole(body?.role);
-    const perms = role === "staff" ? normalizePermissions(body?.permissions) : {};
+    const perms = usesPermissionMatrix(role) ? normalizePermissions(body?.permissions) : {};
     const sets: string[] = [
       "name = $2",
       "role = $3",
@@ -140,7 +142,7 @@ export async function updateUser(
 
 export async function deleteUser(username: string): Promise<{ success: true } | Fail> {
   try {
-    const me = await requireManager();
+    const me = await requireAdmin();
     await ensureUsersSchema();
     const u = clean(username);
     if (!u) return fail("ບໍ່ພົບຜູ້ໃຊ້");

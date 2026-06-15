@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { verifySession } from "@/_lib/auth_session";
-import { can, isManager, type Action, type Permissions } from "@/_lib/permissions";
+import { can, isManager, isAdmin, type Action, type Permissions } from "@/_lib/permissions";
 
 export type SessionUser = {
   username: string;
@@ -41,6 +41,13 @@ export async function requireUser(): Promise<SessionUser> {
 export async function requireManager(): Promise<SessionUser> {
   const u = await requireUser();
   if (!isManager(u)) throw new AuthError("ບໍ່ມີສິດເຂົ້າເຖິງ (ສະເພາະຜູ້ຈັດການ)");
+  return u;
+}
+
+/** Throw unless the user is an admin (ຜູ້ດູແລລະບົບ) — role/permission management tier. */
+export async function requireAdmin(): Promise<SessionUser> {
+  const u = await requireUser();
+  if (!isAdmin(u)) throw new AuthError("ບໍ່ມີສິດເຂົ້າເຖິງ (ສະເພາະຜູ້ດູແລລະບົບ)");
   return u;
 }
 

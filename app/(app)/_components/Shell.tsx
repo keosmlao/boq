@@ -29,7 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { logout } from "@/_actions/auth";
-import { can, canView, isManager, ROLE_LABELS, type Role } from "@/_lib/permissions";
+import { can, canView, isAdmin, ROLE_LABELS, type Role } from "@/_lib/permissions";
 import { clearV2User, getV2User, type V2User } from "../../_lib/session";
 import { useTheme } from "@/_components/theme/ThemeProvider";
 import NavProgress from "./NavProgress";
@@ -133,7 +133,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ...section,
         items: section.items.filter((item) => {
           if (item.href === "/") return true;
-          if (item.href === "/users") return isManager(user);
+          if (item.href === "/users") return isAdmin(user);
           return canView(user, item.href.slice(1));
         }),
       })).filter((section) => section.items.length > 0),
