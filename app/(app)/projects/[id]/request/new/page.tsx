@@ -9,6 +9,7 @@ import { getCustomer } from "@/_actions/customers";
 import { getProjectMaterials } from "@/_actions/boq-v2";
 import { getWorkOrderById } from "@/_actions/workorder";
 import { createRequest, updateRequest, getRequestDetail } from "@/_actions/request-v2";
+import { getWarehouses, getLocations } from "@/_actions/lookups";
 import { Page, Card, Btn, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
 
 type Row = { item_code: string; description: string; unit: string; remaining: number; qty: number };
@@ -32,15 +33,20 @@ export default function RequestPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [shelves, setShelves] = useState<any[]>([]);
+  const [whCode, setWhCode] = useState("");
+  const [shelfCode, setShelfCode] = useState("");
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [pRes, mRes]: any = await Promise.all([getProjectBasic(String(id)), getProjectMaterials(String(id))]);
+        const [pRes, mRes, whRes]: any = await Promise.all([getProjectBasic(String(id)), getProjectMaterials(String(id)), getWarehouses()]);
         if (!alive) return;
         const p = pRes?.success ? pRes.data : null;
         setProject(p);
+        setWarehouses(whRes?.success ? whRes.data || [] : []);
 
         // Prefill quantities from a work-order material template (?wo=).
         const tmap: Record<string, number> = {};
@@ -112,6 +118,18 @@ export default function RequestPage() {
     return () => { alive = false; };
   }, [id]);
 
+  // Load shelves whenever the selected warehouse changes.
+  useEffect(() => {
+    setShelfCode("");
+    if (!whCode) { setShelves([]); return; }
+    let alive = true;
+    (async () => {
+      const r: any = await getLocations(whCode);
+      if (alive) setShelves(r?.success ? r.data || [] : []);
+    })();
+    return () => { alive = false; };
+  }, [whCode]);
+
   const totalReq = useMemo(() => rows.reduce((s, r) => s + num(r.qty), 0), [rows]);
   const setRow = (i: number, qty: number) =>
     setRows((a) => a.map((r, idx) => (idx === i ? { ...r, qty: Math.min(Math.max(qty, 0), r.remaining) } : r)));
@@ -119,7 +137,18 @@ export default function RequestPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const items = rows.filter((r) => num(r.qty) > 0).map((r) => ({ item_code: r.item_code || null, description: r.description, unit: r.unit || null, qty: num(r.qty) }));
+    const wh = warehouses.find((w) => String(w.code) === whCode);
+    const sh = shelves.find((s) => String(s.code) === shelfCode);
+    const items = rows.filter((r) => num(r.qty) > 0).map((r) => ({
+      item_code: r.item_code || null,
+      description: r.description,
+      unit: r.unit || null,
+      qty: num(r.qty),
+      wh_code: whCode || null,
+      wh_name: wh?.name_1 || null,
+      shelf_code: shelfCode || null,
+      shelf_name: sh?.name_1 || null,
+    }));
     if (!items.length) {
       setError("ກະລຸນາໃສ່ຈຳນວນທີ່ຕ້ອງເບີກ");
       return;
@@ -191,6 +220,29 @@ export default function RequestPage() {
         </div>
 
         {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</div>}
+
+        <Card className="mb-4 border-t-2 border-t-pink-400 p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">ສາງ (Warehouse)</label>
+              <select value={whCode} onChange={(e) => setWhCode(e.target.value)} className={inputCls}>
+                <option value="">-- ເລືອກສາງ --</option>
+                {warehouses.map((w, i) => (
+                  <option key={i} value={String(w.code)}>{w.code} - {w.name_1}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">ທີ່ເກັບ (ຊັ້ນວາງ)</label>
+              <select value={shelfCode} onChange={(e) => setShelfCode(e.target.value)} className={inputCls} disabled={!whCode}>
+                <option value="">{whCode ? "-- ເລືອກທີ່ເກັບ --" : "ເລືອກສາງກ່ອນ"}</option>
+                {shelves.map((s, i) => (
+                  <option key={i} value={String(s.code)}>{s.code} - {s.name_1}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </Card>
 
         <Card className="overflow-hidden border-t-2 border-t-pink-400">
           <div className="border-b border-[var(--theme-border-subtle)] px-3 py-2 text-[13px] font-bold text-[var(--theme-text)]">
