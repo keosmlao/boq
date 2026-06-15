@@ -119,9 +119,13 @@ export async function getScheduleByProject(): Promise<{ success: true; data: any
     if (recreated) invalidate("tasks:");
 
     const r = await query(
-      `SELECT t.*, p.project_name
+      `SELECT t.*, pn.project_name
        FROM odg_project_task t
-       LEFT JOIN odg_projects p ON p.id::text = t.project_id
+       LEFT JOIN LATERAL (
+         SELECT project_name FROM odg_projects p
+          WHERE p.id::text = t.project_id OR p.sml_code = t.project_id
+          LIMIT 1
+       ) pn ON true
        ORDER BY t.project_id, t.sort_order ASC, t.id ASC`,
     );
     const groups = new Map<string, any>();
