@@ -157,6 +157,60 @@ export async function getWorkOrderById(id: string): Promise<{ success: true; dat
   }
 }
 
+/**
+ * Monthly work summary for one craftsman (by their technician/employee code):
+ * total work orders, total hours, project count, and a per-project breakdown.
+ * Merges v2 (odg_work_order) + legacy ERP (odg_work_orders). Hours come from v2
+ * total_hours (ERP carries no hours → counted as 0).
+ */
+export async function getCraftsmanSummary(techCode: string, month?: string): Promise<{ success: true; data: any } | Fail> {
+  try {
+    await ensureWorkOrderSchema();
+    const code = String(techCode || "");
+    const ym = month && /^\d{4}-\d{2}$/.test(month) ? month : new Date().toISOString().slice(0, 7);
+    if (!code) return { success: true, data: { month: ym, totals: { workOrders: 0, hours: 0, projects: 0 }, byProject: [] } };
+
+    const r = await query(
+      `
+      WITH wo AS (
+        SELECT w.project_id::text AS pid, COALESCE(w.total_hours,0)::numeric AS hours,
+               COALESCE(w.work_date, w.created_at) AS dt
+          FROM odg_work_order w WHERE w.technician_code = $1
+        UNION ALL
+        SELECT w.project_code::text AS pid, 0::numeric AS hours,
+               COALESCE(w.scheduled_date, w.created_at) AS dt
+          FROM odg_work_orders w WHERE w.technician_id = $1
+      ),
+      agg AS (
+        SELECT pid, count(*)::int AS wo_count, COALESCE(sum(hours),0)::numeric AS hours
+          FROM wo
+         WHERE to_char(dt,'YYYY-MM') = $2
+         GROUP BY pid
+      )
+      SELECT a.pid, a.wo_count, a.hours,
+             (SELECT project_name FROM odg_projects p WHERE p.id::text = a.pid OR p.sml_code = a.pid LIMIT 1) AS project_name
+        FROM agg a
+       ORDER BY a.wo_count DESC, a.hours DESC
+      `,
+      [code, ym],
+    );
+    const byProject = (r.rows as any[]).map((x) => ({
+      project_id: x.pid,
+      project_name: x.project_name || x.pid || "(ບໍ່ລະບຸໂຄງການ)",
+      workOrders: Number(x.wo_count) || 0,
+      hours: Number(x.hours) || 0,
+    }));
+    const totals = {
+      workOrders: byProject.reduce((s, p) => s + p.workOrders, 0),
+      hours: byProject.reduce((s, p) => s + p.hours, 0),
+      projects: byProject.length,
+    };
+    return { success: true, data: { month: ym, totals, byProject } };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
 /** Resolve a lead technician's helper codes → names (for ຜູ້ຊ່ວຍຊ່າງ display). */
 async function resolveHelpers(techCode: string | null): Promise<string[]> {
   if (!techCode) return [];
