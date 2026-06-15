@@ -4,10 +4,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
-import { ArrowLeft, FileText, FolderKanban } from "lucide-react";
-import { getQuotation, deleteQuotation } from "@/_actions/quotations";
+import { ArrowLeft, FileText, FolderKanban, CheckCircle2, XCircle } from "lucide-react";
+import { getQuotation, deleteQuotation, approveQuotation } from "@/_actions/quotations";
 import { Page, Card, Btn, SectionHeader } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
+import { getV2User } from "../../../_lib/session";
+import { can } from "@/_lib/permissions";
+import { useConfirm } from "../../_components/Confirm";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -22,21 +25,42 @@ const vatLabel = (t: unknown) => {
 export default function QuotationDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const confirm = useConfirm();
   const [q, setQ] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const user = getV2User();
+  const canApprove = can(user ? { role: user.role, permissions: user.permissions } : null, "quotations", "approve");
+
+  const load = React.useCallback(async () => {
+    const res: any = await getQuotation(String(id));
+    setQ(res && res.success !== false ? res : null);
+  }, [id]);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const res: any = await getQuotation(String(id));
-        if (alive) setQ(res && res.success !== false ? res : null);
+        await load();
       } finally {
         if (alive) setLoading(false);
       }
     })();
     return () => { alive = false; };
-  }, [id]);
+  }, [load]);
+
+  const doApprove = async (newStatus: string) => {
+    if (!(await confirm({ title: newStatus === "ປະຕິເສດ" ? "ຢືນຢັນການປະຕິເສດ" : "ຢືນຢັນການອະນຸມັດ", message: `${newStatus === "ປະຕິເສດ" ? "ປະຕິເສດ" : "ອະນຸມັດ"} ໃບສະເໜີລາຄາ?`, confirmLabel: newStatus === "ປະຕິເສດ" ? "ປະຕິເສດ" : "ອະນຸມັດ", tone: newStatus === "ປະຕິເສດ" ? "danger" : "primary" }))) return;
+    setBusy(true);
+    try {
+      const res: any = await approveQuotation(String(id), newStatus);
+      if (res?.success === false) alert(res.message || "ບໍ່ສຳເລັດ");
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -64,12 +88,24 @@ export default function QuotationDetailPage() {
           <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" />
           <span>ກັບໄປລາຍການໃບສະເໜີ</span>
         </button>
-        <DocActions
-          editHref={q.project_id ? `/projects/${q.project_id}/quotation/new?edit=${id}` : undefined}
-          onDelete={() => deleteQuotation(String(id))}
-          afterDelete="/quotations"
-          label="ໃບສະເໜີ"
-        />
+        <div className="flex items-center gap-2.5">
+          {canApprove && status === "ລໍຖ້າອະນຸມັດ" && (
+            <>
+              <Btn variant="primary" disabled={busy} onClick={() => doApprove("ອະນຸມັດແລ້ວ")}>
+                <CheckCircle2 size={15} /> ອະນຸມັດ
+              </Btn>
+              <Btn variant="danger" disabled={busy} onClick={() => doApprove("ປະຕິເສດ")}>
+                <XCircle size={15} /> ປະຕິເສດ
+              </Btn>
+            </>
+          )}
+          <DocActions
+            editHref={q.project_id ? `/projects/${q.project_id}/quotation/new?edit=${id}` : undefined}
+            onDelete={() => deleteQuotation(String(id))}
+            afterDelete="/quotations"
+            label="ໃບສະເໜີ"
+          />
+        </div>
       </div>
 
       {/* Main header banner — blue gradient */}

@@ -68,6 +68,34 @@ async function getMessaging(): Promise<any> {
   }
 }
 
+async function sendToTokens(m: any, tokens: string[], title: string, body: string, data: Record<string, string>): Promise<void> {
+  if (!tokens.length) return;
+  const res = await m.sendEachForMulticast({ tokens, notification: { title, body }, data });
+  const stale: string[] = [];
+  res.responses.forEach((resp: any, i: number) => {
+    const code = resp.error?.code || "";
+    if (!resp.success && (code.includes("registration-token-not-registered") || code.includes("invalid-argument"))) stale.push(tokens[i]);
+  });
+  if (stale.length) await query(`DELETE FROM odg_device_token WHERE token = ANY($1::text[])`, [stale]);
+}
+
+/** Notify all managers/admins (devices registered by manager employees). No-op if unconfigured. */
+export async function notifyManagers(title: string, body: string, data: Record<string, string> = {}): Promise<void> {
+  try {
+    const m = await getMessaging();
+    if (!m) return;
+    await ensureTable();
+    const r = await query(`
+      SELECT dt.token FROM odg_device_token dt
+       WHERE dt.employee_code IN (
+         SELECT employee_code FROM odg_employee WHERE lower(coalesce(app_role, '')) IN ('admin', 'manager')
+       )`);
+    await sendToTokens(m, (r.rows as any[]).map((x) => x.token).filter(Boolean), title, body, data);
+  } catch (e) {
+    console.error("notifyManagers failed:", (e as Error).message);
+  }
+}
+
 /** Send a notification to every device of one craftsman (by employee_code). No-op if unconfigured. */
 export async function notifyCraftsman(
   employeeCode: string | null | undefined,

@@ -10,7 +10,7 @@ import { invalidate } from "@/_lib/cache";
 import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { saveBase64File } from "@/_lib/uploads";
 import { can, isManager, type Permissions } from "@/_lib/permissions";
-import { notifyCraftsman } from "@/_lib/push";
+import { notifyCraftsman, notifyManagers } from "@/_lib/push";
 
 export type ActingUser = {
   username: string;
@@ -132,6 +132,11 @@ export async function respondWorkOrderAs(
           [String(id), actorName(user), opts.reason || null],
         );
     invalidate("wo:");
+    await notifyManagers(
+      opts.accept ? "ຊ່າງຮັບງານ" : "ຊ່າງປະຕິເສດງານ",
+      `${actorName(user)} ${opts.accept ? "ຮັບ" : "ປະຕິເສດ"} ${wo.work_no || "ໃບງານ"}`,
+      { workOrderId: String(id), type: opts.accept ? "wo_accepted" : "wo_rejected" },
+    );
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);
@@ -172,6 +177,7 @@ export async function checkInWorkOrderAs(
       [String(id), lat, lng, urls[0], JSON.stringify(urls), opts.note || null, actorName(user)],
     );
     invalidate("wo:");
+    await notifyManagers("ຊ່າງ check-in ໜ້າງານ", `${actorName(user)} check-in ${wo.work_no || "ໃບງານ"}`, { workOrderId: String(id), type: "wo_checkin" });
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);
@@ -217,6 +223,7 @@ export async function checkOutWorkOrderAs(
       [String(id), lat, lng, urls[0], JSON.stringify(urls), opts.note || null, actorName(user), signatureUrl],
     );
     invalidate("wo:");
+    await notifyManagers("ຊ່າງ check-out — ລໍຖ້າກວດສອບ", `${actorName(user)} ສຳເລັດ ${wo.work_no || "ໃບງານ"} — ກະລຸນາກວດສອບ & ປິດງານ`, { workOrderId: String(id), type: "wo_checkout" });
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);
