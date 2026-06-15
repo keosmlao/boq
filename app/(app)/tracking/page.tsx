@@ -34,13 +34,17 @@ const ago = (v: unknown) => {
 
 export default function TrackingPage() {
   const [pts, setPts] = useState<any[]>([]);
+  const [presence, setPresence] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     try {
-      const r = await fetch("/api/tracking", { cache: "no-store" });
-      const j = await r.json().catch(() => null);
-      setPts(Array.isArray(j?.data) ? j.data.filter((p: any) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng))) : []);
+      const [tr, pr] = await Promise.all([
+        fetch("/api/tracking", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+        fetch("/api/presence", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+      ]);
+      setPts(Array.isArray(tr?.data) ? tr.data.filter((p: any) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng))) : []);
+      setPresence(Array.isArray(pr?.data) ? pr.data : []);
     } finally {
       setLoading(false);
     }
@@ -62,6 +66,35 @@ export default function TrackingPage() {
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> รีเฟรช
         </button>
       </div>
+
+      {/* Online craftsmen */}
+      <Card className="mb-4 p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+          <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">
+            ຊ່າງออนไลน์ {presence.filter((p) => p.online).length}/{presence.length}
+          </h2>
+        </div>
+        {presence.length === 0 ? (
+          <p className="py-3 text-center text-xs text-[var(--theme-text-mute)]">ຍັງບໍ່ມีข้อมูล (ช่างต้องเปิดแอป)</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {presence.map((p, i) => (
+              <span
+                key={i}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold ${p.online ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-400"}`}
+                title={`ເຫັນລ່າสุด: ${fmt(p.last_seen)}`}
+              >
+                <span className={`h-2 w-2 rounded-full ${p.online ? "bg-emerald-500" : "bg-slate-300"}`} />
+                {p.name}{!p.online ? ` · ${ago(p.last_seen)}` : ""}
+              </span>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <Card className="overflow-hidden p-0">
         <div style={{ height: "62vh", width: "100%" }}>
