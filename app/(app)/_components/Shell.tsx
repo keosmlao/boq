@@ -272,7 +272,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-[72px] flex-shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--topbar-bg)] backdrop-blur-md px-4 md:px-6 transition-all duration-300">
+        <header className="relative z-20 flex h-[72px] flex-shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--topbar-bg)] backdrop-blur-md px-4 md:px-6 transition-all duration-300">
           <button onClick={() => setMobileOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition md:hidden" aria-label="ເປີດເມນູ">
             <Menu size={18} />
           </button>

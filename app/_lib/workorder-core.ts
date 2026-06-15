@@ -10,6 +10,7 @@ import { invalidate } from "@/_lib/cache";
 import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { saveBase64File } from "@/_lib/uploads";
 import { can, isManager, type Permissions } from "@/_lib/permissions";
+import { notifyCraftsman } from "@/_lib/push";
 
 export type ActingUser = {
   username: string;
@@ -85,6 +86,15 @@ export async function approveWorkOrderAs(
       [String(id), status, actorName(user), opts.note || null],
     );
     invalidate("wo:");
+    // Notify the assigned craftsman so they can accept the work.
+    if (opts.approve) {
+      await notifyCraftsman(
+        wo.technician_code,
+        "ໃບງານໄດ້ຮັບການອະນຸມັດ",
+        `${wo.work_no || "ໃບງານ"} — ກະລຸນາກົດຮັບງານ`,
+        { workOrderId: String(id), type: "wo_approved" },
+      );
+    }
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);
