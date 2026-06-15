@@ -41,13 +41,30 @@ const LEGACY_WO_SELECT = `
   FROM odg_work_orders w
   LEFT JOIN odg_technicians t ON t.code = w.technician_id`;
 
+// Active work orders + a best-effort technician code. When a row has no stored
+// technician_code (older / seeded rows), resolve it from odg_technicians by the
+// stored technician_name. LATERAL + LIMIT 1 keeps it one row per work order.
+const WO_SELECT_WITH_TECH = `
+  SELECT w.*, tc.code AS resolved_tech_code
+    FROM odg_work_order w
+    LEFT JOIN LATERAL (
+      SELECT code FROM odg_technicians t
+       WHERE NULLIF(w.technician_code, '') IS NULL
+         AND t.name_1 = w.technician_name
+       LIMIT 1
+    ) tc ON true`;
+
 export async function getWorkOrders(opts: { projectId?: string; projectCode?: string } = {}): Promise<{ success: true; data: any[] } | Fail> {
   try {
     await ensureWorkOrderSchema();
     const r = opts.projectId
-      ? await query(`SELECT * FROM odg_work_order WHERE project_id = $1 ORDER BY created_at DESC`, [String(opts.projectId)])
-      : await query(`SELECT * FROM odg_work_order ORDER BY created_at DESC LIMIT 500`);
-    const rows: any[] = r.rows.map((x: any) => ({ ...x, src: "v2" }));
+      ? await query(`${WO_SELECT_WITH_TECH} WHERE w.project_id = $1 ORDER BY w.created_at DESC`, [String(opts.projectId)])
+      : await query(`${WO_SELECT_WITH_TECH} ORDER BY w.created_at DESC LIMIT 500`);
+    const rows: any[] = r.rows.map((x: any) => ({
+      ...x,
+      technician_code: x.technician_code || x.resolved_tech_code || null,
+      src: "v2",
+    }));
 
     // Merge legacy ERP work orders (odg_work_orders, linked by project_code).
     try {
@@ -123,9 +140,10 @@ export async function getWorkOrderById(id: string): Promise<{ success: true; dat
         },
       };
     }
-    const r = await query(`SELECT * FROM odg_work_order WHERE id = $1 LIMIT 1`, [id]);
+    const r = await query(`${WO_SELECT_WITH_TECH} WHERE w.id = $1 LIMIT 1`, [id]);
     if (!r.rows.length) return fail("Work order not found");
-    return { success: true, data: r.rows[0] };
+    const row: any = r.rows[0];
+    return { success: true, data: { ...row, technician_code: row.technician_code || row.resolved_tech_code || null } };
   } catch (e) {
     return fail((e as Error).message);
   }
