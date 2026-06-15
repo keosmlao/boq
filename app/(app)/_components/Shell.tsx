@@ -19,6 +19,8 @@ import {
   PackageOpen,
   Plus,
   ShieldCheck,
+  Sun,
+  Moon,
   UserCog,
   Users,
   Wallet,
@@ -28,6 +30,7 @@ import {
 import { logout } from "@/_actions/auth";
 import { can, canView, isManager, ROLE_LABELS, type Role } from "@/_lib/permissions";
 import { clearV2User, getV2User, type V2User } from "../../_lib/session";
+import { useTheme } from "@/_components/theme/ThemeProvider";
 import NavProgress from "./NavProgress";
 import ChatWidget from "./ChatWidget";
 import MyActivitiesBell from "./MyActivitiesBell";
@@ -95,6 +98,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { theme, toggle: toggleTheme } = useTheme();
 
   useEffect(() => {
     const storedUser = getV2User();
@@ -166,14 +170,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const roleLabel = ROLE_LABELS[(user?.role as Role) || "staff"] || "ຜູ້ໃຊ້ງານ";
 
   const sidebar = (
-    <nav className="flex h-full flex-col overflow-hidden bg-slate-950 text-slate-300">
-      <div className="flex h-[72px] items-center gap-3 border-b border-white/8 px-5">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/25">
+    <nav className="flex h-full flex-col overflow-hidden bg-[#0c0f1d] text-slate-300 border-r border-slate-800/40 relative shadow-2xl">
+      <div className="flex h-[72px] items-center gap-3 border-b border-white/5 px-5">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-500/25 transition-transform duration-300 hover:scale-105">
           <FolderKanban size={18} strokeWidth={2.5} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="font-display block truncate text-[14px] font-bold tracking-tight text-white">ODG Projects</span>
-          <span className="mt-0.5 block truncate text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">Sales & Installation</span>
+          <span className="font-display block truncate text-[14.5px] font-extrabold tracking-tight text-white">ODG Projects</span>
+          <span className="mt-0.5 block truncate text-[8px] font-black uppercase tracking-[0.25em] text-blue-400/80">Sales & Installation</span>
         </span>
         <button onClick={() => setMobileOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white md:hidden" aria-label="ປິດເມນູ">
           <X size={17} />
@@ -185,9 +189,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <Link
             href="/projects/new"
             onClick={() => setMobileOpen(false)}
-            className="flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 text-[12px] font-bold text-white shadow-lg shadow-blue-950/30 transition hover:bg-blue-500 active:scale-[0.98]"
+            className="relative flex h-10 items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-[12px] font-bold text-white shadow-md shadow-blue-950/50 transition-all duration-300 hover:from-blue-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98] group"
           >
-            <Plus size={15} strokeWidth={3} /> ລົງທະບຽນໂຄງການ
+            <span className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <Plus size={15} strokeWidth={3} className="transition-transform group-hover:rotate-90 duration-300 relative z-10" />
+            <span className="relative z-10">ລົງທະບຽນໂຄງການ</span>
           </Link>
         </div>
       )}
@@ -195,7 +201,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <div className="theme-scrollbar flex-1 space-y-5 overflow-y-auto px-3 py-3">
         {visibleSections.map((section, index) => (
           <div key={section.section || index}>
-            {section.section && <p className="mb-1.5 px-3 text-[8.5px] font-black uppercase tracking-[0.18em] text-slate-600">{section.section}</p>}
+            {section.section && <p className="mb-1.5 px-3 text-[8.5px] font-black uppercase tracking-[0.2em] text-slate-600">{section.section}</p>}
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const active = activeHref === item.href;
@@ -205,15 +211,31 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     onClick={() => setMobileOpen(false)}
-                    className={`group flex h-10 items-center gap-3 rounded-xl px-3 text-[12px] font-semibold transition ${
-                      active ? "bg-blue-600 text-white shadow-md shadow-blue-950/25" : "text-slate-400 hover:bg-white/6 hover:text-white"
+                    className={`group relative flex h-10 items-center gap-3 rounded-xl px-3 text-[12px] font-semibold transition-all duration-200 ${
+                      active
+                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-950/35"
+                        : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
                     }`}
                   >
-                    <span className={`flex h-7 w-7 items-center justify-center rounded-lg transition ${active ? "bg-white/14 text-white" : "bg-white/5 text-slate-500 group-hover:bg-white/10 group-hover:text-blue-300"}`}>
+                    {active && (
+                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-cyan-400" />
+                    )}
+                    <span
+                      className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200 ${
+                        active
+                          ? "bg-white/12 text-white"
+                          : "bg-white/[0.02] border border-white/5 text-slate-500 group-hover:bg-white/[0.06] group-hover:text-blue-400 group-hover:border-blue-500/20"
+                      }`}
+                    >
                       {item.icon}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    <ChevronRight size={13} className={`transition ${active ? "text-blue-200" : "text-slate-700 opacity-0 group-hover:translate-x-0.5 group-hover:opacity-100"}`} />
+                    <ChevronRight
+                      size={13}
+                      className={`transition-all duration-200 ${
+                        active ? "text-blue-200" : "text-slate-700 opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100"
+                      }`}
+                    />
                   </Link>
                 );
               })}
@@ -222,14 +244,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      <div className="border-t border-white/8 p-3">
-        <Link href="/profile" onClick={() => setMobileOpen(false)} className="group flex items-center gap-3 rounded-xl p-2.5 transition hover:bg-white/6">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-[11px] font-black text-white ring-1 ring-white/10">{initial}</span>
+      <div className="border-t border-white/5 p-3">
+        <Link href="/profile" onClick={() => setMobileOpen(false)} className="group flex items-center gap-3 rounded-xl p-2.5 transition-all duration-200 border border-transparent hover:border-white/5 hover:bg-white/[0.03]">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-[11px] font-black text-white shadow-md shadow-blue-500/10 ring-1 ring-white/10">{initial}</span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[11.5px] font-bold text-white">{user?.name || user?.username}</span>
-            <span className="mt-0.5 block truncate text-[9.5px] font-semibold text-slate-500">{roleLabel}</span>
+            <span className="block truncate text-[11.5px] font-bold text-white group-hover:text-blue-300 transition-colors">{user?.name || user?.username}</span>
+            <span className="mt-0.5 block truncate text-[9.5px] font-semibold text-slate-500 uppercase tracking-wider">{roleLabel}</span>
           </span>
-          <UserCog size={14} className="text-slate-600 group-hover:text-blue-300" />
+          <UserCog size={14} className="text-slate-600 group-hover:text-blue-400 transition-colors" />
         </Link>
       </div>
     </nav>
@@ -250,59 +272,71 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-[72px] flex-shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 md:px-6">
-          <button onClick={() => setMobileOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 md:hidden" aria-label="ເປີດເມນູ">
+        <header className="flex h-[72px] flex-shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--topbar-bg)] backdrop-blur-md px-4 md:px-6 transition-all duration-300">
+          <button onClick={() => setMobileOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition md:hidden" aria-label="ເປີດເມນູ">
             <Menu size={18} />
           </button>
 
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400">
-              <span>ODG Projects</span><ChevronRight size={10} /><span className="truncate text-blue-600">{sectionFor(pathname)}</span>
+            <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--text-mute)]">
+              <span>ODG Projects</span><ChevronRight size={10} /><span className="truncate text-blue-600 dark:text-blue-400 font-extrabold">{sectionFor(pathname)}</span>
             </div>
-            <h2 className="mt-1 truncate text-[15px] font-black tracking-tight text-slate-950">{titleFor(pathname)}</h2>
+            <h2 className="mt-1 truncate text-[15.5px] font-black tracking-tight text-[var(--text)]">{titleFor(pathname)}</h2>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
             {canView(user, "schedule") && (
-              <Link href="/schedule" className="hidden h-9 items-center gap-2 rounded-xl px-3 text-[11px] font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 lg:inline-flex">
+              <Link href="/schedule" className="hidden h-9 items-center gap-2 rounded-xl px-3 text-[11px] font-bold text-[var(--text-soft)] transition-all duration-200 hover:bg-[var(--surface-soft)] hover:text-[var(--text)] lg:inline-flex border border-transparent hover:border-[var(--border)]">
                 <CalendarRange size={14} /> ຕາຕະລາງວຽກ
               </Link>
             )}
             {canView(user, "reports") && (
-              <Link href="/reports" className="hidden h-9 items-center gap-2 rounded-xl px-3 text-[11px] font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 lg:inline-flex">
+              <Link href="/reports" className="hidden h-9 items-center gap-2 rounded-xl px-3 text-[11px] font-bold text-[var(--text-soft)] transition-all duration-200 hover:bg-[var(--surface-soft)] hover:text-[var(--text)] lg:inline-flex border border-transparent hover:border-[var(--border)]">
                 <BarChart3 size={14} /> ລາຍງານ
               </Link>
             )}
             <NotificationsBell />
             <MyActivitiesBell />
-            <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
+            
+            <button
+              onClick={toggleTheme}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition-all duration-300 relative overflow-hidden active:scale-95 group"
+              title={theme === "dark" ? "ປ່ຽນເປັນໂໝດສະຫວ່າງ" : "ປ່ຽນເປັນໂໝດກາງຄືນ"}
+            >
+              <span className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="relative z-10 transition-transform duration-500 group-hover:rotate-45">
+                {theme === "dark" ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} className="text-indigo-600 dark:text-indigo-400" />}
+              </span>
+            </button>
+
+            <span className="mx-1 hidden h-6 w-px bg-[var(--border)] sm:block" />
 
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen((open) => !open)}
-                className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white p-1.5 pr-2.5 transition hover:border-slate-300 hover:bg-slate-50"
+                className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 pr-2.5 transition-all duration-200 hover:border-[var(--border-strong)] hover:bg-[var(--surface-soft)]"
                 aria-expanded={userMenuOpen}
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-950 text-[10px] font-black text-white">{initial}</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 text-[10px] font-black text-white shadow-md shadow-blue-500/15">{initial}</span>
                 <span className="hidden max-w-[130px] text-left sm:block">
-                  <span className="block truncate text-[11px] font-bold text-slate-800">{user?.name || user?.username}</span>
-                  <span className="block truncate text-[8.5px] font-semibold text-slate-400">{roleLabel}</span>
+                  <span className="block truncate text-[11px] font-bold text-[var(--text)]">{user?.name || user?.username}</span>
+                  <span className="block truncate text-[8.5px] font-semibold text-[var(--text-mute)] uppercase tracking-wider">{roleLabel}</span>
                 </span>
-                <ChevronDown size={13} className={`text-slate-400 transition ${userMenuOpen ? "rotate-180" : ""}`} />
+                <ChevronDown size={13} className="text-[var(--text-mute)] transition duration-200" style={{ transform: userMenuOpen ? 'rotate(180deg)' : 'none' }} />
               </button>
 
               {userMenuOpen && (
                 <>
                   <button aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setUserMenuOpen(false)} />
-                  <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_-16px_rgba(15,23,42,0.32)]">
-                    <div className="border-b border-slate-100 px-3 py-2.5">
-                      <p className="truncate text-[12px] font-black text-slate-900">{user?.name || user?.username}</p>
-                      <p className="mt-0.5 text-[9.5px] font-semibold text-slate-400">{roleLabel}</p>
+                  <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_20px_50px_-16px_rgba(15,23,42,0.32)] animate-scale-up">
+                    <div className="border-b border-[var(--border-soft)] px-3 py-2.5">
+                      <p className="truncate text-[12px] font-black text-[var(--text)]">{user?.name || user?.username}</p>
+                      <p className="mt-0.5 text-[9.5px] font-semibold text-[var(--text-mute)] uppercase tracking-wider">{roleLabel}</p>
                     </div>
-                    <button onClick={() => { setUserMenuOpen(false); router.push("/profile"); }} className="mt-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[11.5px] font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                    <button onClick={() => { setUserMenuOpen(false); router.push("/profile"); }} className="mt-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[11.5px] font-bold text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition-colors">
                       <UserCog size={15} /> ໂປຣໄຟລ໌ & ການຕັ້ງຄ່າ
                     </button>
-                    <button onClick={doLogout} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[11.5px] font-bold text-rose-600 hover:bg-rose-50">
+                    <button onClick={doLogout} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[11.5px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/25 transition-colors">
                       <LogOut size={15} /> ອອກຈາກລະບົບ
                     </button>
                   </div>

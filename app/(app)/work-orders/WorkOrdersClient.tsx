@@ -7,6 +7,17 @@ import CrossList from "../_components/CrossList";
 import ProjectPickerModal from "../_components/ProjectPickerModal";
 import { Pill, Btn } from "../_components/ui";
 import { getWorkOrders } from "@/_actions/workorder";
+import { workOrderStage, type StageTone } from "@/_lib/workorder-stage";
+
+// Map the stage tone to a Pill tone.
+const STAGE_PILL: Record<StageTone, "neutral" | "blue" | "green" | "amber" | "red" | "cyan" | "indigo"> = {
+  neutral: "neutral",
+  teal: "cyan",
+  indigo: "indigo",
+  amber: "amber",
+  green: "green",
+  red: "red",
+};
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -52,7 +63,11 @@ export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }
           { header: "ວຽກ", cell: (r) => r.title || "-" },
           { header: "ທີມ/ຊ່າງ", cell: (r) => (r.technician_code ? `${r.technician_name || "-"} (${r.technician_code})` : r.technician_name || "-") },
           { header: "ວັນທີ", cell: (r) => d10(r.work_date ?? r.created_at) },
-          { header: "ສະຖານະ", cell: (r) => (r.status ? <Pill tone="amber">{r.status}</Pill> : "-") },
+          { header: "ສະຖານະ", cell: (r) => {
+            if (r.src === "erp") return r.status ? <Pill tone="neutral">{r.status}</Pill> : "-";
+            const s = workOrderStage(r);
+            return <Pill tone={STAGE_PILL[s.tone]}>{s.label}</Pill>;
+          } },
           { header: "ຄ່າແຮງ", align: "right", cell: (r) => (r.src === "erp" ? "-" : money(r.labor_cost)) },
         ]}
       />

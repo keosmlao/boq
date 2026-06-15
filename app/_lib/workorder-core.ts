@@ -186,9 +186,38 @@ export async function checkOutWorkOrderAs(
     const r = await query(
       `UPDATE odg_work_order
           SET checkout_at = now(), checkout_lat = $2, checkout_lng = $3,
-              checkout_photo = $4, checkout_by = $5, status = 'done'
+              checkout_photo = $4, checkout_by = $5, status = 'awaiting_review'
         WHERE id = $1 RETURNING *`,
       [String(id), lat, lng, photoUrl, actorName(user)],
+    );
+    invalidate("wo:");
+    return { success: true, data: r.rows[0] };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/** Inspector / manager closes a checked-out work order (ລໍຖ້າກວດສອບ → ປິດງານແລ້ວ). */
+export async function closeWorkOrderAs(
+  user: ActingUser,
+  id: string,
+  opts: { note?: string } = {},
+): Promise<Ok | Fail> {
+  try {
+    const bad = assertV2Id(String(id));
+    if (bad) return fail(bad);
+    if (!can(user, "work-orders", "approve")) return fail("ບໍ່ມີສິດປິດງານ (ສະເພາະຜູ້ກວດສອບ/ຜູ້ຈັດການ)");
+    await ensureWorkOrderSchema();
+    const wo = await loadWoRow(String(id));
+    if (!wo) return fail("ບໍ່ພົບໃບງານ");
+    if (!wo.checkout_at) return fail("ໃບງານຍັງບໍ່ໄດ້ check-out — ຍັງປິດບໍ່ໄດ້");
+    if (wo.closed_at) return fail("ໃບງານປິດໄປແລ້ວ");
+
+    const r = await query(
+      `UPDATE odg_work_order
+          SET closed_at = now(), closed_by = $2, close_note = $3, status = 'closed'
+        WHERE id = $1 RETURNING *`,
+      [String(id), actorName(user), opts.note || null],
     );
     invalidate("wo:");
     return { success: true, data: r.rows[0] };

@@ -20,6 +20,7 @@ import {
   respondWorkOrder,
   checkInWorkOrder,
   checkOutWorkOrder,
+  closeWorkOrder,
 } from "@/_actions/workorder";
 
 const fmtTime = (v: unknown) => (v ? new Date(String(v)).toLocaleString("en-GB") : "-");
@@ -84,6 +85,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
   const acceptStatus = String(wo.accept_status || "pending");
   const hasCheckin = !!wo.checkin_at;
   const hasCheckout = !!wo.checkout_at;
+  const hasClose = !!wo.closed_at;
 
   const run = async (label: string, fn: () => Promise<any>) => {
     setErr("");
@@ -177,8 +179,9 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
                   : "ລໍຖ້າຫົວໜ້າຊ່າງກົດຮັບ"
             }
           />
-          <Step done={hasCheckin} label="Check-in ໜ້າງານ" value={hasCheckin ? `${fmtTime(wo.checkin_at)} · ${wo.checkin_by || ""}` : "ຍັງບໍ່ check-in"} />
-          <Step done={hasCheckout} label="Check-out / ປິດງານ" value={hasCheckout ? `${fmtTime(wo.checkout_at)} · ${wo.checkout_by || ""}` : "ຍັງບໍ່ check-out"} />
+          <Step done={hasCheckin} label="ກຳລັງເຂົ້າໜ້າງານ (Check-in)" value={hasCheckin ? `${fmtTime(wo.checkin_at)} · ${wo.checkin_by || ""}` : "ຍັງບໍ່ check-in"} />
+          <Step done={hasCheckout} label="ລໍຖ້າກວດສອບ (Check-out)" value={hasCheckout ? `${fmtTime(wo.checkout_at)} · ${wo.checkout_by || ""}` : "ຍັງບໍ່ check-out"} />
+          <Step done={hasClose} label="ປິດງານແລ້ວ" value={hasClose ? `ປິດໂດຍ ${wo.closed_by || "-"} · ${fmtTime(wo.closed_at)}` : "ລໍຖ້າກວດສອບ & ປິດງານ"} />
         </div>
 
         {err && (
@@ -230,15 +233,28 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
             </Btn>
           )}
 
-          {/* 4) Check-out / close */}
+          {/* 4) Check-out (work done → awaiting inspection) */}
           {hasCheckin && !hasCheckout && canAct && (
             <Btn variant="primary" className="w-full" disabled={!!busy} onClick={() => startCheckpoint("checkout")}>
               {busy === "checkout" ? <Clock size={15} className="animate-spin" /> : <LogOut size={15} />}
-              {busy === "checkout" ? "ກຳລັງບັນທຶກ..." : "Check-out ແລະ ປິດງານ (ຖ່າຍຮູບ + GPS)"}
+              {busy === "checkout" ? "ກຳລັງບັນທຶກ..." : "Check-out — ສົ່ງກວດສອບ (ຖ່າຍຮູບ + GPS)"}
             </Btn>
           )}
 
-          {hasCheckout && (
+          {/* 5) Inspection close — manager/inspector only */}
+          {hasCheckout && !hasClose && canApprove && (
+            <Btn variant="primary" className="w-full" disabled={!!busy} onClick={() => {
+              const note = window.prompt("ໝາຍເຫດການກວດສອບ (ບໍ່ບັງຄັບ)") ?? undefined;
+              void run("close", () => closeWorkOrder(String(wo.id), { note }));
+            }}>
+              <CheckCircle2 size={15} /> ກວດສອບ & ປິດງານ
+            </Btn>
+          )}
+          {hasCheckout && !hasClose && !canApprove && (
+            <p className="flex items-center gap-1.5 text-[12.5px] text-amber-600"><Clock size={14} /> ລໍຖ້າຜູ້ກວດສອບປິດງານ</p>
+          )}
+
+          {hasClose && (
             <p className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-[12.5px] font-bold text-emerald-700">
               <CheckCircle2 size={15} /> ປິດງານສຳເລັດ
             </p>

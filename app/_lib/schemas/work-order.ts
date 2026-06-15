@@ -53,12 +53,16 @@ export function ensureWorkOrderSchema(): Promise<void> {
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkin_lng NUMERIC(10,6);
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkin_photo TEXT;
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkin_by TEXT;
-        -- On completion check-out (closes the job): photo + GPS
+        -- On completion check-out (work done → awaiting inspection): photo + GPS
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_at TIMESTAMPTZ;
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_lat NUMERIC(10,6);
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_lng NUMERIC(10,6);
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_photo TEXT;
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_by TEXT;
+        -- Inspection close (after ລໍຖ້າກວດສອບ → ປິດງານແລ້ວ), by a manager/inspector
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS closed_by TEXT;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS close_note TEXT;
         `,
         [],
       );

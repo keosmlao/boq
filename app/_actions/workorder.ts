@@ -10,6 +10,7 @@ import {
   respondWorkOrderAs,
   checkInWorkOrderAs,
   checkOutWorkOrderAs,
+  closeWorkOrderAs,
 } from "@/_lib/workorder-core";
 
 type Fail = { success: false; message: string };
@@ -50,7 +51,9 @@ const WO_SELECT_WITH_TECH = `
     LEFT JOIN LATERAL (
       SELECT code FROM odg_technicians t
        WHERE NULLIF(w.technician_code, '') IS NULL
-         AND t.name_1 = w.technician_name
+         AND ( btrim(t.name_1) = btrim(w.technician_name)
+            OR btrim(w.technician_name) LIKE '%' || btrim(t.name_1) )
+       ORDER BY length(t.name_1) DESC
        LIMIT 1
     ) tc ON true`;
 
@@ -143,9 +146,33 @@ export async function getWorkOrderById(id: string): Promise<{ success: true; dat
     const r = await query(`${WO_SELECT_WITH_TECH} WHERE w.id = $1 LIMIT 1`, [id]);
     if (!r.rows.length) return fail("Work order not found");
     const row: any = r.rows[0];
-    return { success: true, data: { ...row, technician_code: row.technician_code || row.resolved_tech_code || null } };
+    const techCode = row.technician_code || row.resolved_tech_code || null;
+    // ຜູ້ຊ່ວຍຊ່າງ: helpers are defined on the lead technician (odg_technicians.helpers,
+    // an array of codes). Resolve their names for display.
+    const helpers = await resolveHelpers(techCode);
+    return { success: true, data: { ...row, technician_code: techCode, helpers } };
   } catch (e) {
     return fail((e as Error).message);
+  }
+}
+
+/** Resolve a lead technician's helper codes → names (for ຜູ້ຊ່ວຍຊ່າງ display). */
+async function resolveHelpers(techCode: string | null): Promise<string[]> {
+  if (!techCode) return [];
+  try {
+    const lead = await query(`SELECT helpers FROM odg_technicians WHERE code = $1 LIMIT 1`, [String(techCode)]);
+    const raw = lead.rows[0]?.helpers;
+    const codes = (Array.isArray(raw) ? raw : [])
+      .map((h: any) => (h && typeof h === "object" ? (h.code ?? h.name_1 ?? h.name) : h))
+      .map(String)
+      .filter(Boolean);
+    if (!codes.length) return [];
+    const hs = await query(`SELECT code, name_1 FROM odg_technicians WHERE code = ANY($1::text[])`, [codes]);
+    const m: Record<string, string> = {};
+    for (const x of hs.rows as any[]) m[String(x.code)] = x.name_1;
+    return codes.map((c: string) => m[c] || c);
+  } catch {
+    return [];
   }
 }
 
@@ -285,6 +312,15 @@ export async function checkOutWorkOrder(id: string, opts: { lat: number; lng: nu
   try {
     const user = await requireUser();
     return await checkOutWorkOrderAs(user, id, opts);
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+export async function closeWorkOrder(id: string, opts: { note?: string } = {}) {
+  try {
+    const user = await requireUser();
+    return await closeWorkOrderAs(user, id, opts);
   } catch (e) {
     return fail((e as Error).message);
   }
