@@ -61,7 +61,8 @@ export default function BoqClient({ initialRows }: { initialRows: any[] }) {
         open={pick}
         onClose={() => setPick(false)}
         onPick={(p) => router.push(`/projects/${p.id}/boq/new`)}
-        title="ເລືອກໂຄງການເພື່ອສ້າງ BOQ"
+        title="ເລືອກໂຄງການເພື່ອສ້າງ BOQ (ຕ້ອງມີສັນຍາທີ່ອະນຸມັດແລ້ວ)"
+        requireApprovedContract
       />
     </>
   );
