@@ -5,9 +5,12 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
 import { ArrowLeft, ListChecks, FolderKanban, User, UserCheck, CalendarClock, Boxes } from "lucide-react";
-import { getBoq, deleteBoq } from "@/_actions/boq";
-import { Page, Card, Pill } from "../../_components/ui";
+import { getBoq, deleteBoq, approveBoq } from "@/_actions/boq";
+import { Page, Card, Pill, Btn } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
+import { getV2User } from "../../../_lib/session";
+import { can } from "@/_lib/permissions";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -21,42 +24,61 @@ export default function BoqDetailPage() {
   const router = useRouter();
   const [b, setB] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
 
   const docNo = decodeURIComponent(String(id));
+  const user = getV2User();
+  const canApprove = can(user ? { role: user.role, permissions: user.permissions } : null, "boq", "approve");
+
+  const load = React.useCallback(async () => {
+    const lr: any = await getBoq(docNo);
+    if (lr && lr.success !== false) {
+      const apv = Number(lr.approve_status);
+      setB({
+        boq_no: lr.doc_no,
+        project_id: lr.project_id != null ? String(lr.project_id) : "",
+        project_name: lr.project_name || lr.contract_no || "",
+        customer_name: lr.cust_code || "",
+        status: apv === 1 ? "ອະນຸມັດແລ້ວ" : apv === 2 ? "ປະຕິເສດ" : "ລໍຖ້າອະນຸມັດ",
+        requester: lr.creator_name || lr.user_created || "",
+        approver: lr.approver_name || lr.approver || "",
+        created_at: lr.doc_date,
+        items: (Array.isArray(lr.boq_list) ? lr.boq_list : []).map((x: any) => ({
+          item_code: x.item_code,
+          description: x.item_name,
+          unit: x.unit_code,
+          qty: x.qty,
+        })),
+      });
+    } else {
+      setB(null);
+    }
+  }, [docNo]);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const lr: any = await getBoq(docNo);
-        if (!alive) return;
-        if (lr && lr.success !== false) {
-          const apv = Number(lr.approve_status);
-          setB({
-            boq_no: lr.doc_no,
-            project_id: lr.project_id != null ? String(lr.project_id) : "",
-            project_name: lr.project_name || lr.contract_no || "",
-            customer_name: lr.cust_code || "",
-            status: apv === 1 ? "ອະນຸມັດແລ້ວ" : apv === 2 ? "ປະຕິເສດ" : "ລໍຖ້າອະນຸມັດ",
-            requester: lr.creator_name || lr.user_created || "",
-            approver: lr.approver_name || lr.approver || "",
-            created_at: lr.doc_date,
-            items: (Array.isArray(lr.boq_list) ? lr.boq_list : []).map((x: any) => ({
-              item_code: x.item_code,
-              description: x.item_name,
-              unit: x.unit_code,
-              qty: x.qty,
-            })),
-          });
-        } else {
-          setB(null);
-        }
+        await load();
       } finally {
         if (alive) setLoading(false);
       }
     })();
     return () => { alive = false; };
-  }, [docNo]);
+  }, [load]);
+
+  const doApprove = async (status: number) => {
+    setBusy(true);
+    try {
+      const res: any = await approveBoq(docNo, { status, username: user?.username });
+      if (res?.success === false) alert(res.message || "ດຳເນີນການບໍ່ສຳເລັດ");
+      await load();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -124,6 +146,16 @@ export default function BoqDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2.5 self-end sm:self-center">
+            {canApprove && status === "ລໍຖ້າອະນຸມັດ" && (
+              <>
+                <Btn variant="primary" disabled={busy} onClick={() => doApprove(1)}>
+                  <CheckCircle2 size={15} /> ອະນຸມັດ
+                </Btn>
+                <Btn variant="danger" disabled={busy} onClick={() => doApprove(2)}>
+                  <XCircle size={15} /> ປະຕິເສດ
+                </Btn>
+              </>
+            )}
             <DocActions
               editHref={b.project_id ? `/projects/${b.project_id}/boq/new?edit=${encodeURIComponent(b.boq_no)}` : undefined}
               onDelete={() => deleteBoq(b.boq_no)}
