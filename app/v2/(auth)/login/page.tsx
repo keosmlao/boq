@@ -30,7 +30,12 @@ export default function V2LoginPage() {
     try {
       const res: any = await login({ username, password });
       if (res?.success) {
-        setV2User({ username: res.username, name: (res.name_1 as string) || res.username });
+        setV2User({
+          username: res.username,
+          name: (res.name_1 as string) || res.username,
+          role: res.role,
+          permissions: res.permissions || {},
+        });
         router.replace("/v2");
       } else {
         setError(res?.message || "ເຂົ້າສູ່ລະບົບບໍ່ສຳເລັດ");
@@ -105,7 +110,7 @@ export default function V2LoginPage() {
           </button>
 
           <p className="mt-4 text-center text-[11px] text-[var(--theme-text-mute)]">
-            ຜູ້ໃຊ້ທຸກຄົນເຂົ້າເຖິງໄດ້ທຸກໜ້າ (ບໍ່ມີການແບ່ງສິດ)
+            ສິດເຂົ້າເຖິງຂຶ້ນກັບການກຳນົດໂດຍຜູ້ຈັດການ
           </p>
         </form>
       </div>

@@ -30,6 +30,7 @@ const PROJECT_SELECT = `
     p.sale_code,
     sale.name_1 AS sale_name,
     p.sml_code,
+    ar.name_1 AS customer_name,
     p.office_lg,
     p.project_lg,
     p.project_type,
@@ -56,6 +57,8 @@ const PROJECT_SELECT = `
     ON vill.code = p.village
    AND vill.amper = p.district
    AND vill.province = p.province
+  LEFT JOIN ar_customer ar
+    ON ar.code = p.sml_code
   LEFT JOIN odg_project_business_type bt
     ON bt.code = p.business_type_id
   LEFT JOIN odg_project_business_model bm
@@ -476,6 +479,7 @@ function mapProjectSummaryRow(row, contractlist = null) {
     sale_code: row.sale_code || null,
     sale_name: row.sale_name || null,
     sml_code: row.sml_code || null,
+    customer_name: row.customer_name || null,
     village: row.village,
     village_name: row.village_name,
   };
@@ -520,6 +524,7 @@ function mapProjectDetailRow(row, { includeContracts = false } = {}) {
     sale_code: row.sale_code || null,
     sale_name: row.sale_name || null,
     sml_code: row.sml_code || null,
+    customer_name: row.customer_name || null,
     status: row.status_code ?? 0,
     status_code: row.status_code ?? 0,
     village: row.village,
@@ -836,11 +841,13 @@ async function attachProjectTiming(projects) {
 export async function listProjects({ summary = false } = {}) {
   const result = await query(`${PROJECT_SELECT} ORDER BY p.id DESC`);
   const projectIds = result.rows.map((row) => String(row.id));
-  const contractSummaryMap = await getProjectContractSummaryMap(projectIds);
-  const quotationSummaryMap = await getProjectQuotationSummaryMap(projectIds);
-  const contractMap = summary
-    ? new Map()
-    : await getContractsByProjectIds(projectIds);
+  // Run the dependent lookups concurrently instead of sequentially — on a
+  // remote DB this turns 3 serial round-trips into 1.
+  const [contractSummaryMap, quotationSummaryMap, contractMap] = await Promise.all([
+    getProjectContractSummaryMap(projectIds),
+    getProjectQuotationSummaryMap(projectIds),
+    summary ? Promise.resolve(new Map()) : getContractsByProjectIds(projectIds),
+  ]);
 
   const projects = result.rows.map((row) =>
     mapProjectSummaryRow(
@@ -1201,8 +1208,8 @@ export async function createProject(values) {
       cleanText(values.province),
       cleanText(values.district),
       cleanText(values.village),
-      cleanOptionalText(values.coordinator),
-      cleanOptionalText(values.coordinatorPhone),
+      cleanText(values.coordinator),
+      cleanText(values.coordinatorPhone),
       cleanOptionalText(values.imageUrl),
       cleanOptionalText(values.saleStaffId),
       cleanOptionalText(values.smlCode),

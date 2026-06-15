@@ -3,6 +3,7 @@ import {
   updateSparepartRequest,
 } from "@/_actions/requests";
 import { fail, ok, serverError } from "@/_lib/http";
+import { requireSession } from "@/_lib/api_auth";
 
 type RouteContext = {
   params: Promise<{
@@ -18,11 +19,14 @@ function failureStatus(message: string) {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
+    const { response } = await requireSession();
+    if (response) return response;
     const { docNo } = await context.params;
     const data = await getSparepartRequest(docNo);
 
     if (data.success === false) {
-      return fail(data.message, failureStatus(data.message), { code: data.message });
+      const msg = String(data.message || "Failed");
+      return fail(msg, failureStatus(msg), { code: msg });
     }
 
     return ok(data);
@@ -33,11 +37,14 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PUT(request: Request, context: RouteContext) {
   try {
+    const { response } = await requireSession();
+    if (response) return response;
     const { docNo } = await context.params;
     const result = await updateSparepartRequest(docNo, await request.json());
 
     if (result.success === false) {
-      return fail(result.message, failureStatus(result.message), { code: result.message });
+      const msg = String(result.message || "Failed");
+      return fail(msg, failureStatus(msg), { code: msg });
     }
 
     return ok(result);

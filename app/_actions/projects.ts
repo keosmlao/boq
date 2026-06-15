@@ -104,12 +104,61 @@ export async function getProject(id: string, opts: { includeContracts?: boolean 
   } catch (e) { return fail((e as Error).message); }
 }
 
+/**
+ * Lightweight project fetch — only the fields forms need (name + customer +
+ * location), as a single-row select. Avoids the heavy contractlist / boq_list
+ * json_agg joins in getProjectsBoq, which made the quotation/BOQ forms slow.
+ */
+export async function getProjectBasic(id: string): Promise<Result<unknown>> {
+  try {
+    const clean = cleanText(id);
+    const data = await cached(`projects:basic:${clean}`, LIST_TTL_MS, async () => {
+      const r = await query(
+        `SELECT id, project_name, sml_code, coordinator, phone, province, district, village
+           FROM odg_projects WHERE id = $1 LIMIT 1`,
+        [clean],
+      );
+      return r.rows[0] || null;
+    });
+    if (!data) return fail("Project not found");
+    return ok({ data });
+  } catch (e) { return fail((e as Error).message); }
+}
+
 export async function updateProjectAction(id: string, payload: Record<string, unknown>): Promise<Result> {
   try {
     const updated = await updateProjectStage(cleanText(id), payload || {});
     if (!updated) return fail("No valid fields to update");
     invalidate("projects:");
     return ok({ message: "Updated" });
+  } catch (e) { return fail((e as Error).message); }
+}
+
+/** v2 pipeline stages, stored in odg_projects.project_status, in order. */
+const V2_STAGES = [
+  "ລົງທະບຽນ",
+  "ສຳຫຼວດ",
+  "ສະເໜີລາຄາ",
+  "ສັນຍາ",
+  "BOQ",
+  "ກຳນົດໜ້າວຽກ",
+  "ໃບງານ",
+  "ປິດໂຄງການ",
+];
+
+/** Move a project's status FORWARD to `target` (never backward). */
+export async function advanceProjectStage(id: string, target: string): Promise<Result> {
+  try {
+    const ti = V2_STAGES.indexOf(target);
+    if (ti < 0) return fail("Unknown stage");
+    const pid = Number(cleanText(id));
+    if (!pid) return fail("Invalid project id");
+    const cur = await query(`SELECT project_status FROM odg_projects WHERE id = $1`, [pid]);
+    const ci = V2_STAGES.indexOf(cleanText(cur.rows[0]?.project_status));
+    if (ti <= ci) return ok({ message: "skipped" }); // already at/past this stage
+    await query(`UPDATE odg_projects SET project_status = $1 WHERE id = $2`, [target, pid]);
+    invalidate("projects:");
+    return ok({ message: "advanced" });
   } catch (e) { return fail((e as Error).message); }
 }
 
@@ -267,18 +316,22 @@ export async function getProjectsBoq(opts: { projectId?: string; summary?: boole
             `
             WITH boq_by_contract AS (
               SELECT
-                contract_id,
+                obq.contract_id,
                 json_agg(
                   json_build_object(
-                    'doc_no', doc_no,
-                    'doc_date', doc_date,
-                    'approve_status', approve_status
+                    'doc_no', obq.doc_no,
+                    'doc_date', obq.doc_date,
+                    'approve_status', obq.approve_status,
+                    'user_created', COALESCE(euc.fullname_lo, obq.user_created),
+                    'approver', COALESCE(eap.fullname_lo, obq.approver)
                   )
-                  ORDER BY doc_no DESC
+                  ORDER BY obq.doc_no DESC
                 ) AS boq_list
-              FROM odg_projects_boq
-              WHERE contract_id IS NOT NULL
-              GROUP BY contract_id
+              FROM odg_projects_boq obq
+              LEFT JOIN odg_employee euc ON euc.employee_code = obq.user_created
+              LEFT JOIN odg_employee eap ON eap.employee_code = obq.approver
+              WHERE obq.contract_id IS NOT NULL
+              GROUP BY obq.contract_id
             )
             SELECT
               p.*,

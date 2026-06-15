@@ -1,17 +1,19 @@
 /**
  * v2 (rebuild) client-side session helpers.
  *
- * The rebuild uses a FLAT permission model: any authenticated user has full
- * access — there are no roles. We store a minimal user object under a
- * v2-specific localStorage key so the rebuild never clobbers the legacy app's
- * `user`/`token` keys (the two apps can coexist during the cut-over).
- *
- * Authentication itself reuses the existing read-only `login` server action
- * (it only SELECTs the user + sets the shared `odg-auth` session cookie).
+ * RBAC: every user has a `role` (admin | manager | staff) and a per-module
+ * `permissions` map. We mirror it in localStorage (set at login) so the sidebar
+ * and buttons can gate client-side; the signed `odg-auth` cookie carries the
+ * same data for middleware + server-action enforcement. Stored under a
+ * v2-specific key so it never clobbers the legacy app's `user`/`token` keys.
  */
+import type { Permissions } from "@/_lib/permissions";
+
 export type V2User = {
   username: string;
   name: string;
+  role?: string;
+  permissions?: Permissions;
 };
 
 const KEY = "v2_user";

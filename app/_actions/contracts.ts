@@ -27,6 +27,50 @@ export async function getContracts(opts: { projectId?: string; quotationId?: str
   } catch (e) { return fail((e as Error).message); }
 }
 
+/**
+ * All contracts for the cross-project list — merges v2 (odg_contract) with the
+ * legacy ERP table (odg_projects_contract). Legacy read is defensive (SELECT *)
+ * so unknown columns can't break it; if it fails, v2 still shows.
+ */
+export async function getAllContractsForList(): Promise<{ success: true; data: any[] } | Fail> {
+  try {
+    await ensureContractSchema();
+    const v2 = await query(
+      `SELECT id, contract_no, project_name, customer_name, project_id::text AS project_id,
+              total_amount, created_at, sales_approved, accounting_approved
+       FROM odg_contract ORDER BY created_at DESC LIMIT 500`,
+    );
+    const rows: any[] = v2.rows.map((c: any) => ({ ...c, src: "v2" }));
+
+    try {
+      const legacy = await query(
+        `SELECT c.*, p.project_name AS p_project_name, ac.name_1 AS cust_name
+         FROM odg_projects_contract c
+         LEFT JOIN odg_projects p ON p.id::text = c.project_id::text
+         LEFT JOIN ar_customer ac ON ac.code = c.cust_code
+         ORDER BY c.roworder DESC LIMIT 500`,
+      );
+      for (const c of legacy.rows as any[]) {
+        rows.push({
+          contract_no: c.contract_no,
+          project_name: c.p_project_name || c.contract_name || null,
+          customer_name: c.cust_name || c.cust_code || null,
+          project_id: c.project_id != null ? String(c.project_id) : "",
+          created_at: c.created_at,
+          sales_approved: Number(c.approve_status_1) === 1,
+          accounting_approved: Math.max(Number(c.approve_status_2) || 0, Number(c.acc_approve) || 0) === 1,
+          src: "erp",
+        });
+      }
+    } catch {
+      /* legacy table/columns differ — keep v2 only */
+    }
+    return { success: true, data: rows };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
 export async function createContract(body: any, opts: { fromQuotation?: string } = {}): Promise<{ success: true; data: unknown } | Fail> {
   try {
     await ensureContractSchema();
@@ -40,6 +84,14 @@ export async function createContract(body: any, opts: { fromQuotation?: string }
       body = { ...src, ...body, quotation_id: src.id, contract_no: body.contract_no || generateContractNo(), status: "draft" };
     }
     if (!body.contract_no) body.contract_no = generateContractNo();
+
+    // Enforce 1 project = 1 contract.
+    if (body.project_id) {
+      const dup = await query(`SELECT id FROM odg_contract WHERE project_id = $1 LIMIT 1`, [String(body.project_id)]);
+      if (dup.rows.length) {
+        return fail("ໂຄງການນີ້ມີສັນຍາແລ້ວ (1 ໂຄງການ = 1 ສັນຍາ)", { contract_id: dup.rows[0].id });
+      }
+    }
 
     const result = await query(
       `INSERT INTO odg_contract (
@@ -75,6 +127,36 @@ export async function createContract(body: any, opts: { fromQuotation?: string }
     );
     return { success: true, data: result.rows[0] };
   } catch (e) { return fail((e as Error).message); }
+}
+
+/** Read a legacy ERP contract (odg_projects_contract) by contract_no, defensively. */
+export async function getLegacyContract(contractNo: string): Promise<{ success: true; data: any } | Fail> {
+  try {
+    const r = await query(
+      `SELECT c.*, p.project_name AS p_project_name
+       FROM odg_projects_contract c
+       LEFT JOIN odg_projects p ON p.id::text = c.project_id::text
+       WHERE c.contract_no = $1 LIMIT 1`,
+      [decodeURIComponent(contractNo)],
+    );
+    if (!r.rows.length) return fail("Contract not found");
+    const c: any = r.rows[0];
+    return {
+      success: true,
+      data: {
+        ...c,
+        project_name: c.p_project_name || c.contract_name || null,
+        customer_name: c.cust_code || null,
+        sales_approved: Number(c.approve_status_1) === 1,
+        sales_approver: c.approver_1 || null,
+        accounting_approved: Math.max(Number(c.approve_status_2) || 0, Number(c.acc_approve) || 0) === 1,
+        accounting_approver: c.approver_2 || c.acc_approver || null,
+        src: "erp",
+      },
+    };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
 }
 
 export async function getContract(id: string): Promise<Record<string, unknown> | Fail> {
@@ -131,6 +213,44 @@ export async function deleteContract(id: string): Promise<{ success: true } | Fa
   try {
     await ensureContractSchema();
     const result = await query(`DELETE FROM odg_contract WHERE id = $1 RETURNING id`, [id]);
+    if (!result.rows.length) return fail("Contract not found");
+    return { success: true };
+  } catch (e) { return fail((e as Error).message); }
+}
+
+/**
+ * Set ONE approval step (sales manager or accounting) — only touches that
+ * flag, never the rest of the contract. When both are approved, mark status
+ * active; otherwise revert to awaiting.
+ */
+export async function setContractApproval(
+  id: string,
+  which: "sales" | "accounting",
+  approved: boolean,
+  approver?: string,
+): Promise<{ success: true } | Fail> {
+  try {
+    await ensureContractSchema();
+    // Enforce step order: accounting can only approve after sales has approved.
+    if (which === "accounting" && approved) {
+      const chk = await query(`SELECT sales_approved FROM odg_contract WHERE id = $1`, [id]);
+      if (!chk.rows.length) return fail("Contract not found");
+      if (!chk.rows[0].sales_approved) return fail("ຝ່າຍຂາຍຍັງບໍ່ໄດ້ອະນຸມັດ");
+    }
+    const col = which === "sales" ? "sales_approved" : "accounting_approved";
+    const who = which === "sales" ? "sales_approver" : "accounting_approver";
+    const result = await query(
+      `UPDATE odg_contract
+         SET ${col} = $2,
+             ${who} = $3,
+             status = CASE
+               WHEN ${which === "sales" ? "accounting_approved" : "sales_approved"} AND $2 THEN 'active'
+               ELSE 'awaiting'
+             END,
+             updated_at = now()
+       WHERE id = $1 RETURNING id`,
+      [id, approved, approver || null],
+    );
     if (!result.rows.length) return fail("Contract not found");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }

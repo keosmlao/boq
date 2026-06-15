@@ -1,8 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Lao:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Noto+Sans+Lao:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: 'Plus Jakarta Sans', var(--font-lao), "Noto Sans Lao", system-ui, sans-serif;
+  /* Display / numeric face — used on stats, doc numbers & the wordmark.
+     Latin-only; Lao text falls through to Noto Sans Lao. */
+  --font-display: 'Space Grotesk', 'Plus Jakarta Sans', var(--font-lao), system-ui, sans-serif;
 }
 
 /* =========================================================================
@@ -12,96 +15,100 @@
 
 :root,
 [data-theme="light"] {
-  /* Surfaces */
-  --bg:            #fafafa;
-  --bg-subtle:     #f4f4f5;
+  /* Surfaces — soft blue pastel, airy */
+  --bg:            #eef4fe;
+  --bg-subtle:     #f5f9ff;
   --surface:       #ffffff;
-  --surface-soft:  #fafafa;
-  --surface-sunken:#f4f4f5;
+  --surface-soft:  #f5f9ff;
+  --surface-sunken:#e9f1fb;
 
   /* Borders */
-  --border:        #e5e7eb;
-  --border-soft:   #f1f1f4;
-  --border-strong: #d4d4d8;
+  --border:        #dde7f4;
+  --border-soft:   #eef3fb;
+  --border-strong: #c3d3ea;
 
   /* Text */
-  --text:          #0a0a0a;
-  --text-soft:     #525252;
-  --text-mute:     #a3a3a3;
-  --text-inverse:  #fafafa;
+  --text:          #0f172a;
+  --text-soft:     #475569;
+  --text-mute:     #94a3b8;
+  --text-inverse:  #f8fafc;
 
-  /* Brand — single neutral-leaning blue accent */
-  --brand:         #2563eb;
-  --brand-hover:   #1d4ed8;
-  --brand-soft:    #eff6ff;
-  --brand-ring:    rgba(37, 99, 235, 0.18);
+  /* Brand — Blue pastel (soft sky blue) */
+  --brand:         #3b82f6;
+  --brand-hover:   #2563eb;
+  --brand-strong:  #1d4ed8;
+  --brand-soft:    #dbeafe;
+  --brand-tint:    #eff6ff;
+  --brand-ring:    rgba(59, 130, 246, 0.18);
 
   /* Semantic */
-  --success:       #16a34a;
-  --success-soft:  #f0fdf4;
+  --success:       #059669;
+  --success-soft:  #ecfdf5;
   --warning:       #d97706;
   --warning-soft:  #fffbeb;
-  --danger:        #dc2626;
-  --danger-soft:   #fef2f2;
+  --danger:        #e11d48;
+  --danger-soft:   #fff1f2;
   --info:          #0284c7;
   --info-soft:     #f0f9ff;
 
   /* Elevation */
-  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.04);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-sm: 0 2px 5px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-md: 0 8px 20px rgba(15, 23, 42, 0.05), 0 2px 6px rgba(15, 23, 42, 0.03);
+  --shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.03);
 
   /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
 
-  /* Shell-specific */
+  /* Shell-specific — light pastel sidebar */
   --sidebar-bg:    #ffffff;
-  --topbar-bg:     #ffffff;
-  --selection-bg:  rgba(37, 99, 235, 0.16);
+  --topbar-bg:     rgba(255, 255, 255, 0.85);
+  --selection-bg:  rgba(59, 130, 246, 0.16);
 }
 
 [data-theme="dark"] {
-  --bg:            #0a0a0a;
-  --bg-subtle:     #0f0f0f;
-  --surface:       #171717;
-  --surface-soft:  #1c1c1c;
-  --surface-sunken:#0f0f0f;
+  --bg:            #090d16;
+  --bg-subtle:     #0f172a;
+  --surface:       #1e293b;
+  --surface-soft:  #334155;
+  --surface-sunken:#0f172a;
 
-  --border:        #262626;
-  --border-soft:   #1f1f1f;
-  --border-strong: #404040;
+  --border:        #334155;
+  --border-soft:   #1e293b;
+  --border-strong: #475569;
 
-  --text:          #fafafa;
-  --text-soft:     #a3a3a3;
-  --text-mute:     #737373;
-  --text-inverse:  #0a0a0a;
+  --text:          #f8fafc;
+  --text-soft:     #cbd5e1;
+  --text-mute:     #64748b;
+  --text-inverse:  #090d16;
 
-  --brand:         #3b82f6;
-  --brand-hover:   #60a5fa;
-  --brand-soft:    rgba(59, 130, 246, 0.12);
-  --brand-ring:    rgba(59, 130, 246, 0.32);
+  --brand:         #60a5fa;
+  --brand-hover:   #3b82f6;
+  --brand-strong:  #93c5fd;
+  --brand-soft:    rgba(96, 165, 250, 0.16);
+  --brand-tint:    rgba(96, 165, 250, 0.08);
+  --brand-ring:    rgba(96, 165, 250, 0.32);
 
-  --success:       #22c55e;
-  --success-soft:  rgba(34, 197, 94, 0.12);
-  --warning:       #f59e0b;
-  --warning-soft:  rgba(245, 158, 11, 0.12);
-  --danger:        #ef4444;
-  --danger-soft:   rgba(239, 68, 68, 0.12);
+  --success:       #34d399;
+  --success-soft:  rgba(52, 211, 153, 0.12);
+  --warning:       #fbbf24;
+  --warning-soft:  rgba(251, 191, 36, 0.12);
+  --danger:        #fb7185;
+  --danger-soft:   rgba(251, 113, 133, 0.12);
   --info:          #38bdf8;
   --info-soft:     rgba(56, 189, 248, 0.12);
 
-  --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.4);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.5);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.7), 0 4px 8px rgba(0,0,0,0.5);
 
-  --sidebar-bg:    #0f0f0f;
-  --topbar-bg:     #0f0f0f;
-  --selection-bg:  rgba(59, 130, 246, 0.24);
+  --sidebar-bg:    #090d16;
+  --topbar-bg:     rgba(9, 13, 22, 0.85);
+  --selection-bg:  rgba(129, 140, 248, 0.2);
 }
 
 /* =========================================================================
@@ -562,7 +569,7 @@ body {
 }
 
 /* =========================================================================
-   Animations (kept minimal)
+   Animations & Premium Effects
    ========================================================================= */
 @keyframes shake {
   0%,100% { transform: translateX(0); }
@@ -572,10 +579,146 @@ body {
 .animate-shake { animation: shake 0.2s ease-in-out; }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.animate-fade-in { animation: fade-in 0.18s ease-out; }
+.animate-fade-in { animation: fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes scale-up {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-scale-up { animation: scale-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+.animate-pulse-subtle { animation: pulse-subtle 2s infinite ease-in-out; }
+
+/* Premium Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+[data-theme="dark"] .glass-panel {
+  background: rgba(18, 19, 26, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(241, 245, 249, 0.9);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(59, 130, 246, 0.22);
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .glass-card {
+  background: rgba(30, 41, 59, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(51, 65, 85, 0.4);
+}
+
+[data-theme="dark"] .glass-card:hover {
+  background: rgba(30, 41, 59, 0.75);
+  border-color: rgba(96, 165, 250, 0.32);
+}
+
+.premium-gradient {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 52%, #60a5fa 100%);
+}
+
+.premium-gradient-hover:hover {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 52%, #3b82f6 100%);
+}
+
+.premium-border-glow {
+  position: relative;
+}
+
+.premium-border-glow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to bottom right, rgba(59, 130, 246, 0.35), rgba(96, 165, 250, 0.06));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.premium-border-glow:hover::after {
+  background: linear-gradient(to bottom right, rgba(59, 130, 246, 0.6), rgba(96, 165, 250, 0.2));
+}
+
+.hover-glow {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 22px rgba(59, 130, 246, 0.16);
+  transform: scale(1.01);
+}
+
+/* =========================================================================
+   Bold identity helpers — ODG "Tangerine on Ink"
+   ========================================================================= */
+
+/* Short accent rule under section/page titles. */
+.accent-rule {
+  display: block;
+  height: 3px;
+  width: 2.25rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), #60a5fa);
+}
+
+/* Numeric / wordmark face. */
+.font-display {
+  font-family: var(--font-display);
+  font-feature-settings: "tnum" 1, "ss01" 1;
+  letter-spacing: -0.01em;
+}
+
+/* Solid ink panel (headers, hero) with a faint warm grain. */
+.ink-panel {
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0) 45%),
+    linear-gradient(135deg, #15151f 0%, #0b0b12 60%, #0b0b12 100%);
+  color: #fff;
+}
+
+/* Hot brand gradient text (use sparingly — numerals/short labels). */
+.brand-gradient-text {
+  background: linear-gradient(92deg, #2563eb, #60a5fa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 
 /* =========================================================================
    Print — preserve exact layout/colors for PDF & paper

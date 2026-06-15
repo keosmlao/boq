@@ -6,6 +6,8 @@ import { cleanText } from "@/_lib/http";
 import { getSalesStats } from "@/_lib/projects";
 import bcrypt from "bcryptjs";
 import { signSession } from "@/_lib/auth_session";
+import { ensureUsersSchema } from "@/_lib/schemas/users";
+import { normalizePermissions, type Permissions } from "@/_lib/permissions";
 
 type Fail = { success: false; message: string };
 function fail(message: string): Fail { return { success: false, message }; }
@@ -27,7 +29,7 @@ function isDbConnectionError(e: any): boolean {
 }
 
 export async function login(input: { username: string; password: string }): Promise<
-  { success: true; username: string; role: unknown; name_1: unknown } | Fail
+  { success: true; username: string; role: string; name_1: string; permissions: Permissions } | Fail
 > {
   try {
     const username = cleanText(input?.username);
@@ -35,31 +37,61 @@ export async function login(input: { username: string; password: string }): Prom
 
     if (!username || !password) return fail("ກະລຸນາໃສ່ຊື່ຜູ້ໃຊ້ ແລະ ລະຫັດຜ່ານ");
 
-    const result = await query(
-      `SELECT username, password, role, name_1 FROM odg_project_manager_user WHERE username = $1 LIMIT 1`,
+    await ensureUsersSchema();
+
+    // RBAC config row (role/permissions/active) — the source of truth when present.
+    const cfgRes = await query(
+      `SELECT username, name, password_hash, role, active, permissions FROM odg_app_user WHERE username = $1 LIMIT 1`,
       [username],
     );
+    const cfg = cfgRes.rows[0] as
+      | { username: string; name: string | null; password_hash: string | null; role: string; active: boolean; permissions: unknown }
+      | undefined;
+    if (cfg && cfg.active === false) return fail("ບັນຊີນີ້ຖືກປິດການນຳໃຊ້");
 
-    const user = result.rows[0];
-    if (!user) return fail("ບໍ່ພົບຊື່ຜູ້ໃຊ້ນີ້");
+    let authed = false;
+    let displayName = cfg?.name || null;
 
-    const dbPassword = cleanText(user.password);
-    let isMatch = false;
-
-    if (dbPassword.startsWith("$2a$") || dbPassword.startsWith("$2b$")) {
-      isMatch = bcrypt.compareSync(password, dbPassword);
-    } else {
-      isMatch = dbPassword === password;
+    // 1) Authenticate against the v2 password hash if this user has one.
+    if (cfg?.password_hash) {
+      authed = bcrypt.compareSync(password, cfg.password_hash);
     }
 
-    if (!isMatch) return fail("ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ");
+    // 2) Otherwise fall back to the ERP-provisioned credential store.
+    const erpRes = await query(
+      `SELECT username, password, name_1 FROM odg_project_manager_user WHERE username = $1 LIMIT 1`,
+      [username],
+    );
+    const erp = erpRes.rows[0] as { username: string; password: string | null; name_1: string | null } | undefined;
+    if (!authed && erp) {
+      const dbPassword = cleanText(erp.password);
+      const isHashed = dbPassword.startsWith("$2a$") || dbPassword.startsWith("$2b$");
+      authed = isHashed ? bcrypt.compareSync(password, dbPassword) : dbPassword === password;
+      if (authed) {
+        displayName = displayName || erp.name_1;
+        if (!isHashed) {
+          // Upgrade the ERP cleartext password to bcrypt on this login.
+          try {
+            await query(`UPDATE odg_project_manager_user SET password = $1 WHERE username = $2`, [bcrypt.hashSync(password, 10), erp.username]);
+          } catch (e) {
+            console.error("Password rehash-on-login failed:", e);
+          }
+        }
+      }
+    }
 
-    // Sign a secure JWT session token
-    const token = await signSession({
-      username: user.username,
-      role: user.role,
-      name_1: user.name_1,
-    });
+    if (!authed) {
+      if (!cfg && !erp) return fail("ບໍ່ພົບຊື່ຜູ້ໃຊ້ນີ້");
+      return fail("ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ");
+    }
+
+    // Effective role + permissions: the v2 config row wins; ERP-only users that
+    // are not yet configured default to admin (preserves prior full access).
+    const role = cfg ? String(cfg.role || "staff") : "admin";
+    const permissions = cfg ? normalizePermissions(cfg.permissions) : {};
+    const name = displayName || username;
+
+    const token = await signSession({ username, role, name_1: name, perms: permissions });
 
     const cookieStore = await cookies();
     cookieStore.set("odg-auth", token, {
@@ -70,12 +102,7 @@ export async function login(input: { username: string; password: string }): Prom
       secure: process.env.NODE_ENV === "production",
     });
 
-    return {
-      success: true,
-      username: user.username,
-      role: user.role,
-      name_1: user.name_1,
-    };
+    return { success: true, username, role, name_1: name, permissions };
   } catch (e) {
     console.error("Login DB error:", e);
     if (isDbConnectionError(e)) {

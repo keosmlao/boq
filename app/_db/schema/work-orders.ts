@@ -41,6 +41,8 @@ export const workOrders = pm.table(
   "work_orders",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
+    /** Maps back to legacy public.odg_work_order.id during migration. */
+    legacyId: integer("legacy_id").unique(),
     code: text("code").notNull().unique(), // WO-YYYYMMDD-XXXXXX
 
     projectId: bigint("project_id", { mode: "number" }).references(() => projects.id, {
@@ -71,12 +73,66 @@ export const workOrders = pm.table(
     priority: workOrderPriority("priority").notNull().default("normal"),
     createdBy: text("created_by"),
 
+    // Scheduling + labour cost (migrated from legacy odg_work_order).
+    workDate: date("work_date"),
+    endDate: date("end_date"),
+    ratePerHour: numeric("rate_per_hour", { precision: 18, scale: 2 }).notNull().default("0"),
+    totalHours: numeric("total_hours", { precision: 18, scale: 2 }).notNull().default("0"),
+    laborCost: numeric("labor_cost", { precision: 18, scale: 2 }).notNull().default("0"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("work_orders_project_idx").on(t.projectId),
     index("work_orders_status_idx").on(t.status),
+  ],
+);
+
+/**
+ * Project task plan (ກຳນົດໜ້າວຽກ) — clean rebuild of public.odg_project_task.
+ * The plan is defined per project/contract; each task may later be assigned to a
+ * work order. `status` is kept as free text (legacy 'planned'/'assigned'/…) to
+ * avoid a premature enum.
+ */
+export const projectTasks = pm.table(
+  "project_tasks",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    /** Maps back to legacy public.odg_project_task.id. */
+    legacyId: integer("legacy_id").unique(),
+
+    projectId: bigint("project_id", { mode: "number" }).references(() => projects.id, {
+      onDelete: "cascade",
+    }),
+    /** Legacy contract_id was a free-text ref; kept verbatim for now. */
+    legacyContractRef: text("legacy_contract_ref"),
+
+    taskCode: text("task_code"),
+    title: text("title").notNull(),
+    phase: text("phase"),
+
+    technicianCode: text("technician_code"),
+    technicianName: text("technician_name"),
+
+    plannedStart: date("planned_start"),
+    plannedEnd: date("planned_end"),
+    estDays: numeric("est_days", { precision: 10, scale: 2 }).notNull().default("0"),
+    estHours: numeric("est_hours", { precision: 10, scale: 2 }).notNull().default("0"),
+    actualHours: numeric("actual_hours", { precision: 10, scale: 2 }).notNull().default("0"),
+
+    /** Set once the task is pulled into a work order. */
+    workOrderId: bigint("work_order_id", { mode: "number" }).references(() => workOrders.id, {
+      onDelete: "set null",
+    }),
+
+    status: text("status").notNull().default("planned"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("project_tasks_project_idx").on(t.projectId),
+    index("project_tasks_work_order_idx").on(t.workOrderId),
   ],
 );
 

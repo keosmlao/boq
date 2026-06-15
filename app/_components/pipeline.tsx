@@ -54,8 +54,14 @@ const num = (v: unknown) => {
 };
 const norm = (v: unknown) => (v ?? "").toString().trim();
 
-/** Legacy approval rule: sales (approve_status_1) AND accounting (status_2|acc). */
+/**
+ * Contract is fully approved. Handles the v2 odg_contract shape
+ * (sales_approved + accounting_approved booleans) and the legacy ERP shape.
+ */
 export function isContractApproved(c: any): boolean {
+  if (c && (typeof c.sales_approved !== "undefined" || typeof c.accounting_approved !== "undefined")) {
+    return !!c.sales_approved && !!c.accounting_approved;
+  }
   return (
     num(c?.approve_status_1) === 1 &&
     Math.max(num(c?.approve_status_2), num(c?.acc_approve)) === 1
@@ -71,18 +77,27 @@ export function computeStages(
   project: any,
   quotations: any[],
   contracts: any[],
+  surveys: any[] = [],
+  boqs: any[] = [],
+  tasks: any[] = [],
+  workorders: any[] = [],
 ): Stage[] {
   const hasQuotation = quotations.length > 0;
   const quotationApproved = quotations.some((q) => norm(q?.status) === "ອະນຸມັດແລ້ວ");
   const hasContract = contracts.length > 0;
   const contractApproved = contracts.some(isContractApproved);
-  const boqs = contracts.flatMap((c) => (Array.isArray(c?.boq_list) ? c.boq_list : []));
-  const hasBoq = contracts.some((c) => !!c?.has_boq) || boqs.length > 0;
-  const boqApproved = boqs.some((b) => num(b?.approve_status) === 1);
+  const hasBoq = boqs.some((b) => norm(b?.status) !== "ປະຕິເສດ");
+  const boqApproved = boqs.some((b) => norm(b?.status) === "ອະນຸມັດແລ້ວ" || num(b?.approve_status) === 1);
 
   const base: { key: StageKey; label: string; done: boolean; partial: boolean; na?: boolean; detail: string }[] = [
     { key: "register", label: "ລົງທະບຽນ", done: true, partial: false, detail: "ໂຄງການລົງທະບຽນແລ້ວ" },
-    { key: "survey", label: "ສຳຫຼວດ", done: false, partial: false, na: true, detail: "ບໍ່ໄດ້ເກັບໃນລະບົບເກົ່າ (ຈະເພີ່ມໃນລະບົບໃໝ່)" },
+    {
+      key: "survey",
+      label: "ສຳຫຼວດ",
+      done: surveys.length > 0,
+      partial: false,
+      detail: surveys.length > 0 ? `ສຳຫຼວດແລ້ວ (${surveys.length})` : "ຍັງບໍ່ໄດ້ສຳຫຼວດ",
+    },
     {
       key: "quotation",
       label: "ສະເໜີລາຄາ",
@@ -116,12 +131,30 @@ export function computeStages(
           ? `ມີ BOQ ${boqs.length} ສະບັບ ລໍຖ້າອະນຸມັດ`
           : "ຍັງບໍ່ມີ BOQ",
     },
-    { key: "taskplan", label: "ກຳນົດໜ້າວຽກ", done: false, partial: false, detail: "ຈະເຊື່ອມຂໍ້ມູນແຜນວຽກໃນຂັ້ນຕໍ່ໄປ" },
-    { key: "workorder", label: "ໃບງານ", done: false, partial: false, detail: "ຈະເຊື່ອມຂໍ້ມູນໃບງານໃນຂັ້ນຕໍ່ໄປ" },
+    {
+      key: "taskplan",
+      label: "ກຳນົດໜ້າວຽກ",
+      done: tasks.length > 0,
+      partial: false,
+      detail: tasks.length > 0 ? `ກຳນົດແລ້ວ (${tasks.length} ໜ້າວຽກ)` : "ຍັງບໍ່ໄດ້ກຳນົດໜ້າວຽກ",
+    },
+    {
+      key: "workorder",
+      label: "ໃບງານ",
+      done: workorders.length > 0,
+      partial: false,
+      detail: workorders.length > 0 ? `ມີໃບງານ (${workorders.length})` : "ຍັງບໍ່ມີໃບງານ",
+    },
   ];
 
+  // Monotonic pipeline: reaching a later stage means the earlier ones are
+  // PASSED — don't ask the user to redo them (e.g. a project with a contract
+  // has obviously passed survey/quotation even if v2 has no record).
+  const lastDone = base.reduce((acc, s, i) => (s.done ? i : acc), -1);
+  const adjusted = base.map((s, i) => (i < lastDone ? { ...s, done: true, partial: false } : s));
+
   let currentAssigned = false;
-  return base.map((s): Stage => {
+  return adjusted.map((s): Stage => {
     if (s.na) return { key: s.key, label: s.label, state: "na", detail: s.detail };
     if (s.done) return { key: s.key, label: s.label, state: "done", detail: s.detail };
     if (!currentAssigned) {
@@ -134,19 +167,29 @@ export function computeStages(
 
 /* ── Colour map for legacy Lao project_status strings ─────────────────────── */
 const STATUS_COLORS: Record<string, string> = {
-  "ລໍຖ້າດຳເນີນ": "bg-amber-100 text-amber-700",
-  "ຂັ້ນຕອນດຳເນີນໂຄງການ": "bg-blue-100 text-blue-700",
-  "ສາມາດເບີກຂອງໃດ້": "bg-cyan-100 text-cyan-700",
-  "ດຳເນີນການຕິດຕັ້ງ": "bg-indigo-100 text-indigo-700",
-  "ລໍຖ້າອະນຸມັດປິດໂຄງການ": "bg-orange-100 text-orange-700",
-  "ປິດໂຄງການ": "bg-emerald-100 text-emerald-700",
+  "ລົງທະບຽນ": "bg-sky-50 text-sky-700 border border-sky-200/50",
+  "ສຳຫຼວດ": "bg-violet-50 text-violet-700 border border-violet-200/50",
+  "ສະເໜີລາຄາ": "bg-indigo-50 text-indigo-700 border border-indigo-200/50",
+  "ສັນຍາ": "bg-blue-50 text-blue-700 border border-blue-200/50",
+  "BOQ": "bg-cyan-50 text-cyan-700 border border-cyan-200/50",
+  "ກຳນົດໜ້າວຽກ": "bg-teal-50 text-teal-700 border border-teal-200/50",
+  "ໃບງານ": "bg-emerald-50 text-emerald-700 border border-emerald-200/50",
+  "ລໍຖ້າດຳເນີນ": "bg-amber-50 text-amber-700 border border-amber-200/50",
+  "ຂັ້ນຕອນດຳເນີນໂຄງການ": "bg-blue-50 text-blue-700 border border-blue-200/50",
+  "ດຳເນີນຕາມໂຄງການ": "bg-blue-50 text-blue-700 border border-blue-200/50",
+  "ສາມາດເບີກຂອງໃດ້": "bg-cyan-50 text-cyan-700 border border-cyan-200/50",
+  "ດຳເນີນການຕິດຕັ້ງ": "bg-indigo-50 text-indigo-700 border border-indigo-200/50",
+  "ລໍຖ້າອະນຸມັດປິດໂຄງການ": "bg-blue-50 text-blue-700 border border-blue-200/50",
+  "ປິດໂຄງການ": "bg-emerald-50 text-emerald-700 border border-emerald-200/50",
+  "ໃນງານ": "bg-emerald-50 text-emerald-700 border border-emerald-200/50",
 };
 
 export function StatusBadge({ status }: { status?: string | null }) {
   const s = norm(status) || "-";
-  const cls = STATUS_COLORS[s] || "bg-gray-100 text-gray-600";
+  const cls = STATUS_COLORS[s] || "bg-slate-50 text-slate-600 border border-slate-200/60";
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${cls}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${cls}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-85" />
       {s}
     </span>
   );

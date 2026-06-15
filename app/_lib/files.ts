@@ -6,6 +6,16 @@ const LEGACY_ASSET_BASE_URL =
   process.env.NEXT_PUBLIC_LEGACY_ASSET_BASE_URL ||
   "http://119.59.102.23:2233";
 
+// Legacy asset host fetch tuning. The old image host is often unreachable, and
+// a 5s hang per missing image (with many images on a page) made the app crawl.
+// Fail fast, and use a circuit breaker: after one failure, skip the legacy
+// fetch entirely for a cool-down window so subsequent misses 404 instantly.
+const LEGACY_DISABLED =
+  process.env.LEGACY_ASSETS_DISABLED === "1" || !LEGACY_ASSET_BASE_URL;
+const LEGACY_TIMEOUT_MS = Number(process.env.LEGACY_ASSET_TIMEOUT_MS || 2000);
+const LEGACY_COOLDOWN_MS = Number(process.env.LEGACY_ASSET_COOLDOWN_MS || 60000);
+let legacyDownUntil = 0;
+
 const MIME_TYPES = {
   ".avif": "image/avif",
   ".gif": "image/gif",
@@ -25,6 +35,19 @@ const PLACEHOLDER_FILENAMES = new Set([
   "no-image.png",
 ]);
 
+const PUBLIC_DIR = path.resolve(process.cwd(), "public");
+
+/**
+ * Resolve `relativePath` under public/ and return the absolute path ONLY if it
+ * stays inside public/. Returns null on any `..` escape — closes path traversal
+ * on both the local read and the legacy-cache write.
+ */
+function resolvePublicPath(relativePath: string): string | null {
+  const full = path.resolve(PUBLIC_DIR, relativePath);
+  if (full !== PUBLIC_DIR && !full.startsWith(PUBLIC_DIR + path.sep)) return null;
+  return full;
+}
+
 async function exists(filePath) {
   try {
     await access(filePath);
@@ -40,8 +63,8 @@ function getContentType(filePath: string, fallback?: string) {
 }
 
 async function readLocalFile(relativePath) {
-  const fullPath = path.join(process.cwd(), "public", relativePath);
-  if (!(await exists(fullPath))) {
+  const fullPath = resolvePublicPath(relativePath);
+  if (!fullPath || !(await exists(fullPath))) {
     return null;
   }
 
@@ -56,13 +79,19 @@ async function readLocalFile(relativePath) {
 }
 
 async function cacheLegacyFile(relativePath, bytes) {
-  const fullPath = path.join(process.cwd(), "public", relativePath);
+  const fullPath = resolvePublicPath(relativePath);
+  if (!fullPath) return; // refuse to write outside public/
   await mkdir(path.dirname(fullPath), { recursive: true });
   await writeFile(fullPath, bytes);
 }
 
 export async function servePublicOrLegacy(relativePath) {
   const normalizedPath = relativePath.replace(/^\/+/, "");
+  // Reject any traversal up front so it never reaches the local read or the
+  // legacy fetch/cache write.
+  if (!resolvePublicPath(normalizedPath)) {
+    return new Response("Not found", { status: 404 });
+  }
   const localResponse = await readLocalFile(normalizedPath);
   if (localResponse) return localResponse;
 
@@ -71,14 +100,21 @@ export async function servePublicOrLegacy(relativePath) {
     return new Response("Not found", { status: 404 });
   }
 
+  // Fail fast: legacy disabled, or breaker is open after a recent failure.
+  if (LEGACY_DISABLED || Date.now() < legacyDownUntil) {
+    return new Response("Not found", { status: 404 });
+  }
+
   const legacyUrl = new URL(normalizedPath, `${LEGACY_ASSET_BASE_URL.replace(/\/+$/, "")}/`);
   let legacyResponse;
 
   try {
     legacyResponse = await fetch(legacyUrl, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(LEGACY_TIMEOUT_MS),
     });
-  } catch (error) {
+  } catch {
+    // Host unreachable/timed out → open the breaker so the next misses are instant.
+    legacyDownUntil = Date.now() + LEGACY_COOLDOWN_MS;
     return new Response("Not found", { status: 404 });
   }
 

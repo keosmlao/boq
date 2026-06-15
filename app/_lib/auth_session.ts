@@ -1,4 +1,10 @@
-const JWT_SECRET = process.env.JWT_SECRET || "odg-secret-key-32-chars-long-at-least-123456";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  // Fail loudly rather than silently signing every session with a known,
+  // source-committed fallback secret (which would let anyone forge a valid
+  // odg-auth token). Set JWT_SECRET in the environment.
+  throw new Error("JWT_SECRET is not set — refusing to start with an insecure session secret.");
+}
 
 // Helper function to get cryptographic key
 async function getSubtleKey() {
@@ -92,6 +98,12 @@ export async function verifySession(token: string): Promise<any | null> {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
     const [header, payloadEncoded, signatureEncoded] = parts;
+
+    // Pin the algorithm — only HS256 is ever issued (see signSession). Rejecting
+    // anything else closes the classic "alg" confusion / "alg: none" footgun.
+    const headerObj = base64UrlToJson(header);
+    if (headerObj?.alg !== "HS256") return null;
+
     const message = `${header}.${payloadEncoded}`;
 
     const key = await getSubtleKey();

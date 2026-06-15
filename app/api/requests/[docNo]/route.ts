@@ -1,5 +1,6 @@
 import { deleteRequest } from "@/_actions/requests";
 import { fail, ok, serverError } from "@/_lib/http";
+import { requireSession } from "@/_lib/api_auth";
 
 type RouteContext = {
   params: Promise<{
@@ -9,6 +10,8 @@ type RouteContext = {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
+    const { response } = await requireSession();
+    if (response) return response;
     const { docNo } = await context.params;
     const result = await deleteRequest(docNo);
 

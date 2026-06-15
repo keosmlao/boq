@@ -44,6 +44,11 @@ export function ensureContractSchema(): Promise<void> {
         CREATE INDEX IF NOT EXISTS odg_contract_quotation_idx ON odg_contract(quotation_id);
         CREATE INDEX IF NOT EXISTS odg_contract_status_idx    ON odg_contract(status);
         CREATE INDEX IF NOT EXISTS odg_contract_created_idx   ON odg_contract(created_at DESC);
+        -- Two-step approval: sales manager + accounting.
+        ALTER TABLE odg_contract ADD COLUMN IF NOT EXISTS sales_approved      BOOLEAN DEFAULT false;
+        ALTER TABLE odg_contract ADD COLUMN IF NOT EXISTS sales_approver      TEXT;
+        ALTER TABLE odg_contract ADD COLUMN IF NOT EXISTS accounting_approved BOOLEAN DEFAULT false;
+        ALTER TABLE odg_contract ADD COLUMN IF NOT EXISTS accounting_approver TEXT;
         `,
         [],
       );

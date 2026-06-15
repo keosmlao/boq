@@ -2,6 +2,7 @@
 
 import { query } from "@/_lib/db";
 import { cleanText } from "@/_lib/http";
+import { cached } from "@/_lib/cache";
 import {
   listBusinessModels,
   listBusinessTypes,
@@ -19,30 +20,34 @@ type Result<T> = Ok<T> | Fail;
 function ok<T>(data: T): Ok<T> { return { success: true, data }; }
 function fail(message: string): Fail { return { success: false, message }; }
 
+// Reference data (geo, taxonomy, staff) rarely changes — cache it for 5 min so
+// forms with cascading dropdowns don't re-hit the remote DB on every change.
+const REF_TTL = 5 * 60 * 1000;
+
 export async function getBusinessModels(businessType?: string): Promise<Result<unknown[]>> {
   try {
-    return ok(await listBusinessModels(cleanText(businessType)));
+    const bt = cleanText(businessType);
+    return ok(await cached(`lk:bizmodels:${bt}`, REF_TTL, () => listBusinessModels(bt)));
   } catch (e) { return fail((e as Error).message); }
 }
 
 export async function getBusinessTypes(): Promise<Result<unknown[]>> {
   try {
-    return ok(await listBusinessTypes());
+    return ok(await cached("lk:biztypes", REF_TTL, () => listBusinessTypes()));
   } catch (e) { return fail((e as Error).message); }
 }
 
 export async function getProjectTypes(opts: { businessType?: string; businessModel?: string } = {}): Promise<Result<unknown[]>> {
   try {
-    return ok(await listProjectTypes({
-      businessType: cleanText(opts.businessType),
-      businessModel: cleanText(opts.businessModel),
-    }));
+    const bt = cleanText(opts.businessType);
+    const bm = cleanText(opts.businessModel);
+    return ok(await cached(`lk:projtypes:${bt}:${bm}`, REF_TTL, () => listProjectTypes({ businessType: bt, businessModel: bm })));
   } catch (e) { return fail((e as Error).message); }
 }
 
 export async function getProvinces(): Promise<Result<unknown[]>> {
   try {
-    return ok(await listProvinces());
+    return ok(await cached("lk:provinces", REF_TTL, () => listProvinces()));
   } catch (e) { return fail((e as Error).message); }
 }
 
@@ -50,7 +55,7 @@ export async function getDistricts(province: string): Promise<Result<unknown[]>>
   try {
     const p = cleanText(province);
     if (!p) return fail("province is required");
-    return ok(await listDistricts(p));
+    return ok(await cached(`lk:districts:${p}`, REF_TTL, () => listDistricts(p)));
   } catch (e) { return fail((e as Error).message); }
 }
 
@@ -59,13 +64,13 @@ export async function getVillages(province: string, district: string): Promise<R
     const p = cleanText(province);
     const d = cleanText(district);
     if (!p || !d) return fail("province and district are required");
-    return ok(await listVillages({ province: p, district: d }));
+    return ok(await cached(`lk:villages:${p}:${d}`, REF_TTL, () => listVillages({ province: p, district: d })));
   } catch (e) { return fail((e as Error).message); }
 }
 
 export async function getSaleStaffs(): Promise<Result<unknown[]>> {
   try {
-    return ok(await listSaleStaffs());
+    return ok(await cached("lk:salestaffs", REF_TTL, () => listSaleStaffs()));
   } catch (e) { return fail((e as Error).message); }
 }
 
@@ -260,9 +265,13 @@ export async function getInventory(opts: { search?: string; limit?: number } = {
       ...r,
       code: pickFirst(r, "code", "item_code"),
       name_1: pickFirst(r, "name_1", "item_name", "name"),
-      unit: pickFirst(r, "unit_cost"),
-      unit_cost: pickFirst(r, "unit_cost", "average_cost", "cost", "price"),
-      sale_price: pickFirst(r, "sale_price", "sale_price_1", "price_1", "price", "unit_cost"),
+      // In this ERP the unit is stored as text in `unit_standard`
+      // (the column literally named `unit_cost` is also the unit string, NOT a cost).
+      unit: pickFirst(r, "unit_standard", "unit_standard_name"),
+      // Real numeric cost lives in average_cost.
+      unit_cost: pickFirst(r, "average_cost", "average_cost_1", "fixed_cost"),
+      // No sale price exists in ic_inventory — use cost as the starting price hint.
+      sale_price: pickFirst(r, "average_cost", "average_cost_1", "fixed_cost"),
     })));
   } catch (e) { return fail((e as Error).message); }
 }

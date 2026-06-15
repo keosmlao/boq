@@ -82,9 +82,9 @@ export async function getListBoq(opts: { includeItems?: boolean; itemSearch?: st
         b.doc_date,
         b.cust_code,
         b.project_id,
-        b.user_created,
+        COALESCE(euc.fullname_lo, b.user_created) AS user_created,
         COALESCE(b.approve_status, 0)::int AS approve_status,
-        b.approver,
+        COALESCE(eap.fullname_lo, b.approver) AS approver,
         b.contract_id,
         p.project_name,
         p.coordinator,
@@ -106,6 +106,10 @@ export async function getListBoq(opts: { includeItems?: boolean; itemSearch?: st
         ON t.doc_no = b.doc_no
       LEFT JOIN requested_per_boq rpb
         ON rpb.boq_doc_no = b.doc_no
+      LEFT JOIN odg_employee euc
+        ON euc.employee_code = b.user_created
+      LEFT JOIN odg_employee eap
+        ON eap.employee_code = b.approver
       WHERE 1=1
       ${itemFilter}
       ORDER BY b.doc_date DESC NULLS LAST, b.roworder DESC
@@ -122,10 +126,14 @@ export async function getBoq(docNo: string): Promise<Record<string, unknown> | {
     const header = await query(
       `
         SELECT b.*, p.project_name, p.coordinator, p.phone, p.image_url,
-               c.contract_no, c.contract_name
+               c.contract_no, c.contract_name,
+               COALESCE(euc.fullname_lo, b.user_created) AS creator_name,
+               COALESCE(eap.fullname_lo, b.approver)     AS approver_name
         FROM odg_projects_boq b
         LEFT JOIN odg_projects p ON p.id::text = b.project_id::text
         LEFT JOIN odg_projects_contract c ON c.roworder = b.contract_id
+        LEFT JOIN odg_employee euc ON euc.employee_code = b.user_created
+        LEFT JOIN odg_employee eap ON eap.employee_code = b.approver
         WHERE b.doc_no = $1
         LIMIT 1
       `,
@@ -279,7 +287,8 @@ export async function saveBoq(payload: Record<string, unknown>): Promise<{ succe
         qty: toNumber(item?.quantity ?? item?.qty, 0),
         unit_code: cleanText(item?.unit || item?.unit_code),
       }))
-      .filter((item: any) => item.item_code && item.item_name && item.qty > 0);
+      // item_code is optional — labour / consumable lines are free-text rows.
+      .filter((item: any) => item.item_name && item.qty > 0);
 
     if (!validItems.length) return fail("Missing valid BOQ items");
 
@@ -318,7 +327,7 @@ export async function saveBoq(payload: Record<string, unknown>): Promise<{ succe
               doc_no, doc_date, cust_code, item_code, item_name, qty, unit_code, contract_id, project_id
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           `,
-          [docNo, docDate, custCode, item.item_code, item.item_name, item.qty, item.unit_code || null, contractId, toNumber(projectId, 0) || null],
+          [docNo, docDate, custCode, item.item_code || null, item.item_name, item.qty, item.unit_code || null, contractId, toNumber(projectId, 0) || null],
         );
       }
 
@@ -333,6 +342,58 @@ export async function saveBoq(payload: Record<string, unknown>): Promise<{ succe
       doc_no: result.doc_no!,
       total_items: validItems.length,
     };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/**
+ * Edit an existing ERP BOQ: keep the header (doc_no, contract, customer) and
+ * fully replace its detail rows. Materials, labour and consumables are all just
+ * line items (qty only — the ERP BOQ carries no price).
+ */
+export async function updateBoqErp(
+  docNo: string,
+  payload: { items?: unknown[] },
+): Promise<{ success: true; doc_no: string; total_items: number } | Fail> {
+  try {
+    const decodedDocNo = decodeURIComponent(docNo);
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    const validItems = items
+      .map((item: any) => ({
+        item_code: cleanText(item?.productId || item?.item_code || item?.code),
+        item_name: cleanText(item?.productName || item?.item_name || item?.name_1),
+        qty: toNumber(item?.quantity ?? item?.qty, 0),
+        unit_code: cleanText(item?.unit || item?.unit_code),
+      }))
+      .filter((item: any) => item.item_name && item.qty > 0);
+
+    if (!validItems.length) return fail("Missing valid BOQ items");
+
+    const result = await withTransaction(async (client) => {
+      const head = await client.query(
+        `SELECT doc_date, cust_code, contract_id, project_id FROM odg_projects_boq WHERE doc_no = $1 LIMIT 1`,
+        [decodedDocNo],
+      );
+      const h = head.rows[0];
+      if (!h) return { notFound: true as const };
+
+      await client.query(`DELETE FROM odg_projects_boq_detail WHERE doc_no = $1`, [decodedDocNo]);
+      for (const item of validItems) {
+        await client.query(
+          `
+            INSERT INTO odg_projects_boq_detail (
+              doc_no, doc_date, cust_code, item_code, item_name, qty, unit_code, contract_id, project_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `,
+          [decodedDocNo, h.doc_date, h.cust_code, item.item_code || null, item.item_name, item.qty, item.unit_code || null, h.contract_id, h.project_id],
+        );
+      }
+      return { notFound: false as const };
+    });
+
+    if (result.notFound) return fail("ບໍ່ພົບ BOQ");
+    return { success: true, doc_no: decodedDocNo, total_items: validItems.length };
   } catch (e) {
     return fail((e as Error).message);
   }

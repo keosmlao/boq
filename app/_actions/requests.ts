@@ -199,6 +199,57 @@ export async function createRequest(body: any): Promise<{ success: true; doc_no:
   } catch (e) { return fail((e as Error).message); }
 }
 
+/** Edit a legacy request in place (preserve doc_no, re-sync ic_trans). Blocks if already withdrawn. */
+export async function updateRequest(docNo: string, body: any): Promise<{ success: true; doc_no: string } | Fail> {
+  try {
+    await ensureRequestsSchema();
+    const decoded = decodeURIComponent(docNo);
+    const ex = await query(
+      `SELECT doc_date, doc_ref, cust_code, wh_from, location_from, creator_code, doc_success FROM odg_requests WHERE doc_no = $1 LIMIT 1`,
+      [decoded],
+    );
+    if (!ex.rows.length) return fail("Request not found");
+    if (Number(ex.rows[0].doc_success) === 1) return fail("ALREADY_WITHDRAWN");
+    const head: any = ex.rows[0];
+
+    const items = (Array.isArray(body?.items) ? body.items : [])
+      .map((it: any) => ({
+        item_code: cleanText(it.item_code),
+        item_name: cleanText(it.item_name ?? it.description),
+        unit_code: cleanText(it.unit_code ?? it.unit),
+        qty: num(it.qty),
+        remark: cleanText(it.remark),
+      }))
+      .filter((it: any) => it.qty > 0);
+    if (!items.length) return fail("At least one item is required");
+    const remark = cleanText(body.remark ?? body.notes);
+
+    await withTransaction(async (client: any) => {
+      await client.query(`UPDATE odg_requests SET remark = $2, updated_at = now() WHERE doc_no = $1`, [decoded, remark]);
+      await client.query(`DELETE FROM odg_requests_detail WHERE doc_no = $1`, [decoded]);
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        await client.query(
+          `INSERT INTO odg_requests_detail (doc_no, line_no, item_code, item_name, unit_code, qty, remark) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [decoded, i + 1, it.item_code, it.item_name, it.unit_code, it.qty, it.remark],
+        );
+      }
+      await syncRequestToIcTrans(client, {
+        docNo: decoded,
+        docDate: head.doc_date,
+        docRef: head.doc_ref,
+        custCode: head.cust_code,
+        whFrom: head.wh_from,
+        locationFrom: head.location_from,
+        creatorCode: head.creator_code,
+        remark,
+        items,
+      });
+    });
+    return { success: true, doc_no: decoded };
+  } catch (e) { return fail((e as Error).message); }
+}
+
 export async function deleteRequest(docNo: string): Promise<{ success: true; message: string } | Fail> {
   try {
     await ensureRequestsSchema();

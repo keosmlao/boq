@@ -1,0 +1,221 @@
+"use server";
+
+import { query, withTransaction } from "@/_lib/db";
+import { invalidate } from "@/_lib/cache";
+import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
+import { ensureProjectTaskSchema } from "@/_lib/schemas/tasks";
+
+type Fail = { success: false; message: string };
+function fail(message: string): Fail {
+  return { success: false, message };
+}
+
+const num = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const mapLegacyWo = (w: any) => ({
+  id: `erp-${w.id}`,
+  work_no: w.code,
+  project_id: w.project_code || "",
+  contract_no: w.contract_no || null,
+  technician_name: w.technician_name_resolved || w.technician_id || "",
+  title: w.title || w.task_name || "",
+  work_date: w.scheduled_date || w.created_at,
+  total_hours: 0,
+  labor_cost: 0,
+  status: w.status || "",
+  src: "erp",
+});
+
+const LEGACY_WO_SELECT = `
+  SELECT w.*, t.name_1 AS technician_name_resolved
+  FROM odg_work_orders w
+  LEFT JOIN odg_technicians t ON t.code = w.technician_id`;
+
+export async function getWorkOrders(opts: { projectId?: string; projectCode?: string } = {}): Promise<{ success: true; data: any[] } | Fail> {
+  try {
+    await ensureWorkOrderSchema();
+    const r = opts.projectId
+      ? await query(`SELECT * FROM odg_work_order WHERE project_id = $1 ORDER BY created_at DESC`, [String(opts.projectId)])
+      : await query(`SELECT * FROM odg_work_order ORDER BY created_at DESC LIMIT 500`);
+    const rows: any[] = r.rows.map((x: any) => ({ ...x, src: "v2" }));
+
+    // Merge legacy ERP work orders (odg_work_orders, linked by project_code).
+    try {
+      if (opts.projectCode) {
+        const lg = await query(`${LEGACY_WO_SELECT} WHERE w.project_code = $1 ORDER BY w.created_at DESC`, [String(opts.projectCode)]);
+        for (const w of lg.rows as any[]) rows.push(mapLegacyWo(w));
+      } else if (!opts.projectId) {
+        const lg = await query(`${LEGACY_WO_SELECT} ORDER BY w.created_at DESC LIMIT 500`);
+        for (const w of lg.rows as any[]) rows.push(mapLegacyWo(w));
+      }
+    } catch {
+      /* legacy WO table/cols differ — v2 still returned */
+    }
+    return { success: true, data: rows };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/** Delete a work order and un-assign its tasks (so they can be re-issued). */
+export async function deleteWorkOrder(id: string): Promise<{ success: true } | Fail> {
+  try {
+    await ensureWorkOrderSchema();
+    await ensureProjectTaskSchema();
+    await withTransaction(async (client) => {
+      await client.query(
+        `UPDATE odg_project_task
+            SET work_order_id = NULL, technician_code = NULL, technician_name = NULL,
+                planned_start = NULL, planned_end = NULL, actual_hours = 0, status = 'planned'
+          WHERE work_order_id = $1`,
+        [String(id)],
+      );
+      await client.query(`DELETE FROM odg_work_order WHERE id = $1`, [id]);
+    });
+    invalidate("wo:");
+    invalidate("tasks:");
+    return { success: true };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+export async function getWorkOrderById(id: string): Promise<{ success: true; data: any } | Fail> {
+  try {
+    await ensureWorkOrderSchema();
+    // Legacy old-system work order (id like "erp-9").
+    if (String(id).startsWith("erp-")) {
+      const realId = String(id).slice(4);
+      const r = await query(`${LEGACY_WO_SELECT} WHERE w.id = $1 LIMIT 1`, [realId]);
+      if (!r.rows.length) return fail("Work order not found");
+      const w: any = r.rows[0];
+      // Resolve helper technician codes -> names.
+      let helpers: string[] = [];
+      try {
+        const codes = (Array.isArray(w.helper_ids) ? w.helper_ids : []).map(String).filter(Boolean);
+        if (codes.length) {
+          const h = await query(`SELECT code, name_1 FROM odg_technicians WHERE code = ANY($1::text[])`, [codes]);
+          const m: Record<string, string> = {};
+          for (const x of h.rows as any[]) m[String(x.code)] = x.name_1;
+          helpers = codes.map((c: string) => m[c] || c);
+        }
+      } catch {
+        /* ignore */
+      }
+      return {
+        success: true,
+        data: {
+          ...mapLegacyWo(w),
+          end_date: w.due_date,
+          notes: w.description,
+          helpers,
+          tasks: [{ title: w.title || w.task_name || "", actual_hours: 0 }],
+        },
+      };
+    }
+    const r = await query(`SELECT * FROM odg_work_order WHERE id = $1 LIMIT 1`, [id]);
+    if (!r.rows.length) return fail("Work order not found");
+    return { success: true, data: r.rows[0] };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/**
+ * Create ONE work order: a team does a SELECTED set of the project's tasks over
+ * a date range. A project can have many work orders; each task is assigned to a
+ * single work order (work_order_id). Labour cost = Σ actual hours × rate/hour.
+ */
+export async function createWorkOrder(body: any): Promise<{ success: true; data: any } | Fail> {
+  try {
+    await ensureWorkOrderSchema();
+    await ensureProjectTaskSchema();
+    if (!body?.project_id) return fail("project_id is required");
+
+    // Plan tasks have an id; ad-hoc tasks (added on the WO) have only a title.
+    const tasks = (Array.isArray(body.tasks) ? body.tasks : []).filter((t: any) => t?.id || (t?.title && String(t.title).trim()));
+    if (!tasks.length) return fail("ກະລຸນາເລືອກໜ້າວຽກຢ່າງໜ້ອຍ 1 ອັນ");
+
+    // Material template the technician needs on site (admin issues the actual ໃບຂໍເບີກ later, in rounds).
+    const materials = (Array.isArray(body.materials) ? body.materials : []).filter((m: any) => num(m.qty) > 0);
+
+    const totalHours = tasks.reduce((s: number, t: any) => s + num(t.actual_hours), 0);
+    const rate = num(body.rate_per_hour);
+    const laborCost = totalHours * rate;
+
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    const workNo =
+      body.work_no ||
+      `WO-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+
+    const result = await withTransaction(async (client) => {
+      const wo = await client.query(
+        `INSERT INTO odg_work_order
+          (work_no, project_id, contract_id, work_date, end_date, technician_code, technician_name,
+           rate_per_hour, total_hours, labor_cost, status, notes, tasks, materials)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+        [
+          workNo,
+          String(body.project_id),
+          body.contract_id ? String(body.contract_id) : null,
+          body.work_date || null,
+          body.end_date || null,
+          body.technician_code || null,
+          body.technician_name || null,
+          rate,
+          totalHours,
+          laborCost,
+          body.status || "open",
+          body.notes || null,
+          JSON.stringify(tasks),
+          JSON.stringify(materials),
+        ],
+      );
+      const woId = String(wo.rows[0].id);
+      // Assign plan tasks; create ad-hoc tasks (no id) as new project tasks.
+      for (const t of tasks) {
+        if (t.id) {
+          await client.query(
+            `UPDATE odg_project_task
+               SET work_order_id = $2, technician_code = $3, technician_name = $4,
+                   planned_start = $5, planned_end = $6, actual_hours = $7,
+                   status = 'done'
+             WHERE id = $1`,
+            [t.id, woId, body.technician_code || null, body.technician_name || null, body.work_date || null, body.end_date || null, num(t.actual_hours)],
+          );
+        } else if (t.title && String(t.title).trim()) {
+          await client.query(
+            `INSERT INTO odg_project_task
+               (project_id, contract_id, task_code, title, phase, technician_code, technician_name,
+                planned_start, planned_end, est_hours, actual_hours, work_order_id, status)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10,$11,'done')`,
+            [
+              String(body.project_id),
+              body.contract_id ? String(body.contract_id) : null,
+              t.task_code || null,
+              String(t.title).trim(),
+              t.phase || "ນອກແຜນ",
+              body.technician_code || null,
+              body.technician_name || null,
+              body.work_date || null,
+              body.end_date || null,
+              num(t.actual_hours),
+              woId,
+            ],
+          );
+        }
+      }
+      return wo.rows[0];
+    });
+
+    invalidate("wo:");
+    invalidate("tasks:");
+    return { success: true, data: result };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}

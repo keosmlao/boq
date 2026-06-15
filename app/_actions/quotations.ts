@@ -42,6 +42,13 @@ export async function createQuotation(body: any): Promise<{ success: true; data:
     await ensureQuotationSchema();
     if (!body?.quotation_no) return fail("quotation_no is required");
 
+    // Enforce 1 project = 1 quotation (a rejected one may be replaced).
+    if (body.project_id) {
+      const existing = await query(`SELECT id, status FROM odg_quotation WHERE project_id = $1`, [String(body.project_id)]);
+      const active = existing.rows.find((r: any) => (r.status || "") !== "ປະຕິເສດ");
+      if (active) return fail("ໂຄງການນີ້ມີໃບສະເໜີແລ້ວ (1 ໂຄງການ = 1 ໃບສະເໜີ)");
+    }
+
     const result = await query(
       `INSERT INTO odg_quotation (
         quotation_no, project_id, project_name,
@@ -121,6 +128,20 @@ export async function updateQuotation(id: string, body: any): Promise<{ success:
     if (!result.rows.length) return fail("Quotation not found");
     invalidate("quotations:");
     return { success: true, data: result.rows[0] };
+  } catch (e) { return fail((e as Error).message); }
+}
+
+/** Update ONLY the status (approve/reject) — never touches the other fields. */
+export async function approveQuotation(id: string, status: string): Promise<{ success: true } | Fail> {
+  try {
+    await ensureQuotationSchema();
+    const result = await query(
+      `UPDATE odg_quotation SET status = $2, updated_at = now() WHERE id = $1 RETURNING id`,
+      [id, status],
+    );
+    if (!result.rows.length) return fail("Quotation not found");
+    invalidate("quotations:");
+    return { success: true };
   } catch (e) { return fail((e as Error).message); }
 }
 
