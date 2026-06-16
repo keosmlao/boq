@@ -8,9 +8,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, ListTodo, Phone, Users, Mail, FileText } from "lucide-react";
-import { getMyActivities, type Activity } from "@/_actions/activities";
+import type { Activity } from "@/_actions/activities";
 
 const POLL_MS = 30000;
+
+/** Poll via the stable /api/my-activities route (server actions go stale on redeploy). */
+async function fetchMyActivities(): Promise<Activity[] | null> {
+  try {
+    const resp = await fetch("/api/my-activities", { cache: "no-store" });
+    if (!resp.ok) return null;
+    const j = await resp.json();
+    return j?.success ? j.data : null;
+  } catch {
+    return null;
+  }
+}
 
 const ENTITY_ROUTE: Record<string, { base: string; label: string }> = {
   project: { base: "/projects", label: "ໂຄງການ" },
@@ -40,8 +52,8 @@ export default function MyActivitiesBell() {
     if (busy.current) return;
     busy.current = true;
     try {
-      const res = await getMyActivities();
-      if (res?.success) setItems(res.data);
+      const data = await fetchMyActivities();
+      if (data) setItems(data);
     } finally {
       busy.current = false;
     }

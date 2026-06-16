@@ -8,7 +8,30 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, MessageSquare, CheckCircle2, CalendarClock, CheckCheck } from "lucide-react";
-import { getMyNotifications, markNotificationsRead, type Notification } from "@/_actions/notifications";
+import type { Notification } from "@/_actions/notifications";
+
+/** Poll/mark via the stable /api/notifications route (server actions go stale on redeploy). */
+async function fetchNotifications(): Promise<{ items: Notification[]; unread: number } | null> {
+  try {
+    const resp = await fetch("/api/notifications", { cache: "no-store" });
+    if (!resp.ok) return null;
+    const j = await resp.json();
+    return j?.success ? j.data : null;
+  } catch {
+    return null;
+  }
+}
+async function markNotificationsRead(ids?: (string | number)[]): Promise<void> {
+  try {
+    await fetch("/api/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(ids ? { ids } : {}),
+    });
+  } catch {
+    /* best-effort */
+  }
+}
 
 const POLL_MS = 25000;
 
@@ -47,8 +70,8 @@ export default function NotificationsBell() {
     if (busy.current) return;
     busy.current = true;
     try {
-      const res = await getMyNotifications();
-      if (res?.success) { setItems(res.data.items); setUnread(res.data.unread); }
+      const data = await fetchNotifications();
+      if (data) { setItems(data.items); setUnread(data.unread); }
     } finally {
       busy.current = false;
     }
