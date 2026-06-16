@@ -116,9 +116,33 @@ async function getMessaging(): Promise<any> {
   }
 }
 
+/**
+ * Delivery config that makes notifications wake the device when the screen is
+ * OFF. Without `android.priority: "high"` the OS holds normal-priority messages
+ * in Doze and delivers them later in a batch — so the heads-up banner/sound only
+ * appears once the user turns the screen on. We also pin the high-importance
+ * channel (`odg_default`, created in the app) + sound, and set APNs priority 10
+ * so iOS wakes too.
+ */
+const HIGH_PRIORITY_DELIVERY = {
+  android: {
+    priority: "high" as const,
+    notification: {
+      channelId: "odg_default",
+      sound: "default",
+      defaultSound: true,
+      notificationPriority: "PRIORITY_HIGH" as const,
+    },
+  },
+  apns: {
+    headers: { "apns-priority": "10" },
+    payload: { aps: { sound: "default" } },
+  },
+};
+
 async function sendToTokens(m: any, tokens: string[], title: string, body: string, data: Record<string, string>): Promise<void> {
   if (!tokens.length) return;
-  const res = await m.sendEachForMulticast({ tokens, notification: { title, body }, data });
+  const res = await m.sendEachForMulticast({ tokens, notification: { title, body }, data, ...HIGH_PRIORITY_DELIVERY });
   const stale: string[] = [];
   res.responses.forEach((resp: any, i: number) => {
     const code = resp.error?.code || "";
@@ -165,15 +189,8 @@ export async function notifyCraftsman(
       console.warn(`[push] notifyCraftsman: no device token for employee_code=${employeeCode} (has the craftsman logged into the app?). Skipped.`);
       return;
     }
-    const res = await m.sendEachForMulticast({ tokens, notification: { title, body }, data });
-    console.log(`[push] notifyCraftsman ${employeeCode}: sent ${res.successCount}/${tokens.length}`);
-    // Drop tokens FCM reports as invalid so the table stays clean.
-    const stale: string[] = [];
-    res.responses.forEach((resp: any, i: number) => {
-      const code = resp.error?.code || "";
-      if (!resp.success && (code.includes("registration-token-not-registered") || code.includes("invalid-argument"))) stale.push(tokens[i]);
-    });
-    if (stale.length) await query(`DELETE FROM odg_device_token WHERE token = ANY($1::text[])`, [stale]);
+    await sendToTokens(m, tokens, title, body, data);
+    console.log(`[push] notifyCraftsman ${employeeCode}: sent to ${tokens.length} device(s)`);
   } catch (e) {
     console.error("notifyCraftsman failed:", (e as Error).message);
   }
@@ -247,6 +264,7 @@ export async function sendTestToCraftsman(employeeCode: string): Promise<{ ok: b
     tokens,
     notification: { title: "ທົດສອບການແຈ້ງເຕືອນ", body: "ນີ້ແມ່ນຂໍ້ຄວາມທົດສອບ push ຈາກລະບົບ" },
     data: { type: "test" },
+    ...HIGH_PRIORITY_DELIVERY,
   });
   return { ok: res.successCount > 0, message: `ສົ່ງ ${res.successCount}/${tokens.length} device ສຳເລັດ` };
 }
