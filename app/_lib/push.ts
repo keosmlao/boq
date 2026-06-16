@@ -56,7 +56,10 @@ async function getMessaging(): Promise<any> {
       : process.env.FIREBASE_SERVICE_ACCOUNT
         ? fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT, "utf8")
         : null;
-    if (!raw) return null; // push not configured yet
+    if (!raw) {
+      console.warn("[push] Firebase not configured — set FIREBASE_SERVICE_ACCOUNT or FIREBASE_SERVICE_ACCOUNT_JSON. Notifications are skipped.");
+      return null; // push not configured yet
+    }
     const cred = JSON.parse(raw);
     const admin = (await import("firebase-admin")).default;
     const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(cred) });
@@ -104,14 +107,21 @@ export async function notifyCraftsman(
   data: Record<string, string> = {},
 ): Promise<void> {
   try {
-    if (!employeeCode) return;
+    if (!employeeCode) {
+      console.warn("[push] notifyCraftsman: no employee_code given — skipped.");
+      return;
+    }
     const m = await getMessaging();
     if (!m) return;
     await ensureTable();
     const r = await query(`SELECT token FROM odg_device_token WHERE employee_code = $1`, [String(employeeCode)]);
     const tokens = (r.rows as any[]).map((x) => x.token).filter(Boolean);
-    if (!tokens.length) return;
+    if (!tokens.length) {
+      console.warn(`[push] notifyCraftsman: no device token for employee_code=${employeeCode} (has the craftsman logged into the app?). Skipped.`);
+      return;
+    }
     const res = await m.sendEachForMulticast({ tokens, notification: { title, body }, data });
+    console.log(`[push] notifyCraftsman ${employeeCode}: sent ${res.successCount}/${tokens.length}`);
     // Drop tokens FCM reports as invalid so the table stays clean.
     const stale: string[] = [];
     res.responses.forEach((resp: any, i: number) => {
@@ -122,4 +132,41 @@ export async function notifyCraftsman(
   } catch (e) {
     console.error("notifyCraftsman failed:", (e as Error).message);
   }
+}
+
+/** Diagnostics for the push pipeline (admin tooling). */
+export async function pushStatus(employeeCode?: string): Promise<{
+  configured: boolean;
+  totalTokens: number;
+  craftsmanTokens?: number;
+}> {
+  const configured = !!(await getMessaging());
+  await ensureTable();
+  const total = await query(`SELECT COUNT(*)::int AS n FROM odg_device_token`);
+  const out: { configured: boolean; totalTokens: number; craftsmanTokens?: number } = {
+    configured,
+    totalTokens: Number(total.rows[0]?.n ?? 0),
+  };
+  if (employeeCode) {
+    const c = await query(`SELECT COUNT(*)::int AS n FROM odg_device_token WHERE employee_code = $1`, [String(employeeCode)]);
+    out.craftsmanTokens = Number(c.rows[0]?.n ?? 0);
+  }
+  return out;
+}
+
+/** Send a test push to one craftsman; returns a human-readable result. */
+export async function sendTestToCraftsman(employeeCode: string): Promise<{ ok: boolean; message: string }> {
+  if (!employeeCode) return { ok: false, message: "ກະລຸນາລະບຸ employee_code" };
+  const m = await getMessaging();
+  if (!m) return { ok: false, message: "Firebase ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ (FIREBASE_SERVICE_ACCOUNT)" };
+  await ensureTable();
+  const r = await query(`SELECT token FROM odg_device_token WHERE employee_code = $1`, [String(employeeCode)]);
+  const tokens = (r.rows as any[]).map((x) => x.token).filter(Boolean);
+  if (!tokens.length) return { ok: false, message: `ບໍ່ມີ device token ສຳລັບ ${employeeCode} (ຊ່າງຕ້ອງ login ໃນແອັບກ່ອນ)` };
+  const res = await m.sendEachForMulticast({
+    tokens,
+    notification: { title: "ທົດສອບການແຈ້ງເຕືອນ", body: "ນີ້ແມ່ນຂໍ້ຄວາມທົດສອບ push ຈາກລະບົບ" },
+    data: { type: "test" },
+  });
+  return { ok: res.successCount > 0, message: `ສົ່ງ ${res.successCount}/${tokens.length} device ສຳເລັດ` };
 }
