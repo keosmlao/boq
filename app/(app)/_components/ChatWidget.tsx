@@ -28,6 +28,7 @@ export default function ChatWidget() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [readWm, setReadWm] = useState(0); // newest msg id read by someone else → "read" receipts
 
   const lastId = useRef(0);
   const lastRead = useRef(0); // persisted: newest message id the user has seen
@@ -58,8 +59,13 @@ export default function ChatWidget() {
     if (busy.current) return;
     busy.current = true;
     try {
-      const resp = await fetch(`/api/chat${lastId.current ? `?sinceId=${lastId.current}` : ""}`, { cache: "no-store" });
+      const params = new URLSearchParams();
+      if (lastId.current) params.set("sinceId", String(lastId.current));
+      if (openRef.current) params.set("markRead", "1"); // server marks read up to newest
+      const qs = params.toString();
+      const resp = await fetch(`/api/chat${qs ? `?${qs}` : ""}`, { cache: "no-store" });
       const json = resp.ok ? await resp.json().catch(() => null) : null;
+      if (json?.readWatermark != null) setReadWm(Number(json.readWatermark) || 0);
       const res = { success: resp.ok, data: (json?.data as ChatMessage[]) || [] };
       if (res.success && res.data.length) {
         const fresh = res.data;
@@ -201,7 +207,14 @@ export default function ChatWidget() {
                       <div className={`inline-block whitespace-pre-wrap break-words rounded-2xl px-3 py-1.5 text-[12.5px] leading-relaxed ${mine ? "bg-blue-600 text-white" : "border border-slate-200 bg-white text-slate-700"}`}>
                         {m.body}
                       </div>
-                      <div className="mt-0.5 px-1 text-[9.5px] font-medium text-slate-400">{hhmm(m.created_at)}</div>
+                      <div className="mt-0.5 px-1 text-[9.5px] font-medium text-slate-400">
+                        {hhmm(m.created_at)}
+                        {mine && (
+                          <span className={Number(m.id) <= readWm ? "text-blue-500" : "text-slate-400"}>
+                            {" · "}{Number(m.id) <= readWm ? "ອ່ານແລ້ວ" : "ສົ່ງແລ້ວ"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );

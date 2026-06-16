@@ -3,10 +3,9 @@
 /** v2 — Work order detail (team, dates, tasks, hours, labour cost). */
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import ActivityFeed from "../../_components/ActivityFeed";
 import { ArrowLeft, Wrench, FolderKanban, Users, CalendarClock, Clock, DollarSign, Wallet, PackageOpen } from "lucide-react";
 import { getWorkOrderById, deleteWorkOrder } from "@/_actions/workorder";
-import { Page, Card, Btn, tblCls, thCls, tdCls } from "../../_components/ui";
+import { Page, Card, Btn, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
 import WorkOrderJobPanel from "./WorkOrderJobPanel";
 
@@ -238,7 +237,6 @@ export default function WorkOrderDetailPage() {
           </Card>
         </div>
       </div>
-    <div className="mt-5"><ActivityFeed entityType="work_order" entityId={String(id)} /></div>
     </Page>
   );
 }

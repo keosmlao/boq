@@ -74,6 +74,78 @@ export async function getChatMessagesCore(sinceId?: string | number, limit = 80)
   }
 }
 
+/* ── Read receipts ───────────────────────────────────────────────────────────
+ * One shared room, so "read" = some OTHER participant has read up to a message.
+ * We store each user's high-water mark (the newest message id they've seen) in
+ * odg_chat_read; a sender's message is "read" when anyone else's mark >= its id.
+ */
+let ensuredRead: Promise<void> | null = null;
+function ensureChatReadTable(): Promise<void> {
+  if (!ensuredRead) {
+    ensuredRead = (async () => {
+      await query(`
+        CREATE TABLE IF NOT EXISTS public.odg_chat_read (
+          username     text PRIMARY KEY,
+          last_read_id bigint NOT NULL DEFAULT 0,
+          updated_at   timestamptz NOT NULL DEFAULT now()
+        )
+      `);
+    })().catch((e) => {
+      ensuredRead = null;
+      throw e;
+    });
+  }
+  return ensuredRead;
+}
+
+/**
+ * Mark the user as having read up to `lastId` (or the newest message when
+ * omitted). Never moves the mark backwards.
+ */
+export async function markChatReadAs(user: { username: string } | null, lastId?: string | number): Promise<Ok<{ last_read_id: string }> | Fail> {
+  try {
+    if (!user?.username) return fail("ກະລຸນາເຂົ້າສູ່ລະບົບ");
+    await ensureChatTable();
+    await ensureChatReadTable();
+    let target = Number(lastId);
+    if (!Number.isFinite(target) || target <= 0) {
+      const m = await query(`SELECT COALESCE(MAX(id), 0)::bigint AS max_id FROM public.odg_chat_messages`);
+      target = Number(m.rows[0]?.max_id ?? 0);
+    }
+    const r = await query(
+      `INSERT INTO public.odg_chat_read (username, last_read_id, updated_at)
+       VALUES ($1, $2, now())
+       ON CONFLICT (username) DO UPDATE
+         SET last_read_id = GREATEST(public.odg_chat_read.last_read_id, EXCLUDED.last_read_id),
+             updated_at = now()
+       RETURNING last_read_id::text`,
+      [user.username, target],
+    );
+    return ok({ last_read_id: String(r.rows[0]?.last_read_id ?? target) });
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/**
+ * The newest message id that has been read by someone OTHER than `excludeUsername`.
+ * The viewer's own messages with id <= this are shown as "read".
+ */
+export async function getReadWatermark(excludeUsername?: string | null): Promise<string> {
+  try {
+    await ensureChatReadTable();
+    const r = await query(
+      `SELECT COALESCE(MAX(last_read_id), 0)::text AS wm
+         FROM public.odg_chat_read
+        WHERE username IS DISTINCT FROM $1`,
+      [excludeUsername || null],
+    );
+    return String(r.rows[0]?.wm ?? "0");
+  } catch {
+    return "0";
+  }
+}
+
 /** Post a message as the given user. */
 export async function sendChatMessageAs(user: { username: string; name?: string } | null, body: string): Promise<Ok<ChatMessage> | Fail> {
   try {

@@ -3,7 +3,6 @@
 /** v2 — BOQ detail (ERP odg_projects_boq): materials/labour/consumables as line items. */
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import ActivityFeed from "../../_components/ActivityFeed";
 import { ArrowLeft, ListChecks, FolderKanban, User, UserCheck, CalendarClock, Boxes } from "lucide-react";
 import { deleteBoq, approveBoq } from "@/_actions/boq";
 import { Page, Card, Pill, Btn } from "../../_components/ui";
@@ -281,8 +280,6 @@ export default function BoqDetailPage() {
           </button>
         </div>
       )}
-    <div className="mt-5"><ActivityFeed entityType="boq" entityId={docNo} /></div>
-
       {confirmStatus !== null && (
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-[20vh]" onClick={() => !busy && setConfirmStatus(null)}>
           <div className="w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-[var(--theme-shadow-lg)]" onClick={(e) => e.stopPropagation()}>

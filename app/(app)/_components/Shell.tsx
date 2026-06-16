@@ -28,7 +28,6 @@ import {
   MapPin,
   X,
 } from "lucide-react";
-import { logout } from "@/_actions/auth";
 import { can, canView, isAdmin, ROLE_LABELS, type Role } from "@/_lib/permissions";
 import { clearV2User, getV2User, type V2User } from "../../_lib/session";
 import { useTheme } from "@/_components/theme/ThemeProvider";
@@ -151,7 +150,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const doLogout = async () => {
     clearV2User();
     try {
-      await logout();
+      await fetch("/api/logout", { method: "POST" });
     } catch {
       // Local session has already been cleared.
     }

@@ -10,7 +10,6 @@ import { useRouter } from "next/navigation";
 import { User, ShieldCheck, LogOut, Check, Minus, Settings } from "lucide-react";
 import { Page, PageHeader, Card, SectionTitle } from "../_components/ui";
 import { getV2User, clearV2User, type V2User } from "../../_lib/session";
-import { logout } from "@/_actions/auth";
 import { MODULES, ROLE_LABELS, can, isManager, type Action } from "@/_lib/permissions";
 
 const ACTIONS: { key: Action; label: string }[] = [
@@ -31,7 +30,7 @@ export default function ProfilePage() {
 
   const doLogout = async () => {
     try {
-      await logout();
+      await fetch("/api/logout", { method: "POST" });
     } catch {
       /* ignore */
     }
