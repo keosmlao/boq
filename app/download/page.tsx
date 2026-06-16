@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 // App build metadata. Bump `VERSION` whenever a new APK is published so the
 // page shows the right number; the file size is read from disk at request time.
-const VERSION = "1.0.0";
+const VERSION = "1.0.1";
 const APK_PATH = "/downloads/saang-app.apk";
 
 const STEPS = [
