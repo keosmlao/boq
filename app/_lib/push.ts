@@ -156,19 +156,40 @@ export async function notifyCraftsman(
   }
 }
 
+export type PushDevice = { employee_code: string; name: string; tokens: number; platforms: string };
+
 /** Diagnostics for the push pipeline (admin tooling). */
 export async function pushStatus(employeeCode?: string): Promise<{
   configured: boolean;
   totalTokens: number;
   craftsmanTokens?: number;
+  devices: PushDevice[];
 }> {
   const configured = !!(await getMessaging());
   await ensureTable();
   const total = await query(`SELECT COUNT(*)::int AS n FROM odg_device_token`);
-  const out: { configured: boolean; totalTokens: number; craftsmanTokens?: number } = {
+  // Registered devices grouped by craftsman, with a resolved display name.
+  const list = await query(`
+    SELECT dt.employee_code,
+           COUNT(*)::int AS tokens,
+           STRING_AGG(DISTINCT COALESCE(dt.platform, '?'), ', ') AS platforms,
+           COALESCE(t.name_1, e.fullname_lo, dt.employee_code) AS name
+      FROM odg_device_token dt
+      LEFT JOIN odg_technicians t ON t.code = dt.employee_code
+      LEFT JOIN odg_employee e ON e.employee_code = dt.employee_code
+     WHERE dt.employee_code IS NOT NULL
+     GROUP BY dt.employee_code, t.name_1, e.fullname_lo
+     ORDER BY name`);
+  const out = {
     configured,
     totalTokens: Number(total.rows[0]?.n ?? 0),
-  };
+    devices: (list.rows as any[]).map((r) => ({
+      employee_code: String(r.employee_code),
+      name: String(r.name || r.employee_code),
+      tokens: Number(r.tokens ?? 0),
+      platforms: String(r.platforms || ""),
+    })) as PushDevice[],
+  } as { configured: boolean; totalTokens: number; craftsmanTokens?: number; devices: PushDevice[] };
   if (employeeCode) {
     const c = await query(`SELECT COUNT(*)::int AS n FROM odg_device_token WHERE employee_code = $1`, [String(employeeCode)]);
     out.craftsmanTokens = Number(c.rows[0]?.n ?? 0);

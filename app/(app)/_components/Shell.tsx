@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   BarChart3,
+  Bell,
   Boxes,
   CalendarRange,
   ChevronDown,
@@ -71,7 +72,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     section: "ລະບົບ",
-    items: [{ label: "ຜູ້ໃຊ້ & ສິດ", href: "/users", icon: <ShieldCheck size={16} /> }],
+    items: [
+      { label: "ຜູ້ໃຊ້ & ສິດ", href: "/users", icon: <ShieldCheck size={16} /> },
+      { label: "ທົດສອບແຈ້ງເຕືອນ", href: "/push-test", icon: <Bell size={16} /> },
+    ],
   },
 ];
 
@@ -132,7 +136,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ...section,
         items: section.items.filter((item) => {
           if (item.href === "/") return true;
-          if (item.href === "/users") return isAdmin(user);
+          if (item.href === "/users" || item.href === "/push-test") return isAdmin(user);
           return canView(user, item.href.slice(1));
         }),
       })).filter((section) => section.items.length > 0),
