@@ -13,6 +13,7 @@ import {
   checkOutWorkOrderAs,
   closeWorkOrderAs,
 } from "@/_lib/workorder-core";
+import { notifyCraftsman } from "@/_lib/push";
 
 type Fail = { success: false; message: string };
 function fail(message: string): Fail {
@@ -326,6 +327,15 @@ export async function createWorkOrder(body: any): Promise<{ success: true; data:
 
     invalidate("wo:");
     invalidate("tasks:");
+
+    // Notify the assigned craftsman that a work order has been issued to them.
+    await notifyCraftsman(
+      body.technician_code,
+      "ມີໃບງານໃໝ່",
+      `${result.work_no || "ໃບງານ"} ຖືກມອບໝາຍໃຫ້ທ່ານ`,
+      { workOrderId: String(result.id), type: "wo_issued" },
+    );
+
     return { success: true, data: result };
   } catch (e) {
     return fail((e as Error).message);
