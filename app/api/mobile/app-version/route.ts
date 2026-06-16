@@ -5,11 +5,14 @@
  */
 import { NextResponse } from "next/server";
 
-export function GET() {
+export function GET(req: Request) {
+  // Default the download link to this server's own /download page so the
+  // force-update button always has somewhere to go without extra config.
+  const origin = new URL(req.url).origin;
   return NextResponse.json({
-    minVersion: process.env.MOBILE_MIN_VERSION || "1.0.0",
-    latestVersion: process.env.MOBILE_LATEST_VERSION || "1.0.0",
+    minVersion: process.env.MOBILE_MIN_VERSION || "1.0.1",
+    latestVersion: process.env.MOBILE_LATEST_VERSION || "1.0.1",
     message: process.env.MOBILE_UPDATE_MESSAGE || "ມີເວີຊັນໃໝ່ ກະລຸນາອັບເດດແອັບກ່ອນໃຊ້ງານຕໍ່",
-    url: process.env.MOBILE_UPDATE_URL || "",
+    url: process.env.MOBILE_UPDATE_URL || `${origin}/download`,
   });
 }
