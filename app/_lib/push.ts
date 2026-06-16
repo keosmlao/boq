@@ -18,16 +18,33 @@ import { query } from "@/_lib/db";
  *        ./firebase-service-account.json  or  ./secrets/firebase-service-account.json
  * The key is NEVER committed; the file paths below are in .gitignore.
  */
-function readServiceAccountRaw(): string | null {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) return process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+function readServiceAccount(): { raw: string; source: string } | null {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) return { raw: process.env.FIREBASE_SERVICE_ACCOUNT_JSON, source: "FIREBASE_SERVICE_ACCOUNT_JSON" };
   const candidates = [
-    process.env.FIREBASE_SERVICE_ACCOUNT,
-    path.join(process.cwd(), "firebase-service-account.json"),
-    path.join(process.cwd(), "secrets", "firebase-service-account.json"),
-  ].filter(Boolean) as string[];
+    { path: process.env.FIREBASE_SERVICE_ACCOUNT, source: "FIREBASE_SERVICE_ACCOUNT" },
+    { path: path.join(process.cwd(), "firebase-service-account.json"), source: "firebase-service-account.json" },
+    { path: path.join(process.cwd(), "secrets", "firebase-service-account.json"), source: "secrets/firebase-service-account.json" },
+  ].filter((x) => Boolean(x.path)) as { path: string; source: string }[];
   for (const p of candidates) {
     try {
-      if (fs.existsSync(p)) return fs.readFileSync(p, "utf8");
+      if (fs.existsSync(p.path)) return { raw: fs.readFileSync(p.path, "utf8"), source: p.source };
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+function readClientFirebaseProjectId(): string | null {
+  const candidates = [
+    path.join(process.cwd(), "..", "saang_app", "android", "app", "google-services.json"),
+    path.join(process.cwd(), "google-services.json"),
+  ];
+  for (const p of candidates) {
+    try {
+      if (!fs.existsSync(p)) continue;
+      const json = JSON.parse(fs.readFileSync(p, "utf8"));
+      return json?.project_info?.project_id ? String(json.project_info.project_id) : null;
     } catch {
       /* try next */
     }
@@ -68,24 +85,30 @@ export async function registerDeviceToken(employeeCode: string, token: string, p
 }
 
 /* ── Firebase Admin (lazy) ── */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let messaging: any = null;
 let initTried = false;
+let serviceAccountProjectId: string | null = null;
+let serviceAccountSource: string | null = null;
 
 async function getMessaging(): Promise<any> {
   if (messaging) return messaging;
   if (initTried) return null;
   initTried = true;
   try {
-    const raw = readServiceAccountRaw();
-    if (!raw) {
+    const serviceAccount = readServiceAccount();
+    if (!serviceAccount) {
       console.warn("[push] Firebase not configured — set FIREBASE_SERVICE_ACCOUNT / FIREBASE_SERVICE_ACCOUNT_JSON, or drop firebase-service-account.json in the project root. Notifications are skipped.");
       return null; // push not configured yet
     }
-    const cred = JSON.parse(raw);
-    const admin = (await import("firebase-admin")).default;
-    const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(cred) });
-    messaging = admin.messaging(app);
+    const cred = JSON.parse(serviceAccount.raw);
+    serviceAccountProjectId = cred?.project_id ? String(cred.project_id) : null;
+    serviceAccountSource = serviceAccount.source;
+    // firebase-admin v14 dropped the legacy namespaced default export
+    // (admin.apps / admin.credential / admin.messaging). Use the modular API.
+    const { initializeApp, getApps, getApp, cert } = await import("firebase-admin/app");
+    const { getMessaging } = await import("firebase-admin/messaging");
+    const app = getApps().length ? getApp() : initializeApp({ credential: cert(cred) });
+    messaging = getMessaging(app);
     return messaging;
   } catch (e) {
     console.error("FCM init failed:", (e as Error).message);
@@ -163,6 +186,9 @@ export async function pushStatus(employeeCode?: string): Promise<{
   configured: boolean;
   totalTokens: number;
   craftsmanTokens?: number;
+  projectId?: string | null;
+  clientProjectId?: string | null;
+  serviceAccountSource?: string | null;
   devices: PushDevice[];
 }> {
   const configured = !!(await getMessaging());
@@ -182,6 +208,9 @@ export async function pushStatus(employeeCode?: string): Promise<{
      ORDER BY name`);
   const out = {
     configured,
+    projectId: serviceAccountProjectId,
+    clientProjectId: readClientFirebaseProjectId(),
+    serviceAccountSource,
     totalTokens: Number(total.rows[0]?.n ?? 0),
     devices: (list.rows as any[]).map((r) => ({
       employee_code: String(r.employee_code),
@@ -189,7 +218,15 @@ export async function pushStatus(employeeCode?: string): Promise<{
       tokens: Number(r.tokens ?? 0),
       platforms: String(r.platforms || ""),
     })) as PushDevice[],
-  } as { configured: boolean; totalTokens: number; craftsmanTokens?: number; devices: PushDevice[] };
+  } as {
+    configured: boolean;
+    totalTokens: number;
+    craftsmanTokens?: number;
+    projectId?: string | null;
+    clientProjectId?: string | null;
+    serviceAccountSource?: string | null;
+    devices: PushDevice[];
+  };
   if (employeeCode) {
     const c = await query(`SELECT COUNT(*)::int AS n FROM odg_device_token WHERE employee_code = $1`, [String(employeeCode)]);
     out.craftsmanTokens = Number(c.rows[0]?.n ?? 0);

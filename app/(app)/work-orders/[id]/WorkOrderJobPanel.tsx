@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle, MapPin, Camera, ShieldCheck, Clock, LogIn, LogOut, Smartphone } from "lucide-react";
 import { Card, Btn } from "../../_components/ui";
 import { getV2User } from "../../../_lib/session";
-import { isManager, can } from "@/_lib/permissions";
+import { can } from "@/_lib/permissions";
 import { useConfirm } from "../../_components/Confirm";
 import {
   approveWorkOrder,

@@ -1,6 +1,6 @@
 "use server";
 
-import { query } from "@/_lib/db";
+import { query, withTransaction } from "@/_lib/db";
 import { invalidate } from "@/_lib/cache";
 import { logActivity } from "./chatter";
 import { dateOrNull, ensureContractSchema, generateContractNo, num } from "@/_lib/schemas/contracts";
@@ -73,62 +73,73 @@ export async function getAllContractsForList(): Promise<{ success: true; data: a
   }
 }
 
+/**
+ * Create a contract DIRECTLY in the ERP table `odg_projects_contract` (+ its
+ * detail), so the BOQ pipeline (which reads odg_projects_contract) finds it with
+ * no bridging. Customer code is taken from the project (odg_projects.sml_code).
+ */
 export async function createContract(body: any, opts: { fromQuotation?: string } = {}): Promise<{ success: true; data: unknown } | Fail> {
   try {
-    await ensureContractSchema();
+    let items: any[] = [];
     if (opts.fromQuotation) {
       const q = await query(`SELECT * FROM odg_quotation WHERE id = $1`, [opts.fromQuotation]);
       if (!q.rows.length) return fail("Quotation not found");
       const src = q.rows[0];
       if (src.status !== "ອະນຸມັດແລ້ວ") return fail("Only approved quotations can be converted to contracts");
-      const existing = await query(`SELECT id FROM odg_contract WHERE quotation_id = $1 LIMIT 1`, [opts.fromQuotation]);
-      if (existing.rows.length) return fail("Contract already exists for this quotation", { contract_id: existing.rows[0].id });
-      body = { ...src, ...body, quotation_id: src.id, contract_no: body.contract_no || generateContractNo(), status: "draft" };
+      body = { ...src, ...body, quotation_id: src.id };
+      const raw = (src as any).items;
+      items = Array.isArray(raw) ? raw : (() => { try { return JSON.parse(raw || "[]"); } catch { return []; } })();
     }
     if (!body.contract_no) body.contract_no = generateContractNo();
 
-    // Enforce 1 project = 1 contract.
-    if (body.project_id) {
-      const dup = await query(`SELECT id FROM odg_contract WHERE project_id = $1 LIMIT 1`, [String(body.project_id)]);
-      if (dup.rows.length) {
-        return fail("ໂຄງການນີ້ມີສັນຍາແລ້ວ (1 ໂຄງການ = 1 ສັນຍາ)", { contract_id: dup.rows[0].id });
-      }
+    const projectId = body.project_id ? String(body.project_id) : "";
+    if (!projectId) return fail("Missing project_id");
+
+    // Enforce 1 project = 1 contract (ERP table).
+    const dup = await query(`SELECT roworder FROM odg_projects_contract WHERE project_id = $1 LIMIT 1`, [projectId]);
+    if (dup.rows.length) {
+      return fail("ໂຄງການນີ້ມີສັນຍາແລ້ວ (1 ໂຄງການ = 1 ສັນຍາ)", { contract_id: dup.rows[0].roworder });
     }
 
-    const result = await query(
-      `INSERT INTO odg_contract (
-        contract_no, quotation_id, project_id, project_name,
-        customer_name, customer_address, customer_phone,
-        sign_date, start_date, end_date, payment_terms,
-        discount, tax, tax_type, subtotal, total_amount,
-        notes, status, items, contract_pdf_url
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
-      RETURNING *`,
-      [
-        String(body.contract_no),
-        body.quotation_id ? Number(body.quotation_id) : null,
-        body.project_id ? String(body.project_id) : null,
-        body.project_name || null,
-        body.customer_name || null,
-        body.customer_address || null,
-        body.customer_phone || null,
-        dateOrNull(body.sign_date) || dateOrNull(new Date().toISOString()),
-        dateOrNull(body.start_date),
-        dateOrNull(body.end_date),
-        body.payment_terms || null,
-        num(body.discount),
-        num(body.tax),
-        body.tax_type || "0",
-        num(body.subtotal),
-        num(body.total_amount),
-        body.notes || null,
-        body.status || "draft",
-        JSON.stringify(Array.isArray(body.items) ? body.items : []),
-        body.contract_pdf_url || null,
-      ],
-    );
+    // Customer code from the project.
+    const pr = await query(`SELECT sml_code FROM odg_projects WHERE id = $1 LIMIT 1`, [projectId]);
+    const custCode = ((pr.rows[0] as any)?.sml_code ?? body.cust_code) || null;
+
+    const data = await withTransaction(async (client) => {
+      const ins = await client.query(
+        `INSERT INTO odg_projects_contract
+           (project_id, quotation_id, contract_name, contract_no, contract_date, cust_code,
+            amount, payment_type, start_date, end_date, approve_status_1, approve_status_2, acc_approve, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, 0, 0, NOW())
+         RETURNING roworder, contract_no, project_id, cust_code, amount`,
+        [
+          projectId,
+          body.quotation_id ? Number(body.quotation_id) : null,
+          body.project_name || null,
+          String(body.contract_no),
+          dateOrNull(body.sign_date),
+          custCode,
+          num(body.total_amount),
+          body.payment_terms || null,
+          dateOrNull(body.start_date),
+          dateOrNull(body.end_date),
+        ],
+      );
+      const row = ins.rows[0];
+      for (const it of items) {
+        const amount = it.total != null ? num(it.total) : num(it.qty) * num(it.unit_price ?? it.price);
+        await client.query(
+          `INSERT INTO odg_projects_contract_detail
+             (project_id, contract_date, item_code, item_name, amount, created_date_time_now, contract_no)
+           VALUES ($1, NOW(), $2, $3, $4, NOW(), $5)`,
+          [projectId, it.item_code || it.code || null, it.description || it.item_name || it.name || "", amount, row.contract_no],
+        );
+      }
+      return row;
+    });
+
     invalidate("projects:");
-    return { success: true, data: result.rows[0] };
+    return { success: true, data };
   } catch (e) { return fail((e as Error).message); }
 }
 

@@ -5,19 +5,9 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import CrossList from "../_components/CrossList";
 import ProjectPickerModal from "../_components/ProjectPickerModal";
-import { Pill, Btn } from "../_components/ui";
+import { Btn } from "../_components/ui";
 import { getWorkOrders } from "@/_actions/workorder";
-import { workOrderStage, type StageTone } from "@/_lib/workorder-stage";
-
-// Map the stage tone to a Pill tone.
-const STAGE_PILL: Record<StageTone, "neutral" | "blue" | "green" | "amber" | "red" | "cyan" | "indigo"> = {
-  neutral: "neutral",
-  teal: "cyan",
-  indigo: "indigo",
-  amber: "amber",
-  green: "green",
-  red: "red",
-};
+import { workOrderStage } from "@/_lib/workorder-stage";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -151,9 +141,8 @@ export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }
           {
             header: "ສະຖານະ",
             cell: (r) => {
-              if (r.src === "erp") return r.status ? <Pill tone="neutral">{r.status}</Pill> : "-";
-              const s = workOrderStage(r);
-              return <Pill tone={STAGE_PILL[s.tone]}>{s.label}</Pill>;
+              if (r.src === "erp") return r.status ? <span className="text-slate-600">{r.status}</span> : "-";
+              return <span className="text-slate-600">{workOrderStage(r).label}</span>;
             },
           },
           { header: "ຄ່າແຮງ", align: "right", cell: (r) => (r.src === "erp" ? "-" : money(r.labor_cost)) },

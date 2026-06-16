@@ -545,7 +545,7 @@ async function getContractData(contractNos) {
     [
       query(
         `
-        SELECT contract_no, item_name, amount, paymentfrequency, averageperpayment
+        SELECT contract_no, item_code, item_name, amount, paymentfrequency, averageperpayment
         FROM odg_projects_contract_detail
         WHERE contract_no = ANY($1::text[])
         ORDER BY roworder ASC
@@ -579,6 +579,7 @@ async function getContractData(contractNos) {
     list.push({
       amount: toNumber(row.amount),
       averageperpayment: toNumber(row.averageperpayment),
+      item_code: row.item_code || null,
       item_name: row.item_name,
       paymentfrequency: toNumber(row.paymentfrequency),
     });

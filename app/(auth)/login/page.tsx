@@ -7,7 +7,7 @@
  */
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogIn, Loader2, Eye, EyeOff, User, Lock, FolderKanban, ListChecks, Wrench, ShieldCheck } from "lucide-react";
+import { LogIn, Loader2, Eye, EyeOff, User, Lock, FolderKanban, ListChecks, Wrench, ShieldCheck, Smartphone } from "lucide-react";
 import { login } from "@/_actions/auth";
 import { setV2User } from "../../_lib/session";
 
@@ -173,7 +173,14 @@ export default function V2LoginPage() {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-[11px] font-medium text-slate-400">
+          <a
+            href="/download"
+            className="mt-6 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-[13px] font-bold text-slate-600 transition hover:border-blue-300 hover:bg-blue-50/60 hover:text-blue-600"
+          >
+            <Smartphone size={16} /> ດາວໂຫຼດແອັບຊ່າງ (Android)
+          </a>
+
+          <p className="mt-6 text-center text-[11px] font-medium text-slate-400">
             © {new Date().getFullYear()} ODG Projects · ສະຫງວນລິຂະສິດ
           </p>
         </div>

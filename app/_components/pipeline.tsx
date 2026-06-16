@@ -180,6 +180,7 @@ const STATUS_COLORS: Record<string, string> = {
   "ສາມາດເບີກຂອງໃດ້": "bg-cyan-50 text-cyan-700 border border-cyan-200/50",
   "ດຳເນີນການຕິດຕັ້ງ": "bg-indigo-50 text-indigo-700 border border-indigo-200/50",
   "ລໍຖ້າອະນຸມັດປິດໂຄງການ": "bg-blue-50 text-blue-700 border border-blue-200/50",
+  "ພັກໂຄງການ": "bg-rose-50 text-rose-700 border border-rose-200/50",
   "ປິດໂຄງການ": "bg-emerald-50 text-emerald-700 border border-emerald-200/50",
   "ໃນງານ": "bg-emerald-50 text-emerald-700 border border-emerald-200/50",
 };

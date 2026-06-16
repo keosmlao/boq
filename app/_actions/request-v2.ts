@@ -80,7 +80,7 @@ async function validateBoqAvailability(projectId: string, items: any[], editingI
   }
 
   const materials = await getProjectMaterials(projectId);
-  if (!materials.success) return materials.message;
+  if (!materials.success) return (materials as { message?: string }).message || "ໂຫຼດວັດສະດຸບໍ່ສຳເລັດ";
   const available = new Map(
     materials.data.map((item: any) => [String(item.item_code || "").trim(), num(item.remaining)]),
   );

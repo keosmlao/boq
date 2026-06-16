@@ -9,6 +9,6 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const res = await changeEmployeePassword(user.username, body?.oldPassword, body?.newPassword);
-  if (!res.ok) return NextResponse.json({ success: false, message: res.message }, { status: 400 });
+  if (!res.ok) return NextResponse.json({ success: false, message: (res as { message?: string }).message || "ປ່ຽນລະຫັດບໍ່ສຳເລັດ" }, { status: 400 });
   return NextResponse.json({ success: true });
 }

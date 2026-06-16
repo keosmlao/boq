@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { verifySession } from "./app/_lib/auth_session";
 import { canView, isAdmin, moduleForPath, USERS_HREF } from "./app/_lib/permissions";
 
-const PUBLIC_PATHS = ["/login", "/unauthorized"];
+// `/download` is the public install page; `/downloads/*` serves the APK file.
+// Both must stay reachable without a session so people can install the app
+// before they have ever logged in.
+const PUBLIC_PATHS = ["/login", "/unauthorized", "/download", "/downloads"];
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;

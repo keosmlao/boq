@@ -1,7 +1,7 @@
 "use client";
 
 /** v2 project pipeline — real data; stepper + current stage + tabs. */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Pill } from "../../_components/ui";
 import { getProjectsBoq, deleteProjectAction, advanceProjectStage, deleteProjectContract } from "@/_actions/projects";
+import { getProjectTimeline, type ProjectTimeline } from "@/_actions/project-timeline";
 import { deleteBoq as deleteLegacyBoq, approveBoq } from "@/_actions/boq";
 import { getQuotations, approveQuotation, deleteQuotation } from "@/_actions/quotations";
 import { getSurveys, deleteSurvey } from "@/_actions/survey";
@@ -39,6 +40,18 @@ import { getProjectTasks, deleteTaskPlan } from "@/_actions/tasks-v2";
 import { getWorkOrders, deleteWorkOrder } from "@/_actions/workorder";
 import { getRequests } from "@/_actions/request-v2";
 import { computeStages, StatusBadge, type Stage } from "@/_components/pipeline";
+import { useConfirm } from "../../_components/Confirm";
+import { getV2User, type V2User } from "../../../_lib/session";
+import { isManager, isAdmin } from "@/_lib/permissions";
+import {
+  getProjectInstall,
+  requestProjectPause,
+  reviewProjectPause,
+  approveProjectPause,
+  rejectProjectPause,
+  resumeProject,
+  type InstallRow,
+} from "@/_actions/install-tracking";
 
 type TabKey = "overview" | "survey" | "quotations" | "contracts" | "boq" | "tasks" | "workorders" | "materials" | "requests";
 
@@ -57,9 +70,21 @@ const TAB_ICONS: Record<TabKey, React.ReactNode> = {
 /** v2 pipeline stage order (mirrors advanceProjectStage on the server). */
 const V2_STAGES = ["ລົງທະບຽນ", "ສຳຫຼວດ", "ສະເໜີລາຄາ", "ສັນຍາ", "BOQ", "ກຳນົດໜ້າວຽກ", "ໃບງານ", "ປິດໂຄງການ"];
 
+const fmtDay = (v?: string | null) => (v ? new Date(v).toLocaleDateString("en-GB") : "—");
+/** Human duration in days: "12 ມື້" / "1 ປີ 2 ເດືອນ 3 ມື້". */
+function durationLabel(days?: number | null): string {
+  if (days == null) return "—";
+  if (days <= 0) return "ມື້ດຽວ";
+  const years = Math.floor(days / 365);
+  const months = Math.floor((days % 365) / 30);
+  const rest = (days % 365) % 30;
+  return [years && `${years} ປີ`, months && `${months} ເດືອນ`, rest && `${rest} ມື້`].filter(Boolean).join(" ") || `${days} ມື້`;
+}
+
 export default function V2PipelinePage() {
   const { id } = useParams();
   const router = useRouter();
+  const confirm = useConfirm();
   const [project, setProject] = useState<any>(null);
   const [quotations, setQuotations] = useState<any[]>([]);
   const [surveys, setSurveys] = useState<any[]>([]);
@@ -68,6 +93,9 @@ export default function V2PipelinePage() {
   const [workorders, setWorkorders] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<ProjectTimeline | null>(null);
+  const [install, setInstall] = useState<InstallRow | null>(null);
+  const [me, setMe] = useState<V2User | null>(null);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
   const tabParam = useSearchParams().get("tab") as TabKey | null;
@@ -97,44 +125,47 @@ export default function V2PipelinePage() {
     }
   };
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const [pRes, qRes, sRes, cRes, tRes, woRes, mRes, rqRes]: any = await Promise.all([
-          getProjectsBoq({ projectId: String(id) }),
-          getQuotations({ projectId: String(id) }),
-          getSurveys(String(id)),
-          getContracts({ projectId: String(id) }),
-          getProjectTasks({ projectId: String(id) }),
-          getWorkOrders({ projectId: String(id) }),
-          getProjectMaterials(String(id)),
-          getRequests({ projectId: String(id) }),
-        ]);
-        if (!alive) return;
-        const rows = pRes?.success ? pRes.data || [] : [];
-        setProject(rows[0] || null);
-        setQuotations(qRes?.success ? qRes.data || [] : Array.isArray(qRes) ? qRes : []);
-        setSurveys(sRes?.success ? sRes.data || [] : []);
-        setContracts(cRes?.success ? cRes.data || [] : []);
-        setTasks(tRes?.success ? tRes.data || [] : []);
-        setWorkorders(woRes?.success ? woRes.data || [] : []);
-        setMaterials(mRes?.success ? mRes.data || [] : []);
-        setRequests(rqRes?.success ? rqRes.data || [] : []);
-        const errs = [tRes, woRes, mRes, rqRes]
-          .filter((r: any) => r && r.success === false)
-          .map((r: any) => r.message);
-        setLoadError(errs.length ? errs.join(" · ") : "");
-      } catch {
-        if (alive) setProject(null);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+  // Re-fetch all project data. Called on mount and after mutations (approve /
+  // pause / etc.) instead of a full window reload — keeps tab/scroll state.
+  const reload = useCallback(async () => {
+    try {
+      const [pRes, qRes, sRes, cRes, tRes, woRes, mRes, rqRes, tlRes]: any = await Promise.all([
+        getProjectsBoq({ projectId: String(id) }),
+        getQuotations({ projectId: String(id) }),
+        getSurveys(String(id)),
+        getContracts({ projectId: String(id) }),
+        getProjectTasks({ projectId: String(id) }),
+        getWorkOrders({ projectId: String(id) }),
+        getProjectMaterials(String(id)),
+        getRequests({ projectId: String(id) }),
+        getProjectTimeline(String(id)),
+      ]);
+      setTimeline(tlRes?.success ? tlRes.data : null);
+      setMe(getV2User());
+      getProjectInstall(String(id)).then((ir: any) => ir?.success && setInstall(ir.data));
+      const rows = pRes?.success ? pRes.data || [] : [];
+      setProject(rows[0] || null);
+      setQuotations(qRes?.success ? qRes.data || [] : Array.isArray(qRes) ? qRes : []);
+      setSurveys(sRes?.success ? sRes.data || [] : []);
+      setContracts(cRes?.success ? cRes.data || [] : []);
+      setTasks(tRes?.success ? tRes.data || [] : []);
+      setWorkorders(woRes?.success ? woRes.data || [] : []);
+      setMaterials(mRes?.success ? mRes.data || [] : []);
+      setRequests(rqRes?.success ? rqRes.data || [] : []);
+      const errs = [tRes, woRes, mRes, rqRes]
+        .filter((r: any) => r && r.success === false)
+        .map((r: any) => r.message);
+      setLoadError(errs.length ? errs.join(" · ") : "");
+    } catch {
+      setProject(null);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   const legacyContracts = useMemo(
     () => (Array.isArray(project?.contractlist) ? project.contractlist : []).map((c: any) => ({ ...c, src: "erp" })),
@@ -158,22 +189,14 @@ export default function V2PipelinePage() {
   const hasActiveQuo = quotations.some((q: any) => (q.status || "") !== "ປະຕິເສດ");
   const hasAnyContract = allContracts.length > 0;
 
-  const bumpStatus = (target: string) =>
-    setProject((p: any) => {
-      if (!p) return p;
-      const ci = V2_STAGES.indexOf(p.project_status);
-      const ti = V2_STAGES.indexOf(target);
-      return ti > ci ? { ...p, project_status: target } : p;
-    });
 
   const setQuoStatus = async (qid: any, status: string) => {
+    const reject = status === "ປະຕິເສດ";
+    if (!(await confirm({ title: reject ? "ຢືນຢັນການປະຕິເສດ" : "ຢືນຢັນການອະນຸມັດ", message: `${reject ? "ປະຕິເສດ" : "ອະນຸມັດ"} ໃບສະເໜີລາຄາ?`, confirmLabel: reject ? "ປະຕິເສດ" : "ອະນຸມັດ", tone: reject ? "danger" : "primary" }))) return;
     const res: any = await approveQuotation(String(qid), status);
     if (res?.success) {
-      setQuotations((qs) => qs.map((q) => (q.id === qid ? { ...q, status } : q)));
-      if (status === "ອະນຸມັດແລ້ວ") {
-        advanceProjectStage(String(id), "ສະເໜີລາຄາ").catch(() => {});
-        bumpStatus("ສະເໜີລາຄາ");
-      }
+      if (status === "ອະນຸມັດແລ້ວ") advanceProjectStage(String(id), "ສະເໜີລາຄາ").catch(() => {});
+      reload();
     } else {
       alert(res?.message || "ບໍ່ສຳເລັດ");
     }
@@ -186,39 +209,25 @@ export default function V2PipelinePage() {
     } catch {
       /* ignore */
     }
+    if (approved && !(await confirm({ title: "ຢືນຢັນການອະນຸມັດ", message: which === "sales" ? "ອະນຸມັດສັນຍາ (ຝ່າຍຂາຍ)?" : "ອະນຸມັດສັນຍາ (ຝ່າຍບັນຊີ)?", confirmLabel: "ອະນຸມັດ" }))) return;
     const res: any = await setContractApproval(String(cid), which, approved, approver);
     if (res?.success) {
-      const flag = which === "sales" ? "sales_approved" : "accounting_approved";
-      const who = which === "sales" ? "sales_approver" : "accounting_approver";
-      setContracts((cs) => cs.map((c) => (c.id === cid ? { ...c, [flag]: approved, [who]: approver } : c)));
+      reload();
     } else {
       alert(res?.message || "ບໍ່ສຳເລັດ");
     }
   };
 
   const setBoqStep = async (docNo: any, status: string) => {
+    const reject = status === "ປະຕິເສດ";
+    if (!(await confirm({ title: reject ? "ຢືນຢັນການປະຕິເສດ" : "ຢືນຢັນການອະນຸມັດ", message: `${reject ? "ປະຕິເສດ" : "ອະນຸມັດ"} BOQ ${docNo}?`, confirmLabel: reject ? "ປະຕິເສດ" : "ອະນຸມັດ", tone: reject ? "danger" : "primary" }))) return;
     let user: any = {};
     try { user = JSON.parse(localStorage.getItem("v2_user") || "{}"); } catch { /* ignore */ }
     const statusNum = status === "ອະນຸມັດແລ້ວ" ? 1 : status === "ປະຕິເສດ" ? 2 : 0;
     const res: any = await approveBoq(String(docNo), { status: statusNum, username: user.username || "" });
     if (res?.success) {
-      setProject((p: any) =>
-        p
-          ? {
-              ...p,
-              contractlist: (p.contractlist || []).map((c: any) => ({
-                ...c,
-                boq_list: (c.boq_list || []).map((x: any) =>
-                  (x.doc_no || x.boq_no) === docNo ? { ...x, approve_status: statusNum, approver: user.name || x.approver } : x
-                ),
-              })),
-            }
-          : p
-      );
-      if (status === "ອະນຸມັດແລ້ວ") {
-        advanceProjectStage(String(id), "BOQ").catch(() => {});
-        bumpStatus("BOQ");
-      }
+      if (status === "ອະນຸມັດແລ້ວ") advanceProjectStage(String(id), "BOQ").catch(() => {});
+      reload();
     } else {
       alert(res?.message || "ບໍ່ສຳເລັດ");
     }
@@ -254,7 +263,7 @@ export default function V2PipelinePage() {
     quotation: { label: "ສ້າງໃບສະເໜີລາຄາ", href: `/projects/${id}/quotation/new` },
     contract: { label: "ສ້າງສັນຍາ", href: `/projects/${id}/contract/new` },
     boq: { label: "ສ້າງ BOQ", href: `/projects/${id}/boq/new` },
-    taskplan: { label: "ກຳນົດໜ້າວຽກ", href: `/projects/${id}/tasks/new` },
+    // ກຳນົດໜ້າວຽກ ສ້າງເອງບໍ່ໄດ້ — ໜ້າວຽກມາດຕະຖານຖືກສ້າງອັດຕະໂນມັດເມື່ອ BOQ ອະນຸມັດ.
     workorder: { label: "ອອກໃບງານ", href: `/projects/${id}/workorder/new` },
   };
 
@@ -412,18 +421,66 @@ export default function V2PipelinePage() {
 
           <div className="p-5">
           {tab === "overview" && (
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-              <Row label="ຊື່ໂຄງການ" value={project.project_name} />
-              <Row label="ສະຖານະ" value={project.project_status} />
-              <Row label="ລະຫັດລູກຄ້າ" value={project.sml_code} />
-              <Row label="ຜູ້ປະສານ" value={project.coordinator} />
-              <Row label="ໂທ" value={project.phone} />
-              <Row label="ແຂວງ" value={project.province_name} />
-              <Row label="ເມືອງ" value={project.district_name} />
-              <Row label="ບ້ານ" value={project.village_name} />
-              <Row label="ຈຳນວນສັນຍາ" value={String(allContracts.length)} />
-              <Row label="ຈຳນວນ BOQ" value={String(allBoqs.length)} />
-            </dl>
+            <div className="space-y-5">
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                <Row label="ຊື່ໂຄງການ" value={project.project_name} />
+                <Row label="ສະຖານະ" value={project.project_status} />
+                <Row label="ລະຫັດລູກຄ້າ" value={project.sml_code} />
+                <Row label="ຜູ້ປະສານ" value={project.coordinator} />
+                <Row label="ໂທ" value={project.phone} />
+                <Row label="ແຂວງ" value={project.province_name} />
+                <Row label="ເມືອງ" value={project.district_name} />
+                <Row label="ບ້ານ" value={project.village_name} />
+                <Row label="ຈຳນວນສັນຍາ" value={String(allContracts.length)} />
+                <Row label="ຈຳນວນ BOQ" value={String(allBoqs.length)} />
+                <Row label="ເລີ່ມຕິດຕັ້ງ" value={fmtDay(timeline?.installStartedAt)} />
+                <Row label="ສິ້ນສຸດ / ປິດໂຄງການ" value={timeline?.closedAt ? fmtDay(timeline.closedAt) : timeline?.ongoing ? "ຍັງດຳເນີນຢູ່" : "—"} />
+                <Row
+                  label="ໄລຍະເວລາໂຄງການ"
+                  value={
+                    timeline?.installStartedAt
+                      ? `${durationLabel(timeline.durationDays)}${timeline.ongoing ? " (ຮອດປັດຈຸບັນ)" : ""}`
+                      : "ຍັງບໍ່ເລີ່ມຕິດຕັ້ງ"
+                  }
+                />
+                <Row label="ຊົ່ວໂມງເຮັດງານ" value={install ? `${install.worked_hours.toFixed(1)} ຊມ` : "—"} />
+              </dl>
+              {install && (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-[12px] font-black text-slate-900">ສະຖານະການຕິດຕັ້ງ / ການພັກ</h3>
+                    {install.paused
+                      ? <Pill tone="red">ພັກ {install.current_pause_days} ມື້ (ຕັ້ງແຕ່ {fmtDay(install.paused_since)})</Pill>
+                      : <Pill tone="green">ກຳລັງດຳເນີນ</Pill>}
+                  </div>
+                  {install.total_pause_days > 0 && (
+                    <p className="mb-3 text-[11.5px] text-slate-500">ເຄີຍພັກລວມ {install.total_pause_days} ມື້</p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {install.paused && isManager(me) && (
+                      <button onClick={async () => { if (await confirm({ title: "ກັບມາດຳເນີນ", message: "ຍົກເລີກການພັກ ແລະ ກັບໄປຕິດຕັ້ງ?", confirmLabel: "ກັບມາດຳເນີນ" })) { const r: any = await resumeProject(String(id)); if (r?.success) reload(); else alert(r?.message); } }} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11.5px] font-bold text-emerald-700 hover:bg-emerald-100">ກັບມາດຳເນີນ</button>
+                    )}
+                    {!install.paused && !install.req_id && (
+                      <button onClick={async () => { const reason = window.prompt("ເຫດຜົນທີ່ຂໍພັກໂຄງການ:", ""); if (reason == null) return; const r: any = await requestProjectPause(String(id), reason); if (r?.success) reload(); else alert(r?.message); }} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11.5px] font-bold text-slate-600 hover:bg-slate-50">ຮ້ອງຂໍພັກ</button>
+                    )}
+                    {install.req_status === "requested" && (isManager(me) ? (
+                      <>
+                        <span className="text-[11.5px] font-semibold text-slate-500 self-center">ຄຳຮ້ອງພັກ{install.req_reason ? `: ${install.req_reason}` : ""} —</span>
+                        <button onClick={async () => { if (await confirm({ title: "ກວດສອບຄຳຮ້ອງພັກ", message: "ກວດສອບຜ່ານ?", confirmLabel: "ຜ່ານ" })) { const r: any = await reviewProjectPause(install.req_id!, true); if (r?.success) reload(); else alert(r?.message); } }} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11.5px] font-bold text-blue-700 hover:bg-blue-100">ກວດສອບຜ່ານ</button>
+                        <button onClick={async () => { if (await confirm({ title: "ປະຕິເສດ", message: "ປະຕິເສດ ຄຳຮ້ອງພັກ?", confirmLabel: "ປະຕິເສດ", tone: "danger" })) { const r: any = await rejectProjectPause(install.req_id!); if (r?.success) reload(); else alert(r?.message); } }} className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[11.5px] font-bold text-rose-600 hover:bg-rose-50">ປະຕິເສດ</button>
+                      </>
+                    ) : <span className="text-[11.5px] font-semibold text-amber-600">ລໍຖ້າຜູ້ຈັດການກວດສອບຄຳຮ້ອງພັກ</span>)}
+                    {install.req_status === "manager_ok" && (isAdmin(me) ? (
+                      <>
+                        <span className="text-[11.5px] font-semibold text-slate-500 self-center">ກວດສອບແລ້ວ —</span>
+                        <button onClick={async () => { if (await confirm({ title: "ອະນຸມັດ ພັກໂຄງການ", message: "ອະນຸມັດ ໃຫ້ພັກໂຄງການ?", confirmLabel: "ອະນຸມັດ" })) { const r: any = await approveProjectPause(install.req_id!); if (r?.success) reload(); else alert(r?.message); } }} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11.5px] font-bold text-rose-700 hover:bg-rose-100">ອະນຸມັດພັກ</button>
+                        <button onClick={async () => { if (await confirm({ title: "ປະຕິເສດ", message: "ປະຕິເສດ ຄຳຮ້ອງພັກ?", confirmLabel: "ປະຕິເສດ", tone: "danger" })) { const r: any = await rejectProjectPause(install.req_id!); if (r?.success) reload(); else alert(r?.message); } }} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11.5px] font-bold text-slate-500 hover:bg-slate-50">ປະຕິເສດ</button>
+                      </>
+                    ) : <span className="text-[11.5px] font-semibold text-amber-600">ລໍຖ້າຜູ້ດູແລລະບົບອະນຸມັດ</span>)}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           {tab === "survey" && (
             <div>
@@ -491,21 +548,21 @@ export default function V2PipelinePage() {
           )}
           {tab === "tasks" && (
             <div>
-              {hasAnyContract && (
+              {/* ໜ້າວຽກມາດຕະຖານຖືກສ້າງອັດຕະໂນມັດເມື່ອ BOQ ອະນຸມັດ — ບໍ່ມີປຸ່ມສ້າງ.
+                  ເມື່ອມີແຜນແລ້ວ ຍັງສາມາດແກ້ໄຂ/ລຶບໄດ້. */}
+              {hasAnyContract && tasks.length > 0 && (
                 <div className="mb-4 flex justify-end gap-2">
-                  {tasks.length > 0 && (
-                    <button
-                      onClick={delTaskPlan}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 text-xs font-bold text-rose-600 hover:bg-rose-50"
-                    >
-                      <Trash2 size={13} /> ລຶບແຜນວຽກ
-                    </button>
-                  )}
+                  <button
+                    onClick={delTaskPlan}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 text-xs font-bold text-rose-600 hover:bg-rose-50"
+                  >
+                    <Trash2 size={13} /> ລຶບແຜນວຽກ
+                  </button>
                   <button
                     onClick={() => router.push(`/projects/${id}/tasks/new`)}
                     className={addBtn}
                   >
-                    <Plus size={14} strokeWidth={2.5} /> {tasks.length ? "ແກ້ໄຂແຜນວຽກ" : "ກຳນົດໜ້າວຽກ"}
+                    <Pencil size={14} strokeWidth={2.5} /> ແກ້ໄຂແຜນວຽກ
                   </button>
                 </div>
               )}
@@ -998,7 +1055,6 @@ function ContractList({
                 <div className="flex items-center flex-wrap gap-2">
                   <span className="font-mono text-sm font-extrabold text-slate-900">{c.contract_no || "-"}</span>
                   <Pill tone={full ? "green" : "amber"}>{full ? "ສົມບູນ" : "ລໍຖ້າອະນຸມັດ"}</Pill>
-                  {isErp && <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-500">ເກົ່າ</span>}
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
                   <span className="font-bold text-blue-600">ມູນຄ່າ {fmtMoney(c.total_amount)}</span>

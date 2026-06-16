@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import CrossList from "../_components/CrossList";
 import ProjectPickerModal from "../_components/ProjectPickerModal";
-import { Pill, Btn } from "../_components/ui";
+import { Btn } from "../_components/ui";
 import { getRequests } from "@/_actions/request-v2";
 
 const d10 = (v: unknown) => {
@@ -16,7 +16,6 @@ const d10 = (v: unknown) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
 const stLabel = (s: string) => (s === "withdrawn" ? "ເບີກແລ້ວ" : s === "rejected" ? "ປະຕິເສດ" : "ຮ້ອງຂໍ");
-const stTone = (s: string) => (s === "withdrawn" ? "green" : s === "rejected" ? "red" : "amber");
 
 export default function RequestsClient({ initialRows }: { initialRows: any[] }) {
   const router = useRouter();
@@ -42,7 +41,7 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
           { header: "ໂຄງການ", cell: (r) => <span className="font-medium">{r.project_name || "-"}</span> },
           { header: "ວັນທີ", cell: (r) => d10(r.created_at) },
           { header: "ລາຍການ", align: "right", cell: (r) => (Array.isArray(r.items) ? r.items.length : 0) },
-          { header: "ສະຖານະ", cell: (r) => <Pill tone={stTone(String(r.status || "")) as any}>{stLabel(String(r.status || "requested"))}</Pill> },
+          { header: "ສະຖານະ", cell: (r) => <span className="text-slate-600">{stLabel(String(r.status || "requested"))}</span> },
         ]}
       />
       <ProjectPickerModal

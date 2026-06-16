@@ -2,12 +2,13 @@
  * RBAC catalog + helpers — shared by client (sidebar / button gating) and server
  * (middleware / action guards).
  *
- * Model: every user has a `role` (admin | manager | staff) and a per-module
- * `permissions` map `{ moduleKey: action[] }`.
+ * Model: every user has a `role` (admin | manager | head_craftsman | staff) and
+ * a per-module `permissions` map `{ moduleKey: action[] }`.
  *   - admin   → full access + user management (implicit, perms ignored).
- *   - manager → full access + user management (implicit, perms ignored).
- *   - staff   → ONLY the modules/actions explicitly granted in `permissions`.
- * The "users" admin area is gated by role (manager+), never by the staff matrix.
+ *   - manager → user-management tier (implicit), but module access follows the
+ *               permission matrix — configurable just like staff/head_craftsman.
+ *   - head_craftsman / staff → ONLY the modules/actions granted in `permissions`.
+ * The "users" admin area is gated by role (manager+), never by the matrix.
  */
 export type Role = "admin" | "manager" | "head_craftsman" | "staff";
 export type Action = "view" | "create" | "edit" | "delete" | "approve";
@@ -36,6 +37,10 @@ export const MODULES: ModuleDef[] = [
   { key: "schedule", label: "ກຳນົດໜ້າວຽກ", href: "/schedule", actions: ["view", "create", "edit", "delete"] },
   { key: "work-orders", label: "ໃບງານ", href: "/work-orders", actions: ["view", "create", "edit", "delete", "approve"] },
   { key: "tracking", label: "ຕິດຕາມຊ່າງ", href: "/tracking", actions: ["view"] },
+  { key: "install-tracking", label: "ຕິດຕາມການຕິດຕັ້ງ", href: "/install-tracking", actions: ["view"] },
+  { key: "tech-teams", label: "ຈັດການທີມຊ່າງ", href: "/tech-teams", actions: ["view", "create", "edit", "delete"] },
+  { key: "tech-summary", label: "ສະຫຼຸບຜົນງານຊ່າງ", href: "/tech-summary", actions: ["view"] },
+  { key: "std-tasks", label: "ງານຕິດຕັ້ງມາດຕະຖານ", href: "/std-tasks", actions: ["view", "create", "edit", "delete"] },
   { key: "requests", label: "ຂໍເບີກ", href: "/requests", actions: ["view", "create", "edit", "delete", "approve"] },
   { key: "finance", label: "ບັນຊີ / ງວດຈ່າຍ", href: "/finance", actions: ["view"] },
   { key: "inventory", label: "ສິນຄ້າ / ສະຕັອກ", href: "/inventory", actions: ["view"] },
@@ -72,9 +77,13 @@ export function isManager(u: AccessUser): boolean {
   return r === "admin" || r === "manager";
 }
 
-/** Can the user perform `action` on `moduleKey`? Managers/admins always can. */
+/**
+ * Can the user perform `action` on `moduleKey`?
+ * Only admins have implicit full access; managers — like staff and head
+ * craftsmen — are governed by their per-module permission matrix.
+ */
 export function can(u: AccessUser, moduleKey: string, action: Action = "view"): boolean {
-  if (isManager(u)) return true;
+  if (isAdmin(u)) return true;
   const acts = u?.permissions?.[moduleKey];
   return Array.isArray(acts) && acts.includes(action);
 }

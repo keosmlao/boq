@@ -76,25 +76,37 @@ export default function CreateBoqPage() {
         const p = pRes?.success ? (pRes.data || [])[0] : null;
         setProject(p);
 
-        // ERP contract (odg_projects_contract) — required to issue a BOQ.
-        const erp = (Array.isArray(p?.contractlist) ? p.contractlist : [])[0] || null;
-        setErpContract(erp);
-        setCustCode(erp?.cust_code || p?.sml_code || "");
-
-        // Prefill materials from the v2 contract's inventory products (locked).
+        // The v2 contract (odg_contract) for prefill + as a fallback when there's
+        // no legacy ERP contract yet (saveBoq mirrors it into odg_projects_contract).
         const v2ct = (cRes?.success ? cRes.data || [] : [])[0] || null;
-        const products = (Array.isArray(v2ct?.items) ? v2ct.items : []).filter(
-          (it: any) => String(it.item_code || "").trim() !== "",
-        );
-        setMats(
-          products.map((it: any) => ({
+
+        // ERP contract (odg_projects_contract) is preferred; otherwise fall back to
+        // the v2 contract so a BOQ can still be issued.
+        const erp = (Array.isArray(p?.contractlist) ? p.contractlist : [])[0] || null;
+        const effective = erp || (v2ct ? { contract_no: v2ct.contract_no, cust_code: v2ct.cust_code || p?.sml_code || "" } : null);
+        setErpContract(effective);
+        setCustCode(effective?.cust_code || p?.sml_code || "");
+        // Prefill (locked) materials from the contract. Prefer the ERP contract's
+        // detail (odg_projects_contract_detail); fall back to the v2 contract items.
+        const erpItems = (Array.isArray(erp?.contract_detail) ? erp.contract_detail : [])
+          .filter((it: any) => String(it.item_name || "").trim() !== "")
+          .map((it: any) => ({
+            itemCode: String(it.item_code || ""),
+            description: String(it.item_name || ""),
+            unit: "",
+            qty: 1,
+            locked: true,
+          }));
+        const v2Items = (Array.isArray(v2ct?.items) ? v2ct.items : [])
+          .filter((it: any) => String(it.item_code || "").trim() !== "")
+          .map((it: any) => ({
             itemCode: it.item_code || "",
             description: String(it.description || it.item_name || ""),
             unit: String(it.unit || ""),
             qty: num(it.qty) || 1,
             locked: true,
-          })),
-        );
+          }));
+        setMats(erpItems.length ? erpItems : v2Items);
 
         const code = erp?.cust_code || p?.sml_code;
         if (code) {

@@ -2,7 +2,6 @@
 
 import React from "react";
 import CrossList from "../_components/CrossList";
-import { Pill } from "../_components/ui";
 import { getAllContractsForList } from "@/_actions/contracts";
 
 export default function ContractsClient({ initialRows }: { initialRows: any[] }) {
@@ -24,11 +23,11 @@ export default function ContractsClient({ initialRows }: { initialRows: any[] })
         { header: "ລູກຄ້າ", cell: (r) => r.customer_name || "-" },
         {
           header: "ຝ່າຍຂາຍ",
-          cell: (r) => <Pill tone={r.sales_approved ? "green" : "amber"}>{r.sales_approved ? "ອະນຸມັດ" : "ລໍຖ້າ"}</Pill>,
+          cell: (r) => <span className="text-slate-600">{r.sales_approved ? "ອະນຸມັດ" : "ລໍຖ້າ"}</span>,
         },
         {
           header: "ບັນຊີ",
-          cell: (r) => <Pill tone={r.accounting_approved ? "green" : "amber"}>{r.accounting_approved ? "ອະນຸມັດ" : "ລໍຖ້າ"}</Pill>,
+          cell: (r) => <span className="text-slate-600">{r.accounting_approved ? "ອະນຸມັດ" : "ລໍຖ້າ"}</span>,
         },
       ]}
     />

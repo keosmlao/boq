@@ -13,14 +13,12 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import CrossList from "../_components/CrossList";
 import ProjectPickerModal from "../_components/ProjectPickerModal";
-import { Pill, Btn } from "../_components/ui";
+import { Btn } from "../_components/ui";
 
 const money = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n.toLocaleString("en-US") : "-";
 };
-const tone = (s: string) => (s === "ອະນຸມັດແລ້ວ" ? "green" : s === "ປະຕິເສດ" ? "red" : "amber");
-
 export default function BoqClient({ initialRows }: { initialRows: any[] }) {
   const router = useRouter();
   const [pick, setPick] = useState(false);
@@ -53,7 +51,7 @@ export default function BoqClient({ initialRows }: { initialRows: any[] }) {
           { header: "ມູນຄ່າ", align: "right", cell: (r) => money(r.total_amount ?? r.subtotal) },
           { header: "ຜູ້ຂໍ", cell: (r) => r.requester || "-" },
           { header: "ຜູ້ອະນຸມັດ", cell: (r) => r.approver || "-" },
-          { header: "ສະຖານະ", cell: (r) => <Pill tone={tone(String(r.status || "")) as any}>{r.status || "ລໍຖ້າອະນຸມັດ"}</Pill> },
+          { header: "ສະຖານະ", cell: (r) => <span className="text-slate-600">{r.status || "ລໍຖ້າອະນຸມັດ"}</span> },
           { header: "ວັນທີ", cell: (r) => (r.created_at ?? "").toString().slice(0, 10) || "-" },
         ]}
       />

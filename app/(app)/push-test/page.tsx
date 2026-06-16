@@ -1,14 +1,37 @@
 "use client";
 
-/** Admin tool: check the push pipeline and send a test notification. */
+/** Admin tool: Firebase Cloud Messaging diagnostics for the Saang mobile app. */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, BellRing, CheckCircle2, XCircle, RefreshCw, Send, Loader2, Smartphone } from "lucide-react";
+import { Bell, BellRing, CheckCircle2, XCircle, RefreshCw, Send, Loader2, Smartphone, KeyRound } from "lucide-react";
 import { Page, PageHeader, Card } from "../_components/ui";
 import { getV2User } from "../../_lib/session";
 
 type Device = { employee_code: string; name: string; tokens: number; platforms: string };
-type Status = { configured: boolean; totalTokens: number; devices: Device[] };
+type Status = {
+  configured: boolean;
+  totalTokens: number;
+  devices: Device[];
+  projectId?: string | null;
+  serviceAccountSource?: string | null;
+};
+
+function StatusBox({ ok, icon, title, value }: { ok?: boolean; icon: React.ReactNode; title: string; value: string }) {
+  const cls = ok == null
+    ? "border-slate-200 bg-white"
+    : ok
+      ? "border-emerald-200 bg-emerald-50"
+      : "border-rose-200 bg-rose-50";
+  return (
+    <div className={`flex items-center gap-2.5 rounded-xl border p-3 ${cls}`}>
+      {icon}
+      <div>
+        <div className="text-[12px] font-bold text-slate-700">{title}</div>
+        <div className={`text-[11.5px] font-semibold ${ok == null ? "text-slate-500" : ok ? "text-emerald-700" : "text-rose-700"}`}>{value}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function PushTestPage() {
   const router = useRouter();
@@ -49,6 +72,7 @@ export default function PushTestPage() {
       });
       const j = await r.json().catch(() => ({}));
       setResult({ ok: r.ok && j?.ok !== false, message: j?.message || (r.ok ? "ສຳເລັດ" : "ບໍ່ສຳເລັດ") });
+      await load();
     } catch (e) {
       setResult({ ok: false, message: (e as Error).message });
     } finally {
@@ -58,58 +82,62 @@ export default function PushTestPage() {
 
   return (
     <Page max="max-w-2xl">
-      <PageHeader title="ທົດສອບການແຈ້ງເຕືອນ" subtitle="ກວດ Firebase ແລະ ສົ່ງ push ທົດສອບໄປຫາແອັບຊ່າງ" />
+      <PageHeader title="ທົດສອບ Push ໄປແອັບຊ່າງ" subtitle="Firebase Cloud Messaging (FCM) ສຳລັບ mobile app" />
 
-      {/* Status */}
       <Card className="mb-4 p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">ສະຖານະລະບົບ</h2>
+          <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">ສະຖານະລະບົບ Mobile Push</h2>
           <button onClick={load} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50">
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> ໂຫຼດໃໝ່
           </button>
         </div>
+
         {loading && !status ? (
           <div className="flex items-center gap-2 py-3 text-sm text-slate-400"><Loader2 size={16} className="animate-spin" /> ກຳລັງໂຫຼດ...</div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <div className={`flex items-center gap-2.5 rounded-xl border p-3 ${status?.configured ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}>
-              {status?.configured ? <CheckCircle2 size={20} className="text-emerald-600" /> : <XCircle size={20} className="text-rose-600" />}
-              <div>
-                <div className="text-[12px] font-bold text-slate-700">Firebase</div>
-                <div className={`text-[11.5px] font-semibold ${status?.configured ? "text-emerald-700" : "text-rose-700"}`}>
-                  {status?.configured ? "ຕັ້ງຄ່າແລ້ວ" : "ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ"}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-3">
-              <Smartphone size={20} className="text-blue-600" />
-              <div>
-                <div className="text-[12px] font-bold text-slate-700">Device ທັງໝົດ</div>
-                <div className="text-[11.5px] font-semibold text-slate-500">{status?.totalTokens ?? 0} ໜ່ວຍ</div>
-              </div>
-            </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <StatusBox
+              ok={!!status?.configured}
+              icon={status?.configured ? <CheckCircle2 size={20} className="text-emerald-600" /> : <XCircle size={20} className="text-rose-600" />}
+              title="Firebase Admin"
+              value={status?.configured ? "ຕັ້ງຄ່າແລ້ວ" : "ຍັງບໍ່ມີ service account"}
+            />
+            <StatusBox
+              ok={null}
+              icon={<Smartphone size={20} className="text-blue-600" />}
+              title="Device token"
+              value={`${status?.totalTokens ?? 0} ໜ່ວຍ`}
+            />
           </div>
         )}
-        {status && !status.configured && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11.5px] font-medium text-amber-700">
-            ວາງໄຟລ໌ <b>firebase-service-account.json</b> (project ດຽວກັນກັບແອັບ) ໄວ້ໃນ root server ແລ້ວ restart.
+
+        {status?.projectId && (
+          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[11.5px] font-semibold text-slate-600">
+            Firebase project: <b>{status.projectId}</b>{status.serviceAccountSource ? ` · ${status.serviceAccountSource}` : ""}
           </p>
+        )}
+
+        {status && !status.configured && (
+          <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11.5px] font-medium text-amber-800">
+            <div className="mb-1 flex items-center gap-1.5 font-bold"><KeyRound size={13} /> ຂາດ server key ສຳລັບສົ່ງ FCM</div>
+            ໃຫ້ເອົາ Firebase service account JSON ຂອງ project <b>saleproject-36fc8</b> ມາວາງເປັນ
+            <b> BOQ2026/firebase-service-account.json</b> ຫຼືຕັ້ງ <b>FIREBASE_SERVICE_ACCOUNT</b> ໃນ `.env`, ແລ້ວ restart server.
+          </div>
         )}
       </Card>
 
-      {/* Manual send */}
       <Card className="mb-4 p-4">
-        <h2 className="mb-2 text-[13.5px] font-bold text-[var(--theme-text)]">ສົ່ງທົດສອບດ້ວຍລະຫັດພະນັກງານ</h2>
+        <h2 className="mb-2 text-[13.5px] font-bold text-[var(--theme-text)]">ສົ່ງທົດສອບໄປແອັບ</h2>
         <div className="flex gap-2">
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="ລະຫັດພະນັກງານ / employee_code (ເຊັ່ນ 21012)"
+            placeholder="employee_code (ເຊັ່ນ 21012)"
             className="flex-1 rounded-xl border border-slate-200 px-3.5 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/12"
           />
           <button
             onClick={() => sendTest(code.trim())}
-            disabled={!code.trim() || sending}
+            disabled={!code.trim() || sending || !status?.configured}
             className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 text-[13px] font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
           >
             {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} ສົ່ງ
@@ -122,11 +150,10 @@ export default function PushTestPage() {
         )}
       </Card>
 
-      {/* Registered devices */}
       <Card className="p-4">
-        <h2 className="mb-3 text-[13.5px] font-bold text-[var(--theme-text)]">ຊ່າງທີ່ລົງທະບຽນ device ({status?.devices?.length ?? 0})</h2>
+        <h2 className="mb-3 text-[13.5px] font-bold text-[var(--theme-text)]">Device ທີ່ລົງທະບຽນ ({status?.devices?.length ?? 0})</h2>
         {!status?.devices?.length ? (
-          <p className="py-4 text-center text-[12px] text-slate-400">ຍັງບໍ່ມີຊ່າງລົງທະບຽນ — ຊ່າງຕ້ອງ login ໃນແອັບ ແລະ ກົດອະນຸຍາດແຈ້ງເຕືອນ</p>
+          <p className="py-4 text-center text-[12px] text-slate-400">ຍັງບໍ່ມີ device token — ໃຫ້ຊ່າງ login ໃນແອັບກ່ອນ</p>
         ) : (
           <div className="space-y-2">
             {status.devices.map((d) => (
@@ -138,7 +165,7 @@ export default function PushTestPage() {
                 </div>
                 <button
                   onClick={() => sendTest(d.employee_code)}
-                  disabled={sending}
+                  disabled={sending || !status.configured}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11.5px] font-bold text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
                 >
                   <BellRing size={13} /> ສົ່ງທົດສອບ

@@ -7,6 +7,7 @@ import { cleanText, toNumber } from "@/_lib/http";
 import { approveAccounting } from "@/_lib/projects";
 import { getSessionUser } from "@/_lib/server-auth";
 import { isAdmin } from "@/_lib/permissions";
+import { seedStandardInstallTasks } from "@/_lib/standard-tasks";
 
 type Ok<T = unknown> = { success: true } & T;
 type Fail = { success: false; message: string; [extra: string]: unknown };
@@ -331,7 +332,34 @@ export async function saveBoq(payload: Record<string, unknown>): Promise<{ succe
         `,
         [projectId, /^\d+$/.test(contractRef) ? contractRef : "", contractRef],
       );
-      const contract = contractResult.rows[0];
+      let contract = contractResult.rows[0];
+
+      // Bridge: this project may have a v2 contract (odg_contract, created via
+      // /contract/new) but no legacy ERP contract yet. The ERP BOQ pipeline needs
+      // an odg_projects_contract row, so mirror the v2 contract into it once.
+      if (!contract) {
+        const v2 = await client.query(
+          `SELECT contract_no, project_name, total_amount
+             FROM odg_contract
+            WHERE project_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [projectId],
+        );
+        const v = v2.rows[0];
+        if (v) {
+          const ins = await client.query(
+            `INSERT INTO odg_projects_contract
+               (project_id, contract_name, contract_no, contract_date, cust_code, amount,
+                approve_status_1, approve_status_2, acc_approve, created_at)
+             VALUES ($1, $2, $3, NOW(), $4, $5, 0, 0, 0, NOW())
+             RETURNING roworder, contract_no`,
+            [projectId, v.project_name || null, v.contract_no || contractRef || null, custCode || null, toNumber(v.total_amount, 0)],
+          );
+          contract = ins.rows[0];
+        }
+      }
+
       const contractId = toNumber(contract?.roworder, 0);
 
       if (!contractId) return { missingContract: true, doc_no: null };
@@ -447,6 +475,30 @@ export async function approveBoq(docNo: string, payload: { status?: number; user
       [status, username, decodedDocNo],
     );
     await logActivity("boq", decodedDocNo, status > 0 ? "ອະນຸມັດ BOQ" : "ຍົກເລີກການອະນຸມັດ BOQ");
+
+    // On approval, seed the standard installation task checklist into the
+    // project's plan (idempotent — runs once per project). Best-effort: a
+    // seeding failure must not block the approval itself.
+    if (status > 0) {
+      try {
+        const pr = await query(
+          `SELECT project_id, contract_id FROM odg_projects_boq WHERE doc_no = $1 LIMIT 1`,
+          [decodedDocNo],
+        );
+        const projectId = pr.rows[0]?.project_id ? String(pr.rows[0].project_id) : "";
+        const contractId = pr.rows[0]?.contract_id != null ? String(pr.rows[0].contract_id) : null;
+        if (projectId) {
+          const n = await seedStandardInstallTasks(projectId, contractId);
+          if (n > 0) {
+            await logActivity("boq", decodedDocNo, `ສ້າງລາຍການງານຕິດຕັ້ງມາດຕະຖານ ${n} ລາຍການ`);
+            invalidate("tasks:");
+          }
+        }
+      } catch (e) {
+        console.error("seedStandardInstallTasks failed:", (e as Error).message);
+      }
+    }
+
     invalidate("projects:");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }

@@ -1,7 +1,7 @@
 "use client";
 
 /** v2 — Contract detail (read view of one contract + its line items). */
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
 import { ArrowLeft, FileSignature, FolderKanban, CheckCircle2, Circle, ListChecks, Check } from "lucide-react";
@@ -29,24 +29,24 @@ export default function ContractDetailPage() {
   const [c, setC] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        let data: any = null;
-        const res: any = await getContract(String(id));
-        if (res && res.success !== false) data = res;
-        else {
-          const lr: any = await getLegacyContract(String(id));
-          if (lr?.success) data = lr.data;
-        }
-        if (alive) setC(data);
-      } finally {
-        if (alive) setLoading(false);
+  const reload = useCallback(async () => {
+    try {
+      let data: any = null;
+      const res: any = await getContract(String(id));
+      if (res && res.success !== false) data = res;
+      else {
+        const lr: any = await getLegacyContract(String(id));
+        if (lr?.success) data = lr.data;
       }
-    })();
-    return () => { alive = false; };
+      setC(data);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   if (loading) {
     return (
@@ -75,9 +75,7 @@ export default function ContractDetailPage() {
     const approver = currentUser().name || "";
     const res: any = await setContractApproval(String(id), which, approved, approver);
     if (res?.success) {
-      const flag = which === "sales" ? "sales_approved" : "accounting_approved";
-      const who = which === "sales" ? "sales_approver" : "accounting_approver";
-      setC((prev: any) => (prev ? { ...prev, [flag]: approved, [who]: approved ? approver : null } : prev));
+      reload();
     } else {
       alert(res?.message || "ບໍ່ສຳເລັດ");
     }
@@ -98,9 +96,7 @@ export default function ContractDetailPage() {
       ? await approveProjectAction(String(c.project_id), { username, contract_no: c.contract_no })
       : await checkAccountingApprove(String(c.contract_no), { username, project_id: c.project_id ? String(c.project_id) : undefined });
     if (res?.success) {
-      const flag = which === "sales" ? "sales_approved" : "accounting_approved";
-      const who = which === "sales" ? "sales_approver" : "accounting_approver";
-      setC((prev: any) => (prev ? { ...prev, [flag]: true, [who]: u.name || username } : prev));
+      reload();
     } else {
       alert(res?.message || "ບໍ່ສຳເລັດ");
     }

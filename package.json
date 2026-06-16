@@ -9,6 +9,7 @@
     "rebuild": "npm run build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
     "db:generate": "drizzle-kit generate",
     "start": "sh -c 'next start -H 0.0.0.0 -p \"${PORT:-3000}\"'"
   },

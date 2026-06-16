@@ -6,8 +6,9 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   typescript: {
-    // TODO: turn this off after the legacy screens listed in README are typed.
-    ignoreBuildErrors: true,
+    // Type errors now fail the build (tsc --noEmit is clean). Keep it this way
+    // so regressions are caught before deploy.
+    ignoreBuildErrors: false,
   },
   // The app used to live under /v2; it is now the system at root. Keep old
   // /v2/* bookmarks and shared links working instead of 404-ing.

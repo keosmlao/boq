@@ -26,6 +26,7 @@ import {
   MODULES,
   ACTION_LABELS,
   ROLE_LABELS,
+  fullPermissions,
   type Action,
   type Permissions,
   type Role,
@@ -114,6 +115,9 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
       return { ...d, permissions: next };
     });
   };
+
+  const setAllPermissions = (on: boolean) =>
+    setDraft((d) => (d ? { ...d, permissions: on ? fullPermissions() : {} } : d));
 
   const save = async () => {
     if (!draft) return;
@@ -294,9 +298,15 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
                 </label>
               )}
 
-              {draft.role === "staff" || draft.role === "head_craftsman" ? (
+              {draft.role !== "admin" ? (
                 <div>
-                  <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">ສິດເຂົ້າເຖິງ (ຕໍ່ module)</div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">ສິດເຂົ້າເຖິງ (ຕໍ່ module)</span>
+                    <span className="flex gap-1.5">
+                      <button type="button" onClick={() => setAllPermissions(true)} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 hover:bg-blue-100">ເລືອກທັງໝົດ</button>
+                      <button type="button" onClick={() => setAllPermissions(false)} className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 hover:bg-slate-50">ລ້າງ</button>
+                    </span>
+                  </div>
                   <div className="space-y-1.5">
                     {MODULES.map((m) => (
                       <div key={m.key} className="rounded-xl border border-slate-200 p-2.5">
@@ -324,7 +334,7 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
                 </div>
               ) : (
                 <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-[12px] font-semibold text-blue-700">
-                  {draft.role === "admin" ? "ຜູ້ດູແລ" : "ຜູ້ຈັດການ"} ເຂົ້າເຖິງໄດ້ທຸກ module ແລະ ຈັດການຜູ້ໃຊ້.
+                  ຜູ້ດູແລລະບົບ ເຂົ້າເຖິງໄດ້ທຸກ module ແລະ ຈັດການຜູ້ໃຊ້ (ບໍ່ຕ້ອງກຳນົດສິດ).
                 </div>
               )}
             </div>

@@ -12,12 +12,16 @@ import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, FolderOpen, ChevronRight, Plus, RefreshCw } from "lucide-react";
 import { getProjects } from "@/_actions/projects";
-import { StatusBadge } from "@/_components/pipeline";
+import { getInstallTracking, type InstallRow } from "@/_actions/install-tracking";
 import { Page, thCls, tdCls } from "../_components/ui";
+
+const fmtD = (v?: string | null) => (v ? new Date(v).toLocaleDateString("en-GB") : "—");
+const daysSince = (v?: string | null) => (v ? Math.max(0, Math.floor((Date.now() - new Date(v).getTime()) / 86_400_000)) : null);
 
 export default function ProjectsClient({ initialRows }: { initialRows: any[] }) {
   const router = useRouter();
   const [rows, setRows] = useState<any[]>(initialRows ?? []);
+  const [metrics, setMetrics] = useState<Map<string, InstallRow>>(new Map());
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [groupByCustomer, setGroupByCustomer] = useState(false);
@@ -36,6 +40,12 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
       setLoading(false);
     }
   };
+
+  React.useEffect(() => {
+    getInstallTracking().then((r: any) => {
+      if (r?.success) setMetrics(new Map((r.data as InstallRow[]).map((x) => [x.project_id, x])));
+    });
+  }, []);
 
   const filtered = useMemo(() => {
     const kw = q.trim().toLowerCase();
@@ -190,40 +200,49 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
                   <table className="min-w-full border-separate border-spacing-0 text-xs">
                     <thead>
                       <tr className="bg-slate-50/55">
-                        <th className={`${thCls} w-12 pl-4.5 border-b border-slate-100 bg-slate-50/50`}>#</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ໂຄງການ</th>
-                        <th className={`${thCls} hidden lg:table-cell border-b border-slate-100 bg-slate-50/50`}>ສະຖານທີ່</th>
+                        <th className={`${thCls} pl-4.5 border-b border-slate-100 bg-slate-50/50`}>ໂຄງການ</th>
                         <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ສະຖານະ</th>
+                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ເລີ່ມຕິດຕັ້ງ</th>
+                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ໄລຍະ</th>
+                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ໃບງານ</th>
+                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ຊົ່ວໂມງ</th>
                         <th className={`${thCls} w-10 pr-4.5 border-b border-slate-100 bg-slate-50/50`} />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
-                      {g.projects.map((r, pi) => (
+                      {g.projects.map((r, pi) => {
+                        const m = metrics.get(String(r.id));
+                        const dur = daysSince(m?.install_started_at);
+                        return (
                         <tr
                           key={r.id ?? pi}
                           onClick={() => router.push(`/projects/${encodeURIComponent(String(r.id))}`)}
                           className="hover:bg-slate-50/50 cursor-pointer transition-colors"
                         >
-                          <td className={`${tdCls} pl-4.5 text-[11px] font-mono text-slate-400`}>
-                            {String(pi + 1).padStart(2, "0")}
+                          <td className={`${tdCls} pl-4.5 font-semibold text-slate-800`}>
+                            {r.project_name || "(ບໍ່ມີຊື່)"}
                           </td>
-                          <td className={`${tdCls} font-semibold text-slate-700`}>
-                            <div className="flex items-center gap-2.5">
-                              <Thumb url={r.image_url} name={r.project_name} />
-                              <span>{r.project_name || "(ບໍ່ມີຊື່)"}</span>
-                            </div>
+                          <td className={`${tdCls} text-slate-600`}>
+                            {r.project_status || "-"}
                           </td>
-                          <td className={`${tdCls} hidden text-slate-500 lg:table-cell`}>
-                            {[r.village_name, r.district_name, r.province_name].filter(Boolean).join(", ") || "-"}
+                          <td className={`${tdCls} text-slate-500 text-[11.5px]`}>
+                            {fmtD(m?.install_started_at)}
                           </td>
-                          <td className={tdCls}>
-                            <StatusBadge status={r.project_status} />
+                          <td className={`${tdCls} text-right text-slate-600`}>
+                            {dur != null ? `${dur} ມື້` : "—"}
+                          </td>
+                          <td className={`${tdCls} text-right text-slate-600`}>
+                            {m?.wo_count ? m.wo_count : "—"}
+                          </td>
+                          <td className={`${tdCls} text-right font-semibold text-slate-700`}>
+                            {m && m.worked_hours > 0 ? `${m.worked_hours.toFixed(1)}` : "—"}
                           </td>
                           <td className={`${tdCls} pr-4.5 text-right`}>
                             <ChevronRight className="inline-block h-4 w-4 text-slate-300" />
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -237,44 +256,53 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
               <table className="min-w-full border-separate border-spacing-0 text-xs">
                 <thead>
                   <tr className="bg-slate-50/55">
-                    <th className={`${thCls} w-12 pl-4.5 border-b border-slate-100 bg-slate-50/50`}>#</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ໂຄງການ</th>
-                    <th className={`${thCls} hidden md:table-cell border-b border-slate-100 bg-slate-50/50`}>ຊື່ລູກຄ້າ</th>
-                    <th className={`${thCls} hidden lg:table-cell border-b border-slate-100 bg-slate-50/50`}>ສະຖານທີ່</th>
+                    <th className={`${thCls} pl-4.5 border-b border-slate-100 bg-slate-50/50`}>ໂຄງການ</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ຊື່ລູກຄ້າ</th>
                     <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ສະຖານະ</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ເລີ່ມຕິດຕັ້ງ</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ໄລຍະ</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ໃບງານ</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ຊົ່ວໂມງ</th>
                     <th className={`${thCls} w-10 pr-4.5 border-b border-slate-100 bg-slate-50/50`} />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {paginated.map((r, i) => (
+                  {paginated.map((r, i) => {
+                    const m = metrics.get(String(r.id));
+                    const dur = daysSince(m?.install_started_at);
+                    return (
                     <tr
                       key={r.id ?? i}
                       onClick={() => router.push(`/projects/${encodeURIComponent(String(r.id))}`)}
                       className="hover:bg-slate-50/50 cursor-pointer transition-colors"
                     >
-                      <td className={`${tdCls} pl-4.5 text-[11px] font-mono text-slate-400`}>
-                        {String((currentPage - 1) * pageSize + i + 1).padStart(2, "0")}
+                      <td className={`${tdCls} pl-4.5 font-semibold text-slate-800`}>
+                        {r.project_name || "(ບໍ່ມີຊື່)"}
                       </td>
-                      <td className={`${tdCls} font-semibold text-slate-700`}>
-                        <div className="flex items-center gap-2.5">
-                          <Thumb url={r.image_url} name={r.project_name} />
-                          <span>{r.project_name || "(ບໍ່ມີຊື່)"}</span>
-                        </div>
-                      </td>
-                      <td className={`${tdCls} hidden text-slate-500 md:table-cell`}>
+                      <td className={`${tdCls} text-slate-500`}>
                         {r.customer_name || r.sml_code || "-"}
                       </td>
-                      <td className={`${tdCls} hidden text-slate-500 lg:table-cell`}>
-                        {[r.village_name, r.district_name, r.province_name].filter(Boolean).join(", ") || "-"}
+                      <td className={`${tdCls} text-slate-600`}>
+                        {r.project_status || "-"}
                       </td>
-                      <td className={tdCls}>
-                        <StatusBadge status={r.project_status} />
+                      <td className={`${tdCls} text-slate-500 text-[11.5px]`}>
+                        {fmtD(m?.install_started_at)}
+                      </td>
+                      <td className={`${tdCls} text-right text-slate-600`}>
+                        {dur != null ? `${dur} ມື້` : "—"}
+                      </td>
+                      <td className={`${tdCls} text-right text-slate-600`}>
+                        {m?.wo_count ? m.wo_count : "—"}
+                      </td>
+                      <td className={`${tdCls} text-right font-semibold text-slate-700`}>
+                        {m && m.worked_hours > 0 ? `${m.worked_hours.toFixed(1)}` : "—"}
                       </td>
                       <td className={`${tdCls} pr-4.5 text-right`}>
                         <ChevronRight className="inline-block h-4 w-4 text-slate-300" />
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -333,25 +361,5 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
         )}
       </div>
     </Page>
-  );
-}
-
-function Thumb({ url, name }: { url?: string | null; name?: string }) {
-  const [err, setErr] = useState(false);
-  if (url && !err) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={url}
-        alt=""
-        onError={() => setErr(true)}
-        className="h-7 w-7 flex-shrink-0 rounded object-cover ring-1 ring-slate-200/60"
-      />
-    );
-  }
-  return (
-    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-slate-50 border border-slate-100 text-[11px] font-semibold text-slate-600">
-      {(name || "?").charAt(0).toUpperCase()}
-    </div>
   );
 }
