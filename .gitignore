@@ -12,6 +12,8 @@ next-env.d.ts
 # env / secrets
 .env
 .env*.local
+firebase-service-account.json
+secrets/
 
 # os / editor
 .DS_Store

@@ -7,7 +7,33 @@
  *   FIREBASE_SERVICE_ACCOUNT      = /absolute/path/to/serviceAccount.json
  */
 import fs from "fs";
+import path from "path";
 import { query } from "@/_lib/db";
+
+/**
+ * Resolve the Firebase service-account JSON, in priority order:
+ *   1. FIREBASE_SERVICE_ACCOUNT_JSON  — the whole JSON in an env var
+ *   2. FIREBASE_SERVICE_ACCOUNT       — an absolute path to the JSON file
+ *   3. a conventional file dropped in the project (gitignored) — easiest setup:
+ *        ./firebase-service-account.json  or  ./secrets/firebase-service-account.json
+ * The key is NEVER committed; the file paths below are in .gitignore.
+ */
+function readServiceAccountRaw(): string | null {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) return process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const candidates = [
+    process.env.FIREBASE_SERVICE_ACCOUNT,
+    path.join(process.cwd(), "firebase-service-account.json"),
+    path.join(process.cwd(), "secrets", "firebase-service-account.json"),
+  ].filter(Boolean) as string[];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return fs.readFileSync(p, "utf8");
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
 
 let ensured: Promise<void> | null = null;
 function ensureTable(): Promise<void> {
@@ -51,13 +77,9 @@ async function getMessaging(): Promise<any> {
   if (initTried) return null;
   initTried = true;
   try {
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-      ? process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-      : process.env.FIREBASE_SERVICE_ACCOUNT
-        ? fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT, "utf8")
-        : null;
+    const raw = readServiceAccountRaw();
     if (!raw) {
-      console.warn("[push] Firebase not configured — set FIREBASE_SERVICE_ACCOUNT or FIREBASE_SERVICE_ACCOUNT_JSON. Notifications are skipped.");
+      console.warn("[push] Firebase not configured — set FIREBASE_SERVICE_ACCOUNT / FIREBASE_SERVICE_ACCOUNT_JSON, or drop firebase-service-account.json in the project root. Notifications are skipped.");
       return null; // push not configured yet
     }
     const cred = JSON.parse(raw);
