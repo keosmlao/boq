@@ -10,6 +10,7 @@ import DocActions from "../../_components/DocActions";
 import { getV2User } from "../../../_lib/session";
 import { can } from "@/_lib/permissions";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { useT } from "@/_lib/i18n";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -21,6 +22,7 @@ const fmtDate = (v: unknown) => (v ? String(v).slice(0, 10) : "-");
 export default function BoqDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const t = useT();
   const [b, setB] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -29,8 +31,8 @@ export default function BoqDetailPage() {
   const docNo = decodeURIComponent(String(id));
   const user = getV2User();
   const isAdminUser = String(user?.role || "").trim().toLowerCase() === "admin";
-  // The first BOQ of a project: manager (boq.approve) can approve. Subsequent
-  // (2nd+) BOQ: only an admin (ຜູ້ດູແລລະບົບ) may approve.
+  // The first BOQ of a contract: manager (boq.approve) can approve. Subsequent
+  // (2nd+) BOQ of the same contract: only an admin (ຜູ້ດູແລລະບົບ) may approve.
   const canApprove =
     can(user ? { role: user.role, permissions: user.permissions } : null, "boq", "approve") &&
     (b?.is_first !== false || isAdminUser);
@@ -79,7 +81,7 @@ export default function BoqDetailPage() {
     setBusy(true);
     try {
       const res: any = await approveBoq(docNo, { status, username: user?.username });
-      if (res?.success === false) alert(res.message || "ດຳເນີນການບໍ່ສຳເລັດ");
+      if (res?.success === false) alert(res.message || t("common.actionFailed", "ດຳເນີນການບໍ່ສຳເລັດ"));
       await load();
     } catch (e) {
       alert((e as Error).message);
@@ -92,12 +94,12 @@ export default function BoqDetailPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm font-semibold">ກຳລັງໂຫຼດ...</span>
+        <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
   if (!b) {
-    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">ບໍ່ພົບ BOQ</div>;
+    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">{t("boq.notFound", "ບໍ່ພົບ BOQ")}</div>;
   }
 
   const items = Array.isArray(b.items) ? b.items : [];
@@ -113,7 +115,7 @@ export default function BoqDetailPage() {
           className="group inline-flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors hover:text-blue-600"
         >
           <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" />
-          <span>ກັບໄປລາຍການ BOQ</span>
+          <span>{t("boq.backToList", "ກັບໄປລາຍການ BOQ")}</span>
         </button>
       </div>
 
@@ -157,10 +159,10 @@ export default function BoqDetailPage() {
             {canApprove && status === "ລໍຖ້າອະນຸມັດ" && (
               <>
                 <Btn variant="primary" disabled={busy} onClick={() => setConfirmStatus(1)}>
-                  <CheckCircle2 size={15} /> ອະນຸມັດ
+                  <CheckCircle2 size={15} /> {t("common.approve", "ອະນຸມັດ")}
                 </Btn>
                 <Btn variant="danger" disabled={busy} onClick={() => setConfirmStatus(2)}>
-                  <XCircle size={15} /> ປະຕິເສດ
+                  <XCircle size={15} /> {t("common.reject", "ປະຕິເສດ")}
                 </Btn>
               </>
             )}
@@ -170,7 +172,7 @@ export default function BoqDetailPage() {
               !isAdminUser &&
               can(user ? { role: user.role, permissions: user.permissions } : null, "boq", "approve") && (
                 <span className="rounded-lg bg-white/15 px-3 py-1.5 text-[11px] font-semibold text-white/90">
-                  ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບອະນຸມັດ
+                  {t("boq.secondNeedsAdmin", "ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບອະນຸມັດ")}
                 </span>
               )}
             <DocActions
@@ -192,24 +194,24 @@ export default function BoqDetailPage() {
               <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
                 <ListChecks size={13} strokeWidth={2.5} />
               </span>
-              <h2 className="text-[13px] font-black uppercase tracking-wider text-slate-800">ລາຍການ BOQ (ຈຳນວນ)</h2>
+              <h2 className="text-[13px] font-black uppercase tracking-wider text-slate-800">{t("boq.itemsTitle", "ລາຍການ BOQ (ຈຳນວນ)")}</h2>
             </div>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10.5px] font-black text-slate-600">
-              {items.length} ລາຍການ
+              {items.length} {t("boq.itemUnit", "ລາຍການ")}
             </span>
           </div>
 
           {items.length === 0 ? (
-            <div className="px-4 py-10 text-center text-[12.5px] text-slate-400">ບໍ່ມີລາຍການ</div>
+            <div className="px-4 py-10 text-center text-[12.5px] text-slate-400">{t("boq.noItems", "ບໍ່ມີລາຍການ")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/40 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
                     <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left w-12">#</th>
-                    <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left">ລາຍການ</th>
-                    <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-center w-24">ໜ່ວຍ</th>
-                    <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-right w-24">ຈຳນວນ</th>
+                    <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left">{t("boq.item", "ລາຍການ")}</th>
+                    <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-center w-24">{t("common.unit", "ໜ່ວຍ")}</th>
+                    <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-right w-24">{t("common.qty", "ຈຳນວນ")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -255,13 +257,13 @@ export default function BoqDetailPage() {
           <Card className="border-t-2 border-t-slate-400 p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <span className="h-4 w-1 rounded bg-blue-600" />
-              <h2 className="text-[13px] font-black uppercase tracking-wider text-slate-800">ຂໍ້ມູນ BOQ</h2>
+              <h2 className="text-[13px] font-black uppercase tracking-wider text-slate-800">{t("boq.infoTitle", "ຂໍ້ມູນ BOQ")}</h2>
             </div>
             <div className="space-y-3">
-              <InfoRow icon={<User size={14} />} tone="cyan" label="ຜູ້ຂໍ / ຜູ້ສ້າງ" value={b.requester} />
-              <InfoRow icon={<UserCheck size={14} />} tone="emerald" label="ຜູ້ອະນຸມັດ" value={b.approver} />
-              <InfoRow icon={<CalendarClock size={14} />} tone="indigo" label="ວັນທີ" value={fmtDate(b.created_at)} />
-              <InfoRow icon={<Boxes size={14} />} tone="amber" label="ຈຳນວນລາຍການ" value={`${items.length} ລາຍການ · ${money(totalQty)} ໜ່ວຍ`} />
+              <InfoRow icon={<User size={14} />} tone="cyan" label={t("boq.requesterCreator", "ຜູ້ຂໍ / ຜູ້ສ້າງ")} value={b.requester} />
+              <InfoRow icon={<UserCheck size={14} />} tone="emerald" label={t("common.approver", "ຜູ້ອະນຸມັດ")} value={b.approver} />
+              <InfoRow icon={<CalendarClock size={14} />} tone="indigo" label={t("common.date", "ວັນທີ")} value={fmtDate(b.created_at)} />
+              <InfoRow icon={<Boxes size={14} />} tone="amber" label={t("boq.itemCount", "ຈຳນວນລາຍການ")} value={`${items.length} ${t("boq.itemUnit", "ລາຍການ")} · ${money(totalQty)} ${t("boq.unitWord", "ໜ່ວຍ")}`} />
             </div>
           </Card>
         </div>
@@ -275,7 +277,7 @@ export default function BoqDetailPage() {
             className="group inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-xs font-bold text-slate-700 shadow-sm transition-all duration-150 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 active:scale-[0.98]"
           >
             <FolderKanban size={14} className="text-slate-500 group-hover:text-blue-600 transition-colors" />
-            <span>ໄປໜ້າໂຄງການ</span>
+            <span>{t("boq.goToProject", "ໄປໜ້າໂຄງການ")}</span>
             <ArrowLeft size={12} className="rotate-180 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
           </button>
         </div>
@@ -288,22 +290,22 @@ export default function BoqDetailPage() {
                 {confirmStatus === 1 ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
               </div>
               <div className="text-[14px] font-semibold text-[var(--theme-text)]">
-                {confirmStatus === 1 ? "ຢືນຢັນການອະນຸມັດ" : "ຢືນຢັນການປະຕິເສດ"}
+                {confirmStatus === 1 ? t("boq.confirmApproveTitle", "ຢືນຢັນການອະນຸມັດ") : t("boq.confirmRejectTitle", "ຢືນຢັນການປະຕິເສດ")}
               </div>
               <p className="mt-1 text-[12.5px] text-[var(--theme-text-mute)]">
-                {confirmStatus === 1 ? "ອະນຸມັດ BOQ ໃບນີ້?" : "ປະຕິເສດ BOQ ໃບນີ້?"} ({b.boq_no})
+                {confirmStatus === 1 ? t("boq.confirmApproveMsg", "ອະນຸມັດ BOQ ໃບນີ້?") : t("boq.confirmRejectMsg", "ປະຕິເສດ BOQ ໃບນີ້?")} ({b.boq_no})
               </p>
             </div>
             <div className="flex gap-2 border-t border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)] p-3">
               <button onClick={() => setConfirmStatus(null)} disabled={busy} className="flex-1 rounded-md border border-[var(--theme-border-subtle)] bg-white py-2 text-[12px] font-semibold text-[var(--theme-text-soft)] hover:bg-[var(--theme-bg-muted)] disabled:opacity-60">
-                ຍົກເລີກ
+                {t("common.cancel", "ຍົກເລີກ")}
               </button>
               <button
                 onClick={async () => { const s = confirmStatus; setConfirmStatus(null); await doApprove(s!); }}
                 disabled={busy}
                 className={`flex-1 rounded-md py-2 text-[12px] font-semibold text-white disabled:opacity-60 ${confirmStatus === 1 ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}
               >
-                {confirmStatus === 1 ? "ອະນຸມັດ" : "ປະຕິເສດ"}
+                {confirmStatus === 1 ? t("common.approve", "ອະນຸມັດ") : t("common.reject", "ປະຕິເສດ")}
               </button>
             </div>
           </div>

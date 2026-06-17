@@ -15,6 +15,7 @@ import { getTasks } from "@/_actions/lookups";
 import { getProjectTasks, saveTaskPlan } from "@/_actions/tasks-v2";
 import { Page, Card, Btn, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
 import TaskPickerModal from "../../../../_components/TaskPickerModal";
+import { useT } from "@/_lib/i18n";
 
 type Row = { master_id?: string; task_code?: string; title: string; phase?: string; est_days: number; est_hours: number };
 
@@ -24,6 +25,7 @@ const num = (v: unknown) => {
 };
 
 export default function TaskPlanPage() {
+  const t = useT();
   const { id } = useParams();
   const router = useRouter();
 
@@ -121,7 +123,7 @@ export default function TaskPlanPage() {
     setError("");
     const valid = rows.filter((r) => r.title.trim());
     if (!valid.length) {
-      setError("ກະລຸນາເພີ່ມໜ້າວຽກຢ່າງໜ້ອຍ 1 ແຖວ");
+      setError(t("tasksNew.needAtLeastOneTask", "ກະລຸນາເພີ່ມໜ້າວຽກຢ່າງໜ້ອຍ 1 ແຖວ"));
       return;
     }
     setSaving(true);
@@ -130,9 +132,9 @@ export default function TaskPlanPage() {
       if (res?.success) {
         await advanceProjectStage(String(id), "ກຳນົດໜ້າວຽກ").catch(() => {});
         router.push(`/projects/${id}?tab=tasks`);
-      } else setError(res?.message || "ບັນທຶກບໍ່ສຳເລັດ");
+      } else setError(res?.message || t("tasksNew.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
     } catch (err: any) {
-      setError(err?.message || "ເກີດຂໍ້ຜິດພາດ");
+      setError(err?.message || t("tasksNew.errorOccurred", "ເກີດຂໍ້ຜິດພາດ"));
     } finally {
       setSaving(false);
     }
@@ -142,7 +144,7 @@ export default function TaskPlanPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm">ກຳລັງໂຫຼດ...</span>
+        <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
@@ -157,25 +159,25 @@ export default function TaskPlanPage() {
               onClick={() => router.push(`/projects/${id}`)}
               className="mb-1 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]"
             >
-              <ArrowLeft size={14} /> ໄປໂຄງການ
+              <ArrowLeft size={14} /> {t("tasksNew.toProject", "ໄປໂຄງການ")}
             </button>
             <h1 className="flex items-center gap-2 text-[19px] font-bold leading-tight text-[var(--theme-text)]">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-emerald-500 text-white">
                 <CalendarRange size={16} />
               </span>
-              ກຳນົດໜ້າວຽກ
+              {t("tasksNew.title", "ກຳນົດໜ້າວຽກ")}
             </h1>
             {(custName || project?.project_name) && (
               <p className="text-[12px] text-[var(--theme-text-mute)]">
-                {custName && <span className="font-medium text-[var(--theme-text-soft)]">ລູກຄ້າ: {custName}</span>}
+                {custName && <span className="font-medium text-[var(--theme-text-soft)]">{t("tasksNew.customerLabel", "ລູກຄ້າ")}: {custName}</span>}
                 {custName && project?.project_name && " · "}
-                {project?.project_name && <>ໂຄງການ: {project.project_name}</>}
+                {project?.project_name && <>{t("tasksNew.projectLabel", "ໂຄງການ")}: {project.project_name}</>}
               </p>
             )}
           </div>
           <Btn type="submit" disabled={saving}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກແຜນວຽກ"}
+            {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("tasksNew.savePlan", "ບັນທຶກແຜນວຽກ")}
           </Btn>
         </div>
 
@@ -186,26 +188,26 @@ export default function TaskPlanPage() {
         <Card className="overflow-hidden border-t-2 border-t-teal-400">
           <div className="flex items-center justify-between border-b border-[var(--theme-border-subtle)] px-3 py-2">
             <h2 className="flex items-center gap-2 text-[13px] font-bold text-[var(--theme-text)]">
-              <span className="h-4 w-1 rounded bg-teal-500" /> ລາຍການໜ້າວຽກ
+              <span className="h-4 w-1 rounded bg-teal-500" /> {t("tasksNew.taskListHeading", "ລາຍການໜ້າວຽກ")}
             </h2>
-            <Btn type="button" variant="outline" onClick={() => setPickOpen(true)}><Plus size={14} /> ເພີ່ມໜ້າວຽກ</Btn>
+            <Btn type="button" variant="outline" onClick={() => setPickOpen(true)}><Plus size={14} /> {t("tasksNew.addTask", "ເພີ່ມໜ້າວຽກ")}</Btn>
           </div>
           <div className="overflow-x-auto">
             <table className={tblCls}>
               <thead>
                 <tr>
                   <th className={`${thCls} w-8`}>#</th>
-                  <th className={thCls}>ໜ້າວຽກ</th>
-                  <th className={`${thCls} w-40`}>ໄລຍະ</th>
-                  <th className={`${thCls} w-24 text-right`}>ວັນ</th>
-                  <th className={`${thCls} w-24 text-right`}>ຊົ່ວໂມງ</th>
+                  <th className={thCls}>{t("tasksNew.task", "ໜ້າວຽກ")}</th>
+                  <th className={`${thCls} w-40`}>{t("tasksNew.phase", "ໄລຍະ")}</th>
+                  <th className={`${thCls} w-24 text-right`}>{t("tasksNew.days", "ວັນ")}</th>
+                  <th className={`${thCls} w-24 text-right`}>{t("tasksNew.hours", "ຊົ່ວໂມງ")}</th>
                   <th className={`${thCls} w-8`} />
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center text-[12px] text-[var(--theme-text-mute)]">ກົດ "ເພີ່ມໜ້າວຽກ" ເພື່ອເລືອກໜ້າວຽກ (ເລືອກໄດ້ຫຼາຍອັນພ້ອມກັນ)</td>
+                    <td colSpan={6} className="px-3 py-6 text-center text-[12px] text-[var(--theme-text-mute)]">{t("tasksNew.emptyHint", 'ກົດ "ເພີ່ມໜ້າວຽກ" ເພື່ອເລືອກໜ້າວຽກ (ເລືອກໄດ້ຫຼາຍອັນພ້ອມກັນ)')}</td>
                   </tr>
                 )}
                 {rows.map((r, i) => (
@@ -214,7 +216,7 @@ export default function TaskPlanPage() {
                     <td className={tdCls}>
                       {masters.length > 0 ? (
                         <select value={r.master_id || ""} onChange={(e) => onPickTask(i, e.target.value)} className={`${inputCls} h-8`}>
-                          <option value="">{r.title || "ເລືອກໜ້າວຽກ..."}</option>
+                          <option value="">{r.title || t("tasksNew.selectTask", "ເລືອກໜ້າວຽກ...")}</option>
                           {masters
                             .filter((m) => !usedIds.has(String(m.id)) || String(m.id) === String(r.master_id))
                             .map((m, mi) => (
@@ -224,7 +226,7 @@ export default function TaskPlanPage() {
                             ))}
                         </select>
                       ) : (
-                        <input value={r.title} onChange={(e) => setRow(i, { title: e.target.value })} className={`${inputCls} h-8`} placeholder="ໜ້າວຽກ" />
+                        <input value={r.title} onChange={(e) => setRow(i, { title: e.target.value })} className={`${inputCls} h-8`} placeholder={t("tasksNew.task", "ໜ້າວຽກ")} />
                       )}
                     </td>
                     <td className={tdCls}>
@@ -248,7 +250,7 @@ export default function TaskPlanPage() {
               </tbody>
               <tfoot>
                 <tr className="border-t border-[var(--theme-border-subtle)] font-semibold">
-                  <td className={tdCls} colSpan={3}>ລວມ</td>
+                  <td className={tdCls} colSpan={3}>{t("common.total", "ລວມ")}</td>
                   <td className={`${tdCls} text-right tabular-nums text-[var(--theme-primary)]`}>{totalDays}</td>
                   <td className={`${tdCls} text-right tabular-nums text-[var(--theme-primary)]`}>{totalHours}</td>
                   <td className={tdCls} />
@@ -259,7 +261,7 @@ export default function TaskPlanPage() {
         </Card>
 
         <p className="mt-2 text-[11px] text-[var(--theme-text-mute)]">
-          ໜ້າວຽກດຶງຈາກ ບັນຊີໜ້າວຽກ (task master). <b>ທີມ ແລະ ວັນເລີ່ມ/ວັນຈົບ ກຳນົດຕາມຫຼັງ</b> ໃນຂັ້ນໃບງານ. ຊົ່ວໂມງໃຊ້ຄິດໄລ່ຄ່າແຮງ.
+          {t("tasksNew.notePrefix", "ໜ້າວຽກດຶງຈາກ ບັນຊີໜ້າວຽກ (task master).")} <b>{t("tasksNew.noteBold", "ທີມ ແລະ ວັນເລີ່ມ/ວັນຈົບ ກຳນົດຕາມຫຼັງ")}</b> {t("tasksNew.noteSuffix", "ໃນຂັ້ນໃບງານ. ຊົ່ວໂມງໃຊ້ຄິດໄລ່ຄ່າແຮງ.")}
         </p>
       </form>
 

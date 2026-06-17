@@ -10,6 +10,7 @@ import { getProjectMaterials } from "@/_actions/boq-v2";
 import { createRequest, updateRequest, getRequestDetail } from "@/_actions/request-v2";
 import { getWarehouses, getLocations, getStockBalancesAtLocation } from "@/_actions/lookups";
 import { Page, Card, Btn, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
+import { useT } from "@/_lib/i18n";
 
 type Row = {
   item_code: string;
@@ -30,6 +31,7 @@ const num = (v: unknown) => {
 };
 
 export default function RequestPage() {
+  const t = useT();
   const { id } = useParams();
   const router = useRouter();
   const sp = useSearchParams();
@@ -175,7 +177,7 @@ export default function RequestPage() {
         const result: any = await getStockBalancesAtLocation(codes, whCode, shelfCode);
         if (!alive) return;
         if (!result?.success) {
-          setStockError(result?.message || "ບໍ່ສາມາດໂຫຼດ stock ຄົງເຫຼືອໄດ້");
+          setStockError(result?.message || t("requestNew.stockLoadFailed", "ບໍ່ສາມາດໂຫຼດ stock ຄົງເຫຼືອໄດ້"));
           return;
         }
         const stockMap = new Map<string, number>(
@@ -226,7 +228,7 @@ export default function RequestPage() {
     e.preventDefault();
     setError("");
     if (!whCode || !shelfCode) {
-      setError("ກະລຸນາເລືອກສາງ ແລະ ທີ່ຈັດເກັບ");
+      setError(t("requestNew.selectWarehouseAndLocation", "ກະລຸນາເລືອກສາງ ແລະ ທີ່ຈັດເກັບ"));
       return;
     }
     const wh = warehouses.find((w) => String(w.code) === whCode);
@@ -242,7 +244,7 @@ export default function RequestPage() {
       shelf_name: sh?.name_1 || null,
     }));
     if (!items.length) {
-      setError("ກະລຸນາໃສ່ຈຳນວນທີ່ຕ້ອງເບີກ");
+      setError(t("requestNew.enterRequestQty", "ກະລຸນາໃສ່ຈຳນວນທີ່ຕ້ອງເບີກ"));
       return;
     }
     setSaving(true);
@@ -253,9 +255,9 @@ export default function RequestPage() {
         ? await updateRequest(String(editId), { items, notes: notes || null })
         : await createRequest({ project_id: String(id), project_name: project?.project_name || null, items, notes: notes || null, requester });
       if (res?.success) router.push(editId ? `/requests/${encodeURIComponent(String(editId))}` : `/projects/${id}?tab=requests`);
-      else setError(res?.message || "ບັນທຶກບໍ່ສຳເລັດ");
+      else setError(res?.message || t("requestNew.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
     } catch (err: any) {
-      setError(err?.message || "ເກີດຂໍ້ຜິດພາດ");
+      setError(err?.message || t("requestNew.errorOccurred", "ເກີດຂໍ້ຜິດພາດ"));
     } finally {
       setSaving(false);
     }
@@ -265,7 +267,7 @@ export default function RequestPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm">ກຳລັງໂຫຼດ...</span>
+        <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
@@ -276,25 +278,25 @@ export default function RequestPage() {
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <button type="button" onClick={() => router.push(`/projects/${id}`)} className="mb-1 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]">
-              <ArrowLeft size={14} /> ໄປໂຄງການ
+              <ArrowLeft size={14} /> {t("requestNew.toProject", "ໄປໂຄງການ")}
             </button>
             <h1 className="flex items-center gap-2 text-[19px] font-bold leading-tight text-[var(--theme-text)]">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 text-white">
                 <PackageOpen size={16} />
               </span>
-              {editId ? "ແກ້ໄຂໃບຂໍເບີກ" : "ຂໍເບີກວັດສະດຸ"}
+              {editId ? t("requestNew.editRequest", "ແກ້ໄຂໃບຂໍເບີກ") : t("requestNew.requestMaterials", "ຂໍເບີກວັດສະດຸ")}
             </h1>
             {(custName || project?.project_name) && (
               <p className="text-[12px] text-[var(--theme-text-mute)]">
-                {custName && <span className="font-medium text-[var(--theme-text-soft)]">ລູກຄ້າ: {custName}</span>}
+                {custName && <span className="font-medium text-[var(--theme-text-soft)]">{t("requestNew.customerLabel", "ລູກຄ້າ")}: {custName}</span>}
                 {custName && project?.project_name && " · "}
-                {project?.project_name && <>ໂຄງການ: {project.project_name}</>}
+                {project?.project_name && <>{t("requestNew.projectLabel", "ໂຄງການ")}: {project.project_name}</>}
               </p>
             )}
           </div>
           <Btn type="submit" disabled={saving}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? "ກຳລັງບັນທຶກ..." : editId ? "ບັນທຶກການແກ້ໄຂ" : "ສົ່ງຂໍເບີກ"}
+            {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : editId ? t("requestNew.saveEdit", "ບັນທຶກການແກ້ໄຂ") : t("requestNew.submitRequest", "ສົ່ງຂໍເບີກ")}
           </Btn>
         </div>
 
@@ -303,57 +305,57 @@ export default function RequestPage() {
         <Card className="mb-4 border-t-2 border-t-pink-400 p-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">ສາງ (Warehouse)</label>
+              <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("requestNew.warehouse", "ສາງ (Warehouse)")}</label>
               <select value={whCode} onChange={(e) => setWhCode(e.target.value)} className={inputCls} required disabled={rows.length > 0}>
-                <option value="">-- ເລືອກສາງ --</option>
+                <option value="">{t("requestNew.selectWarehouse", "-- ເລືອກສາງ --")}</option>
                 {warehouses.map((w, i) => (
                   <option key={i} value={String(w.code)}>{w.code} - {w.name_1}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">ທີ່ເກັບ (ຊັ້ນວາງ)</label>
+              <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("requestNew.location", "ທີ່ເກັບ (ຊັ້ນວາງ)")}</label>
               <select value={shelfCode} onChange={(e) => setShelfCode(e.target.value)} className={inputCls} required disabled={!whCode || rows.length > 0}>
-                <option value="">{whCode ? "-- ເລືອກທີ່ເກັບ --" : "ເລືອກສາງກ່ອນ"}</option>
+                <option value="">{whCode ? t("requestNew.selectLocation", "-- ເລືອກທີ່ເກັບ --") : t("requestNew.selectWarehouseFirst", "ເລືອກສາງກ່ອນ")}</option>
                 {shelves.map((s, i) => (
                   <option key={i} value={String(s.code)}>{s.code} - {s.name_1}</option>
                 ))}
               </select>
             </div>
           </div>
-          {rows.length > 0 && <p className="mt-2 text-[10.5px] text-[var(--theme-text-mute)]">ລຶບລາຍການອອກຈາກ cart ທັງໝົດ ກ່ອນປ່ຽນສາງ ຫຼື ທີ່ຈັດເກັບ</p>}
+          {rows.length > 0 && <p className="mt-2 text-[10.5px] text-[var(--theme-text-mute)]">{t("requestNew.clearCartBeforeChange", "ລຶບລາຍການອອກຈາກ cart ທັງໝົດ ກ່ອນປ່ຽນສາງ ຫຼື ທີ່ຈັດເກັບ")}</p>}
           {stockError && <p className="mt-2 text-[11px] text-rose-600">{stockError}</p>}
         </Card>
 
         <Card className="overflow-hidden border-t-2 border-t-pink-400">
           <div className="flex items-center justify-between gap-3 border-b border-[var(--theme-border-subtle)] px-3 py-2">
             <div className="text-[13px] font-bold text-[var(--theme-text)]">
-              ລາຍການວັດສະດຸ (ຂໍເບີກ {totalReq})
+              {t("requestNew.materialsList", "ລາຍການວັດສະດຸ")} ({t("requestNew.requesting", "ຂໍເບີກ")} {totalReq})
             </div>
             <Btn type="button" variant="outline" onClick={() => setPickerOpen(true)} disabled={!canSelectMore}>
-              <Plus size={14} /> ເລືອກລາຍການວັດສະດຸຈາກ BOQ
+              <Plus size={14} /> {t("requestNew.selectFromBoq", "ເລືອກລາຍການວັດສະດຸຈາກ BOQ")}
             </Btn>
           </div>
           {rows.length === 0 ? (
             <div className="px-4 py-12 text-center">
               <PackageOpen size={30} className="mx-auto mb-2 text-[var(--theme-text-mute)]" />
-              <p className="text-[13px] font-semibold text-[var(--theme-text-soft)]">Cart ຍັງເປົ່າ</p>
+              <p className="text-[13px] font-semibold text-[var(--theme-text-soft)]">{t("requestNew.cartEmpty", "Cart ຍັງເປົ່າ")}</p>
               <p className="mt-1 text-[11.5px] text-[var(--theme-text-mute)]">
-                {!whCode || !shelfCode ? "ເລືອກສາງ ແລະ ທີ່ຈັດເກັບກ່ອນເລືອກວັດສະດຸ" : boqRows.length > 0 ? "ເລືອກວັດສະດຸຈາກ BOQ ເພື່ອເພີ່ມເຂົ້າທີລະລາຍການ" : "ບໍ່ມີວັດສະດຸ BOQ ທີ່ຄົງເຫຼືອໃຫ້ເບີກ"}
+                {!whCode || !shelfCode ? t("requestNew.selectWhBeforeMaterials", "ເລືອກສາງ ແລະ ທີ່ຈັດເກັບກ່ອນເລືອກວັດສະດຸ") : boqRows.length > 0 ? t("requestNew.selectMaterialsFromBoq", "ເລືອກວັດສະດຸຈາກ BOQ ເພື່ອເພີ່ມເຂົ້າທີລະລາຍການ") : t("requestNew.noRemainingBoq", "ບໍ່ມີວັດສະດຸ BOQ ທີ່ຄົງເຫຼືອໃຫ້ເບີກ")}
               </p>
             </div>
           ) : <div className="overflow-x-auto">
             <table className={tblCls}>
               <thead>
                 <tr>
-                  <th className={thCls}>ລາຍການ</th>
-                  <th className={`${thCls} w-20`}>ໜ່ວຍ</th>
+                  <th className={thCls}>{t("requestNew.item", "ລາຍການ")}</th>
+                  <th className={`${thCls} w-20`}>{t("common.unit", "ໜ່ວຍ")}</th>
                   <th className={`${thCls} w-20 text-right`}>BOQ</th>
-                  <th className={`${thCls} w-24 text-right`}>ລໍຖ້າເບີກ</th>
-                  <th className={`${thCls} w-24 text-right`}>ເບີກແລ້ວ</th>
-                  <th className={`${thCls} w-24 text-right`}>ເບີກເພີ່ມໄດ້</th>
-                  <th className={`${thCls} w-24 text-right`}>Stock ສາງ</th>
-                  <th className={`${thCls} w-32 text-right`}>ຂໍເບີກ</th>
+                  <th className={`${thCls} w-24 text-right`}>{t("requestNew.pendingWithdraw", "ລໍຖ້າເບີກ")}</th>
+                  <th className={`${thCls} w-24 text-right`}>{t("requestNew.withdrawn", "ເບີກແລ້ວ")}</th>
+                  <th className={`${thCls} w-24 text-right`}>{t("requestNew.canWithdrawMore", "ເບີກເພີ່ມໄດ້")}</th>
+                  <th className={`${thCls} w-24 text-right`}>{t("requestNew.stockInWarehouse", "Stock ສາງ")}</th>
+                  <th className={`${thCls} w-32 text-right`}>{t("requestNew.requesting", "ຂໍເບີກ")}</th>
                   <th className={`${thCls} w-12`} />
                 </tr>
               </thead>
@@ -371,7 +373,7 @@ export default function RequestPage() {
                       <input type="number" min="0" max={r.remaining} value={r.qty} onChange={(e) => setRow(i, Number(e.target.value))} className={`${inputCls} h-8 text-right`} />
                     </td>
                     <td className={`${tdCls} text-center`}>
-                      <button type="button" onClick={() => removeRow(i)} className="text-rose-500 hover:text-rose-700" aria-label="ລຶບລາຍການ">
+                      <button type="button" onClick={() => removeRow(i)} className="text-rose-500 hover:text-rose-700" aria-label={t("requestNew.removeItem", "ລຶບລາຍການ")}>
                         <Trash2 size={15} />
                       </button>
                     </td>
@@ -381,7 +383,7 @@ export default function RequestPage() {
             </table>
           </div>}
           <div className="border-t border-[var(--theme-border-subtle)] p-3">
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputCls} h-auto py-2`} placeholder="ໝາຍເຫດ" />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputCls} h-auto py-2`} placeholder={t("common.note", "ໝາຍເຫດ")} />
           </div>
         </Card>
       </form>
@@ -391,22 +393,22 @@ export default function RequestPage() {
           <div className="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-[var(--theme-shadow-lg)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between bg-gradient-to-r from-pink-500 to-rose-500 px-4 py-3 text-white">
               <div>
-                <h2 className="text-[14px] font-bold">ເລືອກວັດສະດຸຈາກ BOQ</h2>
-                <p className="text-[10.5px] text-white/80">ເພີ່ມເຂົ້າ cart ທີລະລາຍການ</p>
+                <h2 className="text-[14px] font-bold">{t("requestNew.pickerTitle", "ເລືອກວັດສະດຸຈາກ BOQ")}</h2>
+                <p className="text-[10.5px] text-white/80">{t("requestNew.pickerSubtitle", "ເພີ່ມເຂົ້າ cart ທີລະລາຍການ")}</p>
               </div>
               <button type="button" onClick={() => setPickerOpen(false)} className="text-white/80 hover:text-white"><X size={18} /></button>
             </div>
             <div className="border-b border-[var(--theme-border-subtle)] p-3">
               <div className="flex h-9 items-center gap-2 rounded-md border border-[var(--theme-border-subtle)] px-2.5">
                 <Search size={14} className="text-[var(--theme-text-mute)]" />
-                <input autoFocus value={pickerQuery} onChange={(e) => setPickerQuery(e.target.value)} placeholder="ຄົ້ນຫາລະຫັດ ຫຼື ຊື່ວັດສະດຸ..." className="min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
+                <input autoFocus value={pickerQuery} onChange={(e) => setPickerQuery(e.target.value)} placeholder={t("requestNew.searchPlaceholder", "ຄົ້ນຫາລະຫັດ ຫຼື ຊື່ວັດສະດຸ...")} className="min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
               </div>
             </div>
             <div className="max-h-[58vh] overflow-y-auto">
               {stockLoading ? (
-                <div className="flex items-center justify-center gap-2 px-4 py-10 text-[12px] text-[var(--theme-text-mute)]"><Loader2 size={15} className="animate-spin" /> ກຳລັງໂຫຼດ stock ຕາມສາງ...</div>
+                <div className="flex items-center justify-center gap-2 px-4 py-10 text-[12px] text-[var(--theme-text-mute)]"><Loader2 size={15} className="animate-spin" /> {t("requestNew.loadingStock", "ກຳລັງໂຫຼດ stock ຕາມສາງ...")}</div>
               ) : selectableRows.length === 0 ? (
-                <div className="px-4 py-10 text-center text-[12px] text-[var(--theme-text-mute)]">ບໍ່ພົບລາຍການ BOQ ທີ່ມີ stock ໃນສາງ/ທີ່ຈັດເກັບນີ້</div>
+                <div className="px-4 py-10 text-center text-[12px] text-[var(--theme-text-mute)]">{t("requestNew.noStockItems", "ບໍ່ພົບລາຍການ BOQ ທີ່ມີ stock ໃນສາງ/ທີ່ຈັດເກັບນີ້")}</div>
               ) : selectableRows.map((row) => (
                 <button key={rowKey(row)} type="button" onClick={() => addRow(row)} className="flex w-full items-center gap-3 border-b border-[var(--theme-border-subtle)] px-4 py-3 text-left last:border-0 hover:bg-pink-50/60">
                   <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-pink-100 text-pink-600"><Plus size={15} /></span>
@@ -416,9 +418,9 @@ export default function RequestPage() {
                   </span>
                   <span className="text-right text-[10.5px] text-[var(--theme-text-mute)]">
                     BOQ: <strong className="text-[11.5px] text-[var(--theme-text-soft)]">{row.boq_qty.toLocaleString("en-US")}</strong>
-                    {" - "}ລໍຖ້າ: <strong className="text-[11.5px] text-amber-600">{row.pending_request_qty.toLocaleString("en-US")}</strong>
-                    {" - "}ເບີກແລ້ວ: <strong className="text-[11.5px] text-blue-600">{row.withdraw_qty.toLocaleString("en-US")}</strong><br />
-                    ເບີກເພີ່ມໄດ້: <strong className="text-[11.5px] text-[var(--theme-text)]">{row.boq_remaining.toLocaleString("en-US")}</strong>
+                    {" - "}{t("requestNew.pendingShort", "ລໍຖ້າ")}: <strong className="text-[11.5px] text-amber-600">{row.pending_request_qty.toLocaleString("en-US")}</strong>
+                    {" - "}{t("requestNew.withdrawn", "ເບີກແລ້ວ")}: <strong className="text-[11.5px] text-blue-600">{row.withdraw_qty.toLocaleString("en-US")}</strong><br />
+                    {t("requestNew.canWithdrawMore", "ເບີກເພີ່ມໄດ້")}: <strong className="text-[11.5px] text-[var(--theme-text)]">{row.boq_remaining.toLocaleString("en-US")}</strong>
                     {" · "}
                     Stock: <strong className="text-[11.5px] text-emerald-600">{row.stock_remaining.toLocaleString("en-US")}</strong>
                   </span>

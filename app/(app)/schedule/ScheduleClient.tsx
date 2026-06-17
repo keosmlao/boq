@@ -11,10 +11,12 @@ import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, RefreshCw, Wrench, CalendarRange, FolderKanban } from "lucide-react";
 import { Page, PageHeader, Card, Btn, Pill } from "../_components/ui";
+import { useT } from "@/_lib/i18n";
 
 const d10 = (v: unknown) => (v ? String(v).slice(0, 10) : "?");
 
 export default function ScheduleClient({ initialRows }: { initialRows: any[] }) {
+  const t = useT();
   const router = useRouter();
   const [groups, setGroups] = useState<any[]>(initialRows ?? []);
   const [loading, setLoading] = useState(false);
@@ -43,8 +45,8 @@ export default function ScheduleClient({ initialRows }: { initialRows: any[] }) 
   return (
     <Page max="max-w-none">
       <PageHeader
-        title="ກຳນົດໜ້າວຽກ"
-        subtitle={`${filtered.length} ໂຄງການ`}
+        title={t("schedule.title", "ກຳນົດໜ້າວຽກ")}
+        subtitle={`${filtered.length} ${t("installTracking.colProject", "ໂຄງການ")}`}
         actions={
           <Btn variant="outline" onClick={() => void refresh()} disabled={loading} className="hover:bg-slate-50 transition-colors">
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
@@ -59,7 +61,7 @@ export default function ScheduleClient({ initialRows }: { initialRows: any[] }) 
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="ຄົ້ນຫາໂຄງການ..."
+            placeholder={t("schedule.searchPlaceholder", "ຄົ້ນຫາໂຄງການ...")}
             className="min-w-0 flex-1 bg-transparent text-[13px] text-slate-800 placeholder-slate-400 outline-none"
           />
         </div>
@@ -68,12 +70,12 @@ export default function ScheduleClient({ initialRows }: { initialRows: any[] }) 
       {loading ? (
         <div className="flex h-56 items-center justify-center gap-3 text-[var(--theme-text-mute)]">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-          <span className="text-sm font-semibold">ກຳລັງໂຫຼດ...</span>
+          <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
         </div>
       ) : filtered.length === 0 ? (
         <Card className="flex h-56 flex-col items-center justify-center gap-2 text-[var(--theme-text-mute)]">
           <CalendarRange className="h-8 w-8 opacity-40" />
-          <span className="text-sm">ຍັງບໍ່ມີໜ້າວຽກ</span>
+          <span className="text-sm">{t("schedule.noTasks", "ຍັງບໍ່ມີໜ້າວຽກ")}</span>
         </Card>
       ) : (
         <div className="space-y-6">
@@ -99,13 +101,13 @@ export default function ScheduleClient({ initialRows }: { initialRows: any[] }) 
                     {/* Stats pills */}
                     <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
                       <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-600">
-                        {g.tasks.length} ໜ້າວຽກ
+                        {g.tasks.length} {t("schedule.tasksUnit", "ໜ້າວຽກ")}
                       </span>
                       <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-600">
-                        {totalHours} ຊມ
+                        {totalHours} {t("installTracking.hoursUnit", "ຊມ")}
                       </span>
                       <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-600 font-mono">
-                        {g.wo_count || 0} ໃບງານ
+                        {g.wo_count || 0} {t("tracking.workNo", "ໃບງານ")}
                       </span>
                     </div>
 
@@ -114,7 +116,7 @@ export default function ScheduleClient({ initialRows }: { initialRows: any[] }) 
                       className="group inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[11px] font-extrabold text-white shadow-sm shadow-blue-600/15 hover:bg-blue-700 hover:shadow-md transition-all active:scale-[0.97]"
                     >
                       <Wrench size={12} className="group-hover:rotate-12 transition-transform duration-150" />
-                      <span>ສ້າງໃບງານ</span>
+                      <span>{t("schedule.createWorkOrder", "ສ້າງໃບງານ")}</span>
                     </button>
                   </div>
                 </div>
@@ -124,50 +126,50 @@ export default function ScheduleClient({ initialRows }: { initialRows: any[] }) 
                   <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50/30 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left">ໜ້າວຽກ</th>
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-center w-28">ໄລຍະ</th>
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left w-44">ຊ່າງ / ທີມ</th>
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left w-52">ວັນ (ເຂົ້າເຮັດ)</th>
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-right w-24">ຊົ່ວໂມງ</th>
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-center w-28">ສະຖານະ</th>
+                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left">{t("schedule.tasksUnit", "ໜ້າວຽກ")}</th>
+                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-center w-28">{t("schedule.colPhase", "ໄລຍະ")}</th>
+                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left w-44">{t("schedule.colTechnician", "ຊ່າງ / ທີມ")}</th>
+                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left w-52">{t("schedule.colDays", "ວັນ (ເຂົ້າເຮັດ)")}</th>
+                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-right w-24">{t("schedule.colHours", "ຊົ່ວໂມງ")}</th>
+                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-center w-28">{t("common.status", "ສະຖານະ")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {g.tasks.map((t: any, i: number) => {
-                        const done = t.status === "done";
+                      {g.tasks.map((tk: any, i: number) => {
+                        const done = tk.status === "done";
                         return (
-                          <tr key={t.id ?? i} className="group transition-colors duration-150 hover:bg-blue-50/20">
+                          <tr key={tk.id ?? i} className="group transition-colors duration-150 hover:bg-blue-50/20">
                             <td className="px-4 py-3.5 align-middle font-semibold text-slate-800">
-                              {t.title}
+                              {tk.title}
                             </td>
                             <td className="px-4 py-3.5 align-middle text-center">
                               <span className="inline-flex items-center rounded border border-slate-200/50 bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
-                                {t.phase || "-"}
+                                {tk.phase || "-"}
                               </span>
                             </td>
                             <td className="px-4 py-3.5 align-middle">
-                              {t.technician_name ? (
+                              {tk.technician_name ? (
                                 <span className="inline-flex items-center gap-1.5 font-bold text-slate-700">
                                   <span className="h-1.5 w-1.5 rounded-full bg-teal-500 shadow-[0_0_4px_rgba(20,184,166,0.5)]" />
-                                  {t.technician_name}
+                                  {tk.technician_name}
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center rounded-md border border-slate-200/40 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-400 italic">
-                                  ຍັງບໍ່ມອບໝາຍ
+                                  {t("schedule.unassigned", "ຍັງບໍ່ມອບໝາຍ")}
                                 </span>
                               )}
                             </td>
                             <td className="px-4 py-3.5 align-middle">
-                              {t.planned_start || t.planned_end ? (
+                              {tk.planned_start || tk.planned_end ? (
                                 <span className="inline-flex items-center font-mono text-[11px] font-bold text-slate-600 bg-slate-50/70 border border-slate-200 px-2 py-0.5 rounded-md">
-                                  {d10(t.planned_start)} <span className="text-slate-400 mx-1">→</span> {d10(t.planned_end)}
+                                  {d10(tk.planned_start)} <span className="text-slate-400 mx-1">→</span> {d10(tk.planned_end)}
                                 </span>
                               ) : (
                                 <span className="text-slate-300">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3.5 align-middle text-right font-mono font-bold text-slate-900 tabular-nums text-[13px]">
-                              {Number(t.est_hours) || 0}
+                              {Number(tk.est_hours) || 0}
                             </td>
                             <td className="px-4 py-3.5 align-middle text-center">
                               <Pill tone={done ? "green" : "amber"}>
@@ -185,7 +187,7 @@ export default function ScheduleClient({ initialRows }: { initialRows: any[] }) 
                                       </>
                                     )}
                                   </span>
-                                  {done ? "ສຳເລັດ" : "ວາງແຜນ"}
+                                  {done ? t("schedule.done", "ສຳເລັດ") : t("schedule.planned", "ວາງແຜນ")}
                                 </span>
                               </Pill>
                             </td>

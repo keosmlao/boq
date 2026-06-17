@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getAllContractsForList } from "@/_actions/contracts";
 import { Page, Card, Stat, SectionTitle } from "../_components/ui";
+import { useT } from "@/_lib/i18n";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -27,24 +28,25 @@ const d10 = (v: unknown) => (v ? String(v).slice(0, 10) : "-");
 const initial = (s: string) => s.replace(/[^\p{L}\p{N}]/u, "").charAt(0).toUpperCase() || "?";
 const isFull = (c: any) => !!c.sales_approved && !!c.accounting_approved;
 
-const FILTERS = [
-  { key: "all", label: "ທັງໝົດ" },
-  { key: "full", label: "ອະນຸມັດຄົບ" },
-  { key: "pending", label: "ລໍຖ້າອະນຸມັດ" },
-];
-
 type Contract = Record<string, any>;
 
 function Tag({ done }: { done: boolean }) {
+  const t = useT();
   return (
     <span className={`inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-[10px] font-bold ${done ? "bg-slate-800 text-white" : "border border-slate-300 bg-white text-slate-500"}`}>
-      {done ? "ສົມບູນ" : "ລໍຖ້າອະນຸມັດ"}
+      {done ? t("finance.complete", "ສົມບູນ") : t("finance.pendingApproval", "ລໍຖ້າອະນຸມັດ")}
     </span>
   );
 }
 
 export default function FinanceClient({ initialRows }: { initialRows: Contract[] }) {
+  const t = useT();
   const router = useRouter();
+  const FILTERS = [
+    { key: "all", label: t("common.all", "ທັງໝົດ") },
+    { key: "full", label: t("finance.approvedFull", "ອະນຸມັດຄົບ") },
+    { key: "pending", label: t("finance.pendingApproval", "ລໍຖ້າອະນຸມັດ") },
+  ];
   const [rows, setRows] = useState<Contract[]>(initialRows ?? []);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
@@ -86,7 +88,7 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
   const groups = useMemo(() => {
     const byCustomer: Record<string, Contract[]> = {};
     filtered.forEach((c) => {
-      const k = c.customer_name || "(ບໍ່ລະບຸລູກຄ້າ)";
+      const k = c.customer_name || t("finance.noCustomer", "(ບໍ່ລະບຸລູກຄ້າ)");
       (byCustomer[k] ||= []).push(c);
     });
     return Object.entries(byCustomer)
@@ -96,7 +98,7 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
         value: list.reduce((sum, c) => sum + (Number(c.total_amount) || 0), 0),
       }))
       .sort((a, b) => b.value - a.value);
-  }, [filtered]);
+  }, [filtered, t]);
 
   const filtering = q.trim() !== "" || filter !== "all";
   const isOpen = (c: string) => filtering || expanded.has(c);
@@ -117,8 +119,8 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
       {/* Plain monochrome header */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-black leading-none tracking-tight text-slate-900 md:text-[1.7rem]">ບັນຊີ / ການເງິນ</h1>
-          <p className="mt-2.5 text-xs font-semibold text-slate-500">ມູນຄ່າສັນຍາ ແລະ ການອະນຸມັດ ຕາມລູກຄ້າ</p>
+          <h1 className="truncate text-xl font-black leading-none tracking-tight text-slate-900 md:text-[1.7rem]">{t("finance.title", "ບັນຊີ / ການເງິນ")}</h1>
+          <p className="mt-2.5 text-xs font-semibold text-slate-500">{t("finance.subtitle", "ມູນຄ່າສັນຍາ ແລະ ການອະນຸມັດ ຕາມລູກຄ້າ")}</p>
         </div>
         <button
           onClick={() => void load()}
@@ -131,21 +133,21 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
 
       {/* ── ສ່ວນທີ 1: ສະຫຼຸບ ─────────────────────────────── */}
       <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={<FileSignature size={18} />} label="ສັນຍາທັງໝົດ" value={stats.total} active={filter === "all"} onClick={() => setFilter("all")} />
-        <Stat icon={<Wallet size={18} />} label="ມູນຄ່າສັນຍາ (ກີບ)" value={money(stats.value)} />
-        <Stat icon={<CheckCircle2 size={18} />} label="ອະນຸມັດຄົບ" value={stats.full} active={filter === "full"} onClick={() => setFilter("full")} />
-        <Stat icon={<Clock size={18} />} label="ລໍຖ້າອະນຸມັດ" value={stats.pending} active={filter === "pending"} onClick={() => setFilter("pending")} />
+        <Stat icon={<FileSignature size={18} />} label={t("finance.totalContracts", "ສັນຍາທັງໝົດ")} value={stats.total} active={filter === "all"} onClick={() => setFilter("all")} />
+        <Stat icon={<Wallet size={18} />} label={t("finance.contractValueKip", "ມູນຄ່າສັນຍາ (ກີບ)")} value={money(stats.value)} />
+        <Stat icon={<CheckCircle2 size={18} />} label={t("finance.approvedFull", "ອະນຸມັດຄົບ")} value={stats.full} active={filter === "full"} onClick={() => setFilter("full")} />
+        <Stat icon={<Clock size={18} />} label={t("finance.pendingApproval", "ລໍຖ້າອະນຸມັດ")} value={stats.pending} active={filter === "pending"} onClick={() => setFilter("pending")} />
       </div>
 
       {/* ── ສ່ວນທີ 2: ຄົ້ນຫາ / ກັ່ນຕອງ ────────────────────── */}
-      <SectionTitle label="ຄົ້ນຫາ ແລະ ກັ່ນຕອງ" />
+      <SectionTitle label={t("finance.searchAndFilter", "ຄົ້ນຫາ ແລະ ກັ່ນຕອງ")} />
       <div className="mb-8 flex flex-wrap items-center gap-3">
         <div className="relative flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 transition-all focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200 sm:max-w-xs">
           <Search className="h-4 w-4 flex-shrink-0 text-slate-400" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="ຄົ້ນຫາ ເລກສັນຍາ, ໂຄງການ, ລູກຄ້າ..."
+            placeholder={t("finance.searchPlaceholder", "ຄົ້ນຫາ ເລກສັນຍາ, ໂຄງການ, ລູກຄ້າ...")}
             className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none"
           />
         </div>
@@ -166,7 +168,7 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
 
       {/* ── ສ່ວນທີ 3: ມູນຄ່າຕາມລູກຄ້າ ─────────────────────── */}
       <div className="mb-3 flex items-center gap-3">
-        <h2 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">ມູນຄ່າສັນຍາ ຕາມລູກຄ້າ</h2>
+        <h2 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">{t("finance.valueByCustomer", "ມູນຄ່າສັນຍາ ຕາມລູກຄ້າ")}</h2>
         <span className="h-px flex-1 bg-slate-200" />
         {!filtering && groups.length > 0 && (
           <button
@@ -174,7 +176,7 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
             className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
           >
             {allOpen ? <ChevronsDownUp size={13} /> : <ChevronsUpDown size={13} />}
-            {allOpen ? "ຍຸບທັງໝົດ" : "ຂະຫຍາຍທັງໝົດ"}
+            {allOpen ? t("finance.collapseAll", "ຍຸບທັງໝົດ") : t("finance.expandAll", "ຂະຫຍາຍທັງໝົດ")}
           </button>
         )}
       </div>
@@ -182,12 +184,12 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
       {loading ? (
         <div className="flex h-56 items-center justify-center gap-3 text-slate-400">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
-          <span className="text-sm font-semibold">ກຳລັງໂຫຼດ...</span>
+          <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
         </div>
       ) : groups.length === 0 ? (
         <Card className="flex h-56 flex-col items-center justify-center gap-2 text-slate-400">
           <Inbox className="h-8 w-8 opacity-40" />
-          <span className="text-sm font-semibold">{rows.length ? "ບໍ່ພົບສັນຍາທີ່ກົງ" : "ຍັງບໍ່ມີສັນຍາ"}</span>
+          <span className="text-sm font-semibold">{rows.length ? t("finance.noMatchingContracts", "ບໍ່ພົບສັນຍາທີ່ກົງ") : t("finance.noContracts", "ຍັງບໍ່ມີສັນຍາ")}</span>
         </Card>
       ) : (
         <div className="space-y-2.5">
@@ -203,11 +205,11 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
                   <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-black text-slate-600">{initial(g.customer)}</span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-extrabold text-slate-900">{g.customer}</div>
-                    <div className="text-[11px] font-semibold text-slate-400">{g.list.length} ສັນຍາ</div>
+                    <div className="text-[11px] font-semibold text-slate-400">{g.list.length} {t("finance.contractsUnit", "ສັນຍາ")}</div>
                   </div>
                   <div className="flex-shrink-0 text-right">
                     <div className="font-mono text-sm font-black text-slate-900">{money(g.value)}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">ກີບ</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("finance.kip", "ກີບ")}</div>
                   </div>
                 </button>
 
@@ -221,7 +223,7 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
                       >
                         <FileSignature size={15} className="flex-shrink-0 text-slate-300 group-hover:text-slate-500" />
                         <div className="min-w-0 flex-1">
-                          <div className="truncate font-mono text-[12.5px] font-bold text-slate-800">{c.contract_no || "(ບໍ່ມີເລກທີ່)"}</div>
+                          <div className="truncate font-mono text-[12.5px] font-bold text-slate-800">{c.contract_no || t("finance.noContractNo", "(ບໍ່ມີເລກທີ່)")}</div>
                           <div className="truncate text-[11px] font-semibold text-slate-400">{c.project_name || "-"} · {d10(c.created_at)}</div>
                         </div>
                         <Tag done={isFull(c)} />
@@ -238,7 +240,7 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
       )}
 
       <p className="mt-6 text-[11px] font-semibold text-slate-400">
-        ໝາຍເຫດ: ມູນຄ່າຄິດໄລ່ຈາກສັນຍາທີ່ມີຂໍ້ມູນມູນຄ່າ. ງວດການຈ່າຍ (installments) ຈະເພີ່ມໃນຂັ້ນຕໍ່ໄປ.
+        {t("finance.footerNote", "ໝາຍເຫດ: ມູນຄ່າຄິດໄລ່ຈາກສັນຍາທີ່ມີຂໍ້ມູນມູນຄ່າ. ງວດການຈ່າຍ (installments) ຈະເພີ່ມໃນຂັ້ນຕໍ່ໄປ.")}
       </p>
     </Page>
   );

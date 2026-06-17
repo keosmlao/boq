@@ -8,10 +8,12 @@
  * NOT covered (ERP inventory/contract-item logic — port carefully at cut-over):
  * saveBoq, updateBoqErp, getBoqContractItems, checkAccountingApprove, getListBoq.
  */
-import { asc, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "@/_db/client";
 import { boqDocs, boqLines, contracts, materialRequests, materialRequestLines, projects } from "@/_db/schema";
 import { invalidate } from "@/_lib/cache";
+import { getSessionUser } from "@/_lib/server-auth";
+import { isAdmin } from "@/_lib/permissions";
 
 type Ok = { success: true; message?: string };
 type Fail = { success: false; message: string };
@@ -104,12 +106,46 @@ export async function deleteBoq(docNo: string): Promise<Ok | Fail> {
   }
 }
 
+/**
+ * Is this the first BOQ of its contract? First BOQ → manager (boq.approve) may
+ * approve; subsequent (2nd+) BOQ of the same contract → admin only. Earliest by
+ * docDate then id. Mirrors isFirstBoqForContract in boq.ts.
+ */
+async function isFirstBoqForContract(decodedDocNo: string): Promise<boolean> {
+  const target = await db
+    .select({ id: boqDocs.id, contractId: boqDocs.contractId, docDate: boqDocs.docDate })
+    .from(boqDocs)
+    .where(eq(boqDocs.docNo, decodedDocNo))
+    .limit(1);
+  const t = target[0];
+  if (!t) return true; // not found here → let the update path report it
+  const earlier = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(boqDocs)
+    .where(
+      and(
+        eq(boqDocs.contractId, t.contractId),
+        or(lt(boqDocs.docDate, t.docDate), and(eq(boqDocs.docDate, t.docDate), lt(boqDocs.id, t.id))),
+      ),
+    );
+  return Number(earlier[0]?.n ?? 0) === 0;
+}
+
 export async function approveBoq(docNo: string, payload: { status?: number; username?: string }): Promise<Ok | Fail> {
   try {
+    const decoded = decodeURIComponent(docNo);
+
+    // Subsequent (2nd+) BOQ of a contract may only be approved/rejected by an admin.
+    const sessionUser = await getSessionUser();
+    const firstBoq = await isFirstBoqForContract(decoded);
+    if (!firstBoq && !isAdmin(sessionUser)) {
+      return fail("ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບອະນຸມັດເທົ່ານັ້ນ");
+    }
+
     const res = await db
       .update(boqDocs)
       .set({ status: numToStatus(num(payload.status)), approver: payload.username || null, updatedAt: new Date() })
-      .where(eq(boqDocs.docNo, decodeURIComponent(docNo)))
+      .where(eq(boqDocs.docNo, decoded))
       .returning({ id: boqDocs.id });
     if (!res.length) return fail("BOQ not found");
     invalidate("projects:");

@@ -3,6 +3,7 @@
 /** Multi-select picker for task-master tasks (add 1 or many at once). */
 import React, { useMemo, useState } from "react";
 import { Search, X, Check, ListPlus } from "lucide-react";
+import { useT } from "@/_lib/i18n";
 
 export default function TaskPickerModal({
   open,
@@ -10,7 +11,7 @@ export default function TaskPickerModal({
   masters,
   excludeIds,
   onAdd,
-  title = "ເພີ່ມໜ້າວຽກ",
+  title,
 }: {
   open: boolean;
   onClose: () => void;
@@ -19,6 +20,8 @@ export default function TaskPickerModal({
   onAdd: (picked: any[]) => void;
   title?: string;
 }) {
+  const t = useT();
+  const titleText = title ?? t("components.taskPicker.title", "ເພີ່ມໜ້າວຽກ");
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<Set<string>>(new Set());
 
@@ -56,18 +59,18 @@ export default function TaskPickerModal({
     <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-[8vh]" onClick={close}>
       <div className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-[var(--theme-shadow-lg)]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between bg-gradient-to-r from-teal-500 to-emerald-500 px-4 py-3 text-white">
-          <h3 className="flex items-center gap-2 text-[14px] font-bold"><ListPlus size={16} /> {title}</h3>
+          <h3 className="flex items-center gap-2 text-[14px] font-bold"><ListPlus size={16} /> {titleText}</h3>
           <button onClick={close} className="text-white/80 hover:text-white"><X size={18} /></button>
         </div>
         <div className="border-b border-[var(--theme-border-subtle)] p-2">
           <div className="flex h-9 items-center gap-2 rounded-md border border-[var(--theme-border-subtle)] px-2.5">
             <Search size={14} className="text-[var(--theme-text-mute)]" />
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="ຄົ້ນຫາໜ້າວຽກ..." className="min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("components.taskPicker.searchPlaceholder", "ຄົ້ນຫາໜ້າວຽກ...")} className="min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {list.length === 0 ? (
-            <div className="py-10 text-center text-[12px] text-[var(--theme-text-mute)]">ບໍ່ມີໜ້າວຽກໃຫ້ເລືອກ</div>
+            <div className="py-10 text-center text-[12px] text-[var(--theme-text-mute)]">{t("components.taskPicker.empty", "ບໍ່ມີໜ້າວຽກໃຫ້ເລືອກ")}</div>
           ) : (
             list.map((m, i) => {
               const idStr = String(m.id);
@@ -83,8 +86,8 @@ export default function TaskPickerModal({
                     {checked && <Check size={12} />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12.5px] font-medium text-[var(--theme-text)]">{m.task || m.name || "(ບໍ່ມີຊື່)"}</span>
-                    {m.phase && <span className="block truncate text-[10.5px] text-[var(--theme-text-mute)]">ໄລຍະ: {m.phase}</span>}
+                    <span className="block truncate text-[12.5px] font-medium text-[var(--theme-text)]">{m.task || m.name || t("components.picker.noName", "(ບໍ່ມີຊື່)")}</span>
+                    {m.phase && <span className="block truncate text-[10.5px] text-[var(--theme-text-mute)]">{t("components.taskPicker.phase", "ໄລຍະ")}: {m.phase}</span>}
                   </span>
                 </button>
               );
@@ -92,9 +95,9 @@ export default function TaskPickerModal({
           )}
         </div>
         <div className="flex gap-2 border-t border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)] p-3">
-          <button onClick={close} className="flex-1 rounded-md border border-[var(--theme-border-subtle)] bg-white py-2 text-[12px] font-semibold text-[var(--theme-text-soft)] hover:bg-[var(--theme-bg-muted)]">ຍົກເລີກ</button>
+          <button onClick={close} className="flex-1 rounded-md border border-[var(--theme-border-subtle)] bg-white py-2 text-[12px] font-semibold text-[var(--theme-text-soft)] hover:bg-[var(--theme-bg-muted)]">{t("common.cancel", "ຍົກເລີກ")}</button>
           <button onClick={confirm} disabled={sel.size === 0} className="flex flex-[2] items-center justify-center gap-1.5 rounded-md bg-[var(--theme-primary)] py-2 text-[12px] font-semibold text-white hover:bg-[var(--theme-primary-strong)] disabled:opacity-50">
-            <ListPlus size={14} /> ເພີ່ມ {sel.size > 0 ? `(${sel.size})` : ""}
+            <ListPlus size={14} /> {t("common.add", "ເພີ່ມ")} {sel.size > 0 ? `(${sel.size})` : ""}
           </button>
         </div>
       </div>

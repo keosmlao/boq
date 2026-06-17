@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, MessageSquare, CheckCircle2, CalendarClock, CheckCheck } from "lucide-react";
 import type { Notification } from "@/_actions/notifications";
+import { useT } from "@/_lib/i18n";
 
 /** Poll/mark via the stable /api/notifications route (server actions go stale on redeploy). */
 async function fetchNotifications(): Promise<{ items: Notification[]; unread: number } | null> {
@@ -35,13 +36,13 @@ async function markNotificationsRead(ids?: (string | number)[]): Promise<void> {
 
 const POLL_MS = 25000;
 
-const ENTITY_ROUTE: Record<string, { base: string; label: string }> = {
-  project: { base: "/projects", label: "ໂຄງການ" },
-  contract: { base: "/contracts", label: "ສັນຍา" },
-  quotation: { base: "/quotations", label: "ໃບສະເໜີລາຄາ" },
-  boq: { base: "/boq", label: "BOQ" },
-  request: { base: "/requests", label: "ຂໍເບີກ" },
-  work_order: { base: "/work-orders", label: "ໃບງານ" },
+const ENTITY_ROUTE: Record<string, { base: string }> = {
+  project: { base: "/projects" },
+  contract: { base: "/contracts" },
+  quotation: { base: "/quotations" },
+  boq: { base: "/boq" },
+  request: { base: "/requests" },
+  work_order: { base: "/work-orders" },
 };
 const KIND_ICON: Record<string, React.ReactNode> = {
   comment: <MessageSquare size={13} />,
@@ -49,17 +50,29 @@ const KIND_ICON: Record<string, React.ReactNode> = {
   activity_done: <CheckCircle2 size={13} />,
 };
 
-function relTime(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (!Number.isFinite(t)) return "";
-  const s = Math.floor((Date.now() - t) / 1000);
-  if (s < 60) return "ຫາກໍ່";
-  if (s < 3600) return `${Math.floor(s / 60)} ນາທີກ່ອນ`;
-  if (s < 86400) return `${Math.floor(s / 3600)} ຊົ່ວໂມງກ່ອນ`;
-  return `${Math.floor(s / 86400)} ມື້ກ່ອນ`;
+function makeRelTime(t: ReturnType<typeof useT>) {
+  return (iso: string): string => {
+    const ms = new Date(iso).getTime();
+    if (!Number.isFinite(ms)) return "";
+    const s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return t("components.relTime.now", "ຫາກໍ່");
+    if (s < 3600) return `${Math.floor(s / 60)} ${t("components.relTime.minutesAgo", "ນາທີກ່ອນ")}`;
+    if (s < 86400) return `${Math.floor(s / 3600)} ${t("components.relTime.hoursAgo", "ຊົ່ວໂມງກ່ອນ")}`;
+    return `${Math.floor(s / 86400)} ${t("components.relTime.daysAgo", "ມື້ກ່ອນ")}`;
+  };
 }
 
 export default function NotificationsBell() {
+  const tr = useT();
+  const relTime = makeRelTime(tr);
+  const ENTITY_LABEL: Record<string, string> = {
+    project: tr("components.entity.project", "ໂຄງການ"),
+    contract: tr("components.entity.contract", "ສັນຍາ"),
+    quotation: tr("components.entity.quotation", "ໃບສະເໜີລາຄາ"),
+    boq: tr("components.entity.boq", "BOQ"),
+    request: tr("components.entity.request", "ຂໍເບີກ"),
+    work_order: tr("components.entity.workOrder", "ໃບງານ"),
+  };
   const router = useRouter();
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
@@ -107,7 +120,7 @@ export default function NotificationsBell() {
       <button
         onClick={() => { setOpen((o) => !o); load(); }}
         className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition"
-        title="ການແຈ້ງເຕືອນ"
+        title={tr("components.notifications.title", "ການແຈ້ງເຕືອນ")}
       >
         <Bell size={17} />
         {unread > 0 && (
@@ -123,16 +136,16 @@ export default function NotificationsBell() {
           <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_20px_45px_-12px_rgba(15,23,42,0.28)] animate-scale-up">
             <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-soft)]/70 px-4 py-3">
               <Bell size={15} className="text-blue-600 dark:text-blue-400" />
-              <span className="text-[12.5px] font-black text-[var(--text)]">ການແຈ້ງເຕືອນ</span>
+              <span className="text-[12.5px] font-black text-[var(--text)]">{tr("components.notifications.title", "ການແຈ້ງເຕືອນ")}</span>
               {unread > 0 && (
                 <button onClick={markAll} className="ml-auto inline-flex items-center gap-1 text-[10.5px] font-bold text-blue-600 dark:text-blue-400 hover:underline">
-                  <CheckCheck size={12} /> ອ່ານທັງໝົດ
+                  <CheckCheck size={12} /> {tr("components.notifications.markAllRead", "ອ່ານທັງໝົດ")}
                 </button>
               )}
             </div>
             <div className="max-h-[380px] overflow-y-auto">
               {items.length === 0 ? (
-                <div className="px-4 py-8 text-center text-[12px] font-semibold text-[var(--text-mute)]">ບໍ່ມີການແຈ້ງເຕືອນ</div>
+                <div className="px-4 py-8 text-center text-[12px] font-semibold text-[var(--text-mute)]">{tr("components.notifications.empty", "ບໍ່ມີການແຈ້ງເຕືອນ")}</div>
               ) : (
                 items.map((n) => {
                   const route = ENTITY_ROUTE[n.entity_type];
@@ -149,7 +162,7 @@ export default function NotificationsBell() {
                         <div className={`text-[12px] leading-snug ${n.is_read ? "font-medium text-[var(--text-soft)]" : "font-bold text-[var(--text)]"}`}>{n.body}</div>
                         <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] font-semibold text-[var(--text-mute)]">
                           <span>{relTime(n.created_at)}</span>
-                          {route && <span>· {route.label}</span>}
+                          {route && <span>· {ENTITY_LABEL[n.entity_type] ?? n.entity_type}</span>}
                         </div>
                       </div>
                       {!n.is_read && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-blue-500 dark:bg-blue-400" />}

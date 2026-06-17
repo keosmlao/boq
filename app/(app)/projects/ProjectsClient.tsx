@@ -14,12 +14,14 @@ import { Search, FolderOpen, ChevronRight, Plus, RefreshCw } from "lucide-react"
 import { getProjects } from "@/_actions/projects";
 import { getInstallTracking, type InstallRow } from "@/_actions/install-tracking";
 import { Page, thCls, tdCls } from "../_components/ui";
+import { useT } from "@/_lib/i18n";
 
 const fmtD = (v?: string | null) => (v ? new Date(v).toLocaleDateString("en-GB") : "—");
 const daysSince = (v?: string | null) => (v ? Math.max(0, Math.floor((Date.now() - new Date(v).getTime()) / 86_400_000)) : null);
 
 export default function ProjectsClient({ initialRows }: { initialRows: any[] }) {
   const router = useRouter();
+  const t = useT();
   const [rows, setRows] = useState<any[]>(initialRows ?? []);
   const [metrics, setMetrics] = useState<Map<string, InstallRow>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -75,7 +77,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
   const grouped = useMemo(() => {
     const groups: Record<string, any[]> = {};
     filtered.forEach((r) => {
-      const cName = r.customer_name || r.sml_code || "(ບໍ່ລະບຸລູກຄ້າ)";
+      const cName = r.customer_name || r.sml_code || t("projects.noCustomer", "(ບໍ່ລະບຸລູກຄ້າ)");
       if (!groups[cName]) groups[cName] = [];
       groups[cName].push(r);
     });
@@ -98,9 +100,9 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
       {/* Monochrome Minimalist Header */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-100 pb-5">
         <div className="min-w-0">
-          <h1 className="truncate text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-none">ໂຄງການ</h1>
+          <h1 className="truncate text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-none">{t("projects.title", "ໂຄງການ")}</h1>
           <p className="mt-2 text-xs font-medium text-slate-400">
-            ໂຄງການທັງໝົດ {rows.length} · ກຳລັງດຳເນີນການ {runningCount} · ສະເໜີລາຄາ / Pre-Sales {quoteCount}
+            {t("projects.summary.total", "ໂຄງການທັງໝົດ")} {rows.length} · {t("projects.summary.running", "ກຳລັງດຳເນີນການ")} {runningCount} · {t("projects.summary.quote", "ສະເໜີລາຄາ / Pre-Sales")} {quoteCount}
           </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
@@ -115,7 +117,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
             onClick={() => router.push("/projects/new")}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-700 active:scale-[0.98] cursor-pointer"
           >
-            <Plus size={14} strokeWidth={2.5} /> ລົງທະບຽນໂຄງການ
+            <Plus size={14} strokeWidth={2.5} /> {t("projects.register", "ລົງທະບຽນໂຄງການ")}
           </button>
         </div>
       </div>
@@ -129,16 +131,16 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="ຄົ້ນຫາໂຄງການ, ລູກຄ້າ..."
+                placeholder={t("projects.search.placeholder", "ຄົ້ນຫາໂຄງການ, ລູກຄ້າ...")}
                 className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none"
               />
             </div>
             <div className="flex items-center gap-1">
               {[
-                ["all", "ທັງໝົດ"],
-                ["open", "ກຳລັງເຮັດ"],
-                ["waiting", "ລໍຖ້າ"],
-                ["closed", "ປິດແລ້ວ"],
+                ["all", t("common.all", "ທັງໝົດ")],
+                ["open", t("projects.filter.open", "ກຳລັງເຮັດ")],
+                ["waiting", t("projects.filter.waiting", "ລໍຖ້າ")],
+                ["closed", t("projects.filter.closed", "ປິດແລ້ວ")],
               ].map(([key, label]) => (
                 <button
                   key={key}
@@ -163,19 +165,19 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
                 : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
             }`}
           >
-            <span>ຈັດກຸ່ມຕາມລູກຄ້າ</span>
+            <span>{t("projects.groupByCustomer", "ຈັດກຸ່ມຕາມລູກຄ້າ")}</span>
           </button>
         </div>
 
         {loading ? (
           <div className="flex h-56 items-center justify-center gap-3 text-slate-400">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
-            <span className="text-sm font-semibold">ກຳລັງໂຫຼດ...</span>
+            <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex h-56 flex-col items-center justify-center gap-2 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
             <FolderOpen className="h-8 w-8 opacity-40" />
-            <span className="text-sm font-semibold">ບໍ່ພົບໂຄງການ</span>
+            <span className="text-sm font-semibold">{t("projects.notFound", "ບໍ່ພົບໂຄງການ")}</span>
           </div>
         ) : groupByCustomer ? (
           /* Grouped by Customer View */
@@ -191,7 +193,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
                     <span className="text-[13px] font-bold text-slate-800">{g.customerName}</span>
                   </div>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-                    {g.projects.length} ໂຄງການ
+                    {g.projects.length} {t("projects.unit", "ໂຄງການ")}
                   </span>
                 </div>
 
@@ -200,12 +202,12 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
                   <table className="min-w-full border-separate border-spacing-0 text-xs">
                     <thead>
                       <tr className="bg-slate-50/55">
-                        <th className={`${thCls} pl-4.5 border-b border-slate-100 bg-slate-50/50`}>ໂຄງການ</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ສະຖານະ</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ເລີ່ມຕິດຕັ້ງ</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ໄລຍະ</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ໃບງານ</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ຊົ່ວໂມງ</th>
+                        <th className={`${thCls} pl-4.5 border-b border-slate-100 bg-slate-50/50`}>{t("projects.col.project", "ໂຄງການ")}</th>
+                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>{t("common.status", "ສະຖານະ")}</th>
+                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>{t("projects.col.installStart", "ເລີ່ມຕິດຕັ້ງ")}</th>
+                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.duration", "ໄລຍະ")}</th>
+                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.workOrders", "ໃບງານ")}</th>
+                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.hours", "ຊົ່ວໂມງ")}</th>
                         <th className={`${thCls} w-10 pr-4.5 border-b border-slate-100 bg-slate-50/50`} />
                       </tr>
                     </thead>
@@ -220,7 +222,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
                           className="hover:bg-slate-50/50 cursor-pointer transition-colors"
                         >
                           <td className={`${tdCls} pl-4.5 font-semibold text-slate-800`}>
-                            {r.project_name || "(ບໍ່ມີຊື່)"}
+                            {r.project_name || t("projects.noName", "(ບໍ່ມີຊື່)")}
                           </td>
                           <td className={`${tdCls} text-slate-600`}>
                             {r.project_status || "-"}
@@ -229,7 +231,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
                             {fmtD(m?.install_started_at)}
                           </td>
                           <td className={`${tdCls} text-right text-slate-600`}>
-                            {dur != null ? `${dur} ມື້` : "—"}
+                            {dur != null ? `${dur} ${t("projects.unit.days", "ມື້")}` : "—"}
                           </td>
                           <td className={`${tdCls} text-right text-slate-600`}>
                             {m?.wo_count ? m.wo_count : "—"}
@@ -256,13 +258,13 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
               <table className="min-w-full border-separate border-spacing-0 text-xs">
                 <thead>
                   <tr className="bg-slate-50/55">
-                    <th className={`${thCls} pl-4.5 border-b border-slate-100 bg-slate-50/50`}>ໂຄງການ</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ຊື່ລູກຄ້າ</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ສະຖານະ</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>ເລີ່ມຕິດຕັ້ງ</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ໄລຍະ</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ໃບງານ</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>ຊົ່ວໂມງ</th>
+                    <th className={`${thCls} pl-4.5 border-b border-slate-100 bg-slate-50/50`}>{t("projects.col.project", "ໂຄງການ")}</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>{t("projects.col.customerName", "ຊື່ລູກຄ້າ")}</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>{t("common.status", "ສະຖານະ")}</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>{t("projects.col.installStart", "ເລີ່ມຕິດຕັ້ງ")}</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.duration", "ໄລຍະ")}</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.workOrders", "ໃບງານ")}</th>
+                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.hours", "ຊົ່ວໂມງ")}</th>
                     <th className={`${thCls} w-10 pr-4.5 border-b border-slate-100 bg-slate-50/50`} />
                   </tr>
                 </thead>
@@ -277,7 +279,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
                       className="hover:bg-slate-50/50 cursor-pointer transition-colors"
                     >
                       <td className={`${tdCls} pl-4.5 font-semibold text-slate-800`}>
-                        {r.project_name || "(ບໍ່ມີຊື່)"}
+                        {r.project_name || t("projects.noName", "(ບໍ່ມີຊື່)")}
                       </td>
                       <td className={`${tdCls} text-slate-500`}>
                         {r.customer_name || r.sml_code || "-"}
@@ -289,7 +291,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
                         {fmtD(m?.install_started_at)}
                       </td>
                       <td className={`${tdCls} text-right text-slate-600`}>
-                        {dur != null ? `${dur} ມື້` : "—"}
+                        {dur != null ? `${dur} ${t("projects.unit.days", "ມື້")}` : "—"}
                       </td>
                       <td className={`${tdCls} text-right text-slate-600`}>
                         {m?.wo_count ? m.wo_count : "—"}
@@ -311,7 +313,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
             {filtered.length > pageSize && (
               <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 px-4 py-3 bg-slate-50/20 gap-3">
                 <div className="text-[11px] text-slate-400 font-medium">
-                  ສະແດງ {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filtered.length)} ຈາກ {filtered.length} ໂຄງການ
+                  {t("projects.pagination.showing", "ສະແດງ")} {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filtered.length)} {t("projects.pagination.of", "ຈາກ")} {filtered.length} {t("projects.unit", "ໂຄງການ")}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
@@ -319,7 +321,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
                     onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
                     className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
                   >
-                    ກ່ອນໜ້າ
+                    {t("projects.pagination.prev", "ກ່ອນໜ້າ")}
                   </button>
 
                   <div className="flex items-center gap-1">
@@ -352,7 +354,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
                     onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
                     className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
                   >
-                    ຖັດໄປ
+                    {t("projects.pagination.next", "ຖັດໄປ")}
                   </button>
                 </div>
               </div>

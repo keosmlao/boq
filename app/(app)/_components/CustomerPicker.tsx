@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Search, X, UserPlus, Check, Loader2, ChevronDown } from "lucide-react";
 import { getCustomers, createCustomer } from "@/_actions/customers";
 import { inputCls } from "./ui";
+import { useT } from "@/_lib/i18n";
 
 export type PickedCustomer = {
   code: string;
@@ -26,6 +27,7 @@ export default function CustomerPicker({
   value: PickedCustomer | null;
   onChange: (c: PickedCustomer | null) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<any[]>([]);
@@ -78,7 +80,7 @@ export default function CustomerPicker({
   const submitCreate = async () => {
     setCErr("");
     if (!c.name.trim()) {
-      setCErr("ກະລຸນາໃສ່ຊື່ລູກຄ້າ");
+      setCErr(t("components.customerPicker.nameRequired", "ກະລຸນາໃສ່ຊື່ລູກຄ້າ"));
       return;
     }
     setCreating(true);
@@ -90,10 +92,10 @@ export default function CustomerPicker({
         setOpen(false);
         setC({ name: "", customerType: "ລູກຄ້າໂຄງການ", phone: "", address: "" });
       } else {
-        setCErr(res?.message || "ສ້າງບໍ່ສຳເລັດ");
+        setCErr(res?.message || t("components.customerPicker.createFailed", "ສ້າງບໍ່ສຳເລັດ"));
       }
     } catch (e: any) {
-      setCErr(e?.message || "ເກີດຂໍ້ຜິດພາດ");
+      setCErr(e?.message || t("common.error", "ເກີດຂໍ້ຜິດພາດ"));
     } finally {
       setCreating(false);
     }
@@ -106,7 +108,7 @@ export default function CustomerPicker({
           <span className="truncate text-[13px] font-medium text-[var(--theme-text)]">
             {value.name} <span className="font-mono text-[11px] text-[var(--theme-text-mute)]">({value.code})</span>
           </span>
-          <button type="button" onClick={() => onChange(null)} className="text-[var(--theme-text-mute)] hover:text-rose-600" title="ປ່ຽນ">
+          <button type="button" onClick={() => onChange(null)} className="text-[var(--theme-text-mute)] hover:text-rose-600" title={t("components.customerPicker.change", "ປ່ຽນ")}>
             <X size={15} />
           </button>
         </div>
@@ -120,7 +122,7 @@ export default function CustomerPicker({
           className="flex h-9 w-full items-center gap-2 rounded-md border border-[var(--theme-border-subtle)] px-3 text-left text-[13px] text-[var(--theme-text-mute)] hover:border-[var(--theme-primary-soft)]"
         >
           <Search size={14} />
-          <span className="flex-1">ເລືອກ ຫຼື ຄົ້ນຫາລູກຄ້າ...</span>
+          <span className="flex-1">{t("components.customerPicker.selectOrSearch", "ເລືອກ ຫຼື ຄົ້ນຫາລູກຄ້າ...")}</span>
           <ChevronDown size={15} />
         </button>
       )}
@@ -137,7 +139,7 @@ export default function CustomerPicker({
                   setQ(e.target.value);
                   search(e.target.value);
                 }}
-                placeholder="ຄົ້ນຫາຊື່ ຫຼື ລະຫັດ..."
+                placeholder={t("components.customerPicker.searchPlaceholder", "ຄົ້ນຫາຊື່ ຫຼື ລະຫັດ...")}
                 className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none"
               />
               {loading && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--theme-primary)] border-t-transparent" />}
@@ -146,7 +148,7 @@ export default function CustomerPicker({
           <div className="max-h-56 overflow-y-auto">
             {results.length === 0 ? (
               <div className="px-3 py-3 text-center text-[12px] text-[var(--theme-text-mute)]">
-                {loading ? "ກຳລັງຄົ້ນຫາ..." : "ບໍ່ພົບລູກຄ້າ"}
+                {loading ? t("components.picker.searching", "ກຳລັງຄົ້ນຫາ...") : t("components.customerPicker.notFound", "ບໍ່ພົບລູກຄ້າ")}
               </div>
             ) : (
               results.map((r, i) => (
@@ -167,7 +169,7 @@ export default function CustomerPicker({
             onClick={() => setShowCreate(true)}
             className="flex w-full items-center gap-2 border-t border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)]/50 px-3 py-2 text-[12.5px] font-semibold text-[var(--theme-primary)] hover:bg-[var(--theme-bg-muted)]"
           >
-            <UserPlus size={14} /> ສ້າງລູກຄ້າໃໝ່
+            <UserPlus size={14} /> {t("components.customerPicker.createNew", "ສ້າງລູກຄ້າໃໝ່")}
           </button>
         </div>
       )}
@@ -178,36 +180,36 @@ export default function CustomerPicker({
           <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-[var(--theme-shadow-lg)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 bg-gradient-to-r from-[var(--theme-primary)] to-blue-500 px-4 py-3 text-white">
               <UserPlus size={18} />
-              <h3 className="text-[14px] font-bold">ສ້າງລູກຄ້າໃໝ່</h3>
+              <h3 className="text-[14px] font-bold">{t("components.customerPicker.createNew", "ສ້າງລູກຄ້າໃໝ່")}</h3>
             </div>
             <div className="space-y-3 p-4">
               {cErr && <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-[12px] text-rose-700">{cErr}</div>}
-              <Field label="ຊື່ລູກຄ້າ" required>
-                <input value={c.name} onChange={(e) => setC({ ...c, name: e.target.value })} className={inputCls} placeholder="ຊື່ລູກຄ້າ" />
+              <Field label={t("components.customerPicker.nameLabel", "ຊື່ລູກຄ້າ")} required>
+                <input value={c.name} onChange={(e) => setC({ ...c, name: e.target.value })} className={inputCls} placeholder={t("components.customerPicker.nameLabel", "ຊື່ລູກຄ້າ")} />
               </Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="ປະເພດ">
+                <Field label={t("components.customerPicker.typeLabel", "ປະເພດ")}>
                   <select value={c.customerType} onChange={(e) => setC({ ...c, customerType: e.target.value })} className={inputCls}>
-                    <option value="ລູກຄ້າໂຄງການ">ລູກຄ້າໂຄງການ</option>
-                    <option value="ລູກຄ້າທົ່ວໄປ">ລູກຄ້າທົ່ວໄປ</option>
-                    <option value="ຮ້ານຄ້າ">ຮ້ານຄ້າ</option>
+                    <option value="ລູກຄ້າໂຄງການ">{t("components.customerPicker.typeProject", "ລູກຄ້າໂຄງການ")}</option>
+                    <option value="ລູກຄ້າທົ່ວໄປ">{t("components.customerPicker.typeGeneral", "ລູກຄ້າທົ່ວໄປ")}</option>
+                    <option value="ຮ້ານຄ້າ">{t("components.customerPicker.typeShop", "ຮ້ານຄ້າ")}</option>
                   </select>
                 </Field>
-                <Field label="ເບີໂທ">
+                <Field label={t("common.phone", "ເບີໂທ")}>
                   <input value={c.phone} onChange={(e) => setC({ ...c, phone: e.target.value })} className={inputCls} placeholder="020..." />
                 </Field>
               </div>
-              <Field label="ທີ່ຢູ່">
-                <input value={c.address} onChange={(e) => setC({ ...c, address: e.target.value })} className={inputCls} placeholder="ທີ່ຢູ່" />
+              <Field label={t("components.customerPicker.addressLabel", "ທີ່ຢູ່")}>
+                <input value={c.address} onChange={(e) => setC({ ...c, address: e.target.value })} className={inputCls} placeholder={t("components.customerPicker.addressLabel", "ທີ່ຢູ່")} />
               </Field>
             </div>
             <div className="flex gap-2 border-t border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)] p-3">
               <button type="button" onClick={() => setShowCreate(false)} disabled={creating} className="flex-1 rounded-md border border-[var(--theme-border-subtle)] bg-white py-2 text-[12px] font-semibold text-[var(--theme-text-soft)] hover:bg-[var(--theme-bg-muted)] disabled:opacity-60">
-                ຍົກເລີກ
+                {t("common.cancel", "ຍົກເລີກ")}
               </button>
               <button type="button" onClick={submitCreate} disabled={creating} className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-[var(--theme-primary)] py-2 text-[12px] font-semibold text-white hover:bg-[var(--theme-primary-strong)] disabled:opacity-60">
                 {creating ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                {creating ? "ກຳລັງສ້າງ..." : "ສ້າງ & ເລືອກ"}
+                {creating ? t("components.customerPicker.creating", "ກຳລັງສ້າງ...") : t("components.customerPicker.createSelect", "ສ້າງ & ເລືອກ")}
               </button>
             </div>
           </div>

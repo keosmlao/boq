@@ -17,16 +17,18 @@ function fail(message: string, extra: Record<string, unknown> = {}): Fail {
 }
 
 /**
- * Is this BOQ the FIRST document for its project? The first BOQ of a project may
- * be approved by a manager; every subsequent (2nd+) BOQ must be approved by an
- * admin (ຜູ້ດູແລລะບົບ) only.
+ * Is this the first BOQ of its contract? The first BOQ of a contract may be
+ * approved by a manager (boq.approve); every subsequent (2nd+) BOQ of the SAME
+ * contract may only be approved by an admin (ຜູ້ດູແລລະບົບ). BOQs with no
+ * contract fall back to per-project ordering.
  */
-async function isFirstBoqForProject(decodedDocNo: string): Promise<boolean> {
+async function isFirstBoqForContract(decodedDocNo: string): Promise<boolean> {
   const r = await query(
     `SELECT COUNT(*)::int AS earlier
        FROM odg_projects_boq b2
        JOIN odg_projects_boq b ON b.doc_no = $1
-      WHERE b2.project_id = b.project_id
+      WHERE ((b.contract_id IS NOT NULL AND b2.contract_id = b.contract_id)
+             OR (b.contract_id IS NULL AND b2.project_id = b.project_id))
         AND b2.doc_no <> b.doc_no
         AND (b2.doc_date < b.doc_date
              OR (b2.doc_date = b.doc_date AND b2.roworder < b.roworder)
@@ -198,7 +200,7 @@ export async function getBoq(docNo: string): Promise<Record<string, unknown> | {
     const requestTotal = details.rows.reduce((sum, item) => sum + Number(item.request_qty || 0), 0);
     const withdrawTotal = details.rows.reduce((sum, item) => sum + Number(item.withdraw || 0), 0);
 
-    const isFirst = await isFirstBoqForProject(decodedDocNo);
+    const isFirst = await isFirstBoqForContract(decodedDocNo);
 
     return {
       ...header.rows[0],
@@ -463,9 +465,9 @@ export async function approveBoq(docNo: string, payload: { status?: number; user
     const status = toNumber(payload?.status, 0);
     const username = payload?.username ? String(payload.username) : null;
 
-    // Subsequent (2nd+) BOQ of a project may only be approved/rejected by an admin.
+    // Subsequent (2nd+) BOQ of a contract may only be approved/rejected by an admin.
     const sessionUser = await getSessionUser();
-    const firstBoq = await isFirstBoqForProject(decodedDocNo);
+    const firstBoq = await isFirstBoqForContract(decodedDocNo);
     if (!firstBoq && !isAdmin(sessionUser)) {
       return fail("ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບອະນຸມັດເທົ່ານັ້ນ");
     }

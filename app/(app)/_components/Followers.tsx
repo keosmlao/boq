@@ -10,12 +10,14 @@ import { Users, UserPlus, UserMinus, Check, X, Loader2 } from "lucide-react";
 import { getFollowers, followRecord, unfollowRecord, addFollower, type Follower } from "@/_actions/followers";
 import { getAssignableUsers } from "@/_actions/activities";
 import { getV2User } from "../../_lib/session";
+import { useT } from "@/_lib/i18n";
 
 const initial = (s: string) => (s || "?").replace(/[^\p{L}\p{N}]/u, "").charAt(0).toUpperCase() || "?";
 const AV = ["bg-blue-100 text-blue-700", "bg-violet-100 text-violet-700", "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700", "bg-rose-100 text-rose-700", "bg-cyan-100 text-cyan-700"];
 const toneFor = (s: string) => AV[[...(s || "?")].reduce((a, c) => a + c.charCodeAt(0), 0) % AV.length];
 
 export default function Followers({ entityType, entityId }: { entityType: string; entityId: string | number }) {
+  const t = useT();
   const id = String(entityId ?? "");
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [following, setFollowing] = useState(false);
@@ -62,7 +64,7 @@ export default function Followers({ entityType, entityId }: { entityType: string
     <div className="relative flex items-center gap-1.5">
       {/* Avatar stack */}
       {followers.length > 0 && (
-        <button onClick={() => setOpen((o) => !o)} className="flex items-center -space-x-1.5" title="ຜູ້ຕິດຕາມ">
+        <button onClick={() => setOpen((o) => !o)} className="flex items-center -space-x-1.5" title={t("components.followers.followers", "ຜູ້ຕິດຕາມ")}>
           {followers.slice(0, 4).map((f) => (
             <span key={f.username} className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black ring-2 ring-white ${toneFor(f.username)}`}>
               {initial(f.name || f.username)}
@@ -81,11 +83,11 @@ export default function Followers({ entityType, entityId }: { entityType: string
         className={`inline-flex h-7 items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition active:scale-95 ${following ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"}`}
       >
         {busy ? <Loader2 size={12} className="animate-spin" /> : following ? <Check size={12} /> : <UserPlus size={12} />}
-        {following ? "ກຳລັງติดตาม" : "ติดตาม"}
+        {following ? t("components.followers.following", "ກຳລັງຕິດຕາມ") : t("components.followers.follow", "ຕິດຕາມ")}
       </button>
 
       {/* Manage dropdown */}
-      <button onClick={() => setOpen((o) => !o)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600" title="ຈັດການຜູ້ຕິດຕາມ">
+      <button onClick={() => setOpen((o) => !o)} className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600" title={t("components.followers.manage", "ຈັດການຜູ້ຕິດຕາມ")}>
         <Users size={13} />
       </button>
 
@@ -94,16 +96,16 @@ export default function Followers({ entityType, entityId }: { entityType: string
           <button aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_45px_-12px_rgba(15,23,42,0.28)] animate-scale-up">
             <div className="border-b border-slate-100 bg-slate-50/70 px-3.5 py-2.5 text-[11px] font-black uppercase tracking-wider text-slate-500">
-              ຜູ້ຕິດຕາມ ({followers.length})
+              {t("components.followers.followers", "ຜູ້ຕິດຕາມ")} ({followers.length})
             </div>
             <div className="max-h-44 overflow-y-auto py-1">
               {followers.length === 0 ? (
-                <div className="px-3.5 py-3 text-[12px] font-semibold text-slate-400">ຍັງບໍ່ມีผู้ติดตาม</div>
+                <div className="px-3.5 py-3 text-[12px] font-semibold text-slate-400">{t("components.followers.empty", "ຍັງບໍ່ມີຜູ້ຕິດຕາມ")}</div>
               ) : followers.map((f) => (
                 <div key={f.username} className="group flex items-center gap-2 px-3 py-1.5">
                   <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black ${toneFor(f.username)}`}>{initial(f.name || f.username)}</span>
                   <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-slate-700">{f.name || f.username}</span>
-                  <button onClick={() => remove(f.username)} className="rounded-md p-1 text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100" title="เอาออก">
+                  <button onClick={() => remove(f.username)} className="rounded-md p-1 text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100" title={t("components.followers.remove", "ເອົາອອກ")}>
                     <UserMinus size={13} />
                   </button>
                 </div>
@@ -111,7 +113,7 @@ export default function Followers({ entityType, entityId }: { entityType: string
             </div>
             {notFollowing.length > 0 && (
               <div className="border-t border-slate-100">
-                <div className="px-3.5 pt-2 text-[10px] font-black uppercase tracking-wider text-slate-400">ເພີ່ມ</div>
+                <div className="px-3.5 pt-2 text-[10px] font-black uppercase tracking-wider text-slate-400">{t("common.add", "ເພີ່ມ")}</div>
                 <div className="max-h-36 overflow-y-auto py-1">
                   {notFollowing.map((u) => (
                     <button key={u.username} onClick={() => add(u)} className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition hover:bg-blue-50/50">

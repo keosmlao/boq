@@ -3,7 +3,12 @@
  * The login page lives in the (auth) group and is NOT wrapped by this layout.
  */
 import Shell from "./_components/Shell";
+import { LanguageProvider } from "@/_lib/i18n";
 
 export default function V2AppLayout({ children }: { children: React.ReactNode }) {
-  return <Shell>{children}</Shell>;
+  return (
+    <LanguageProvider>
+      <Shell>{children}</Shell>
+    </LanguageProvider>
+  );
 }

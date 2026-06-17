@@ -14,6 +14,7 @@ import { Plus } from "lucide-react";
 import CrossList from "../_components/CrossList";
 import ProjectPickerModal from "../_components/ProjectPickerModal";
 import { Btn } from "../_components/ui";
+import { useT } from "@/_lib/i18n";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -21,6 +22,7 @@ const money = (v: unknown) => {
 };
 export default function BoqClient({ initialRows }: { initialRows: any[] }) {
   const router = useRouter();
+  const t = useT();
   const [pick, setPick] = useState(false);
 
   return (
@@ -36,30 +38,30 @@ export default function BoqClient({ initialRows }: { initialRows: any[] }) {
         }}
         searchText={(r) => `${r.boq_no ?? ""} ${r.project_name ?? ""} ${r.customer_name ?? ""} ${r.requester ?? ""} ${r.approver ?? ""}`}
         rowHref={(r) => (r.src === "erp" ? `/boq/${encodeURIComponent(r.boq_no || "")}` : `/boq/${r.id}`)}
-        searchPlaceholder="ຄົ້ນຫາ BOQ, ໂຄງການ, ລູກຄ້າ..."
-        empty="ຍັງບໍ່ມີ BOQ"
+        searchPlaceholder={t("boq.searchPlaceholder", "ຄົ້ນຫາ BOQ, ໂຄງການ, ລູກຄ້າ...")}
+        empty={t("boq.empty", "ຍັງບໍ່ມີ BOQ")}
         groupBy={(r) => r.project_name || "(ບໍ່ລະບຸໂຄງການ)"}
-        groupLabel="ຈັດກຸ່ມຕາມໂຄງການ"
+        groupLabel={t("boq.groupByProject", "ຈັດກຸ່ມຕາມໂຄງການ")}
         headerActions={
           <Btn onClick={() => setPick(true)}>
-            <Plus size={14} /> ສ້າງ BOQ
+            <Plus size={14} /> {t("boq.create", "ສ້າງ BOQ")}
           </Btn>
         }
         columns={[
-          { header: "BOQ ເລກທີ່", cell: (r) => <span className="font-mono text-[var(--theme-text)]">{r.boq_no || "-"}</span> },
-          { header: "ໂຄງການ", cell: (r) => <span className="font-medium">{r.project_name || "-"}</span> },
-          { header: "ມູນຄ່າ", align: "right", cell: (r) => money(r.total_amount ?? r.subtotal) },
-          { header: "ຜູ້ຂໍ", cell: (r) => r.requester || "-" },
-          { header: "ຜູ້ອະນຸມັດ", cell: (r) => r.approver || "-" },
-          { header: "ສະຖານະ", cell: (r) => <span className="text-slate-600">{r.status || "ລໍຖ້າອະນຸມັດ"}</span> },
-          { header: "ວັນທີ", cell: (r) => (r.created_at ?? "").toString().slice(0, 10) || "-" },
+          { header: t("boq.boqNo", "BOQ ເລກທີ່"), cell: (r) => <span className="font-mono text-[var(--theme-text)]">{r.boq_no || "-"}</span> },
+          { header: t("boq.project", "ໂຄງການ"), cell: (r) => <span className="font-medium">{r.project_name || "-"}</span> },
+          { header: t("common.amount", "ມູນຄ່າ"), align: "right", cell: (r) => money(r.total_amount ?? r.subtotal) },
+          { header: t("boq.requester", "ຜູ້ຂໍ"), cell: (r) => r.requester || "-" },
+          { header: t("common.approver", "ຜູ້ອະນຸມັດ"), cell: (r) => r.approver || "-" },
+          { header: t("common.status", "ສະຖານະ"), cell: (r) => <span className="text-slate-600">{r.status || t("status.pending", "ລໍຖ້າອະນຸມັດ")}</span> },
+          { header: t("common.date", "ວັນທີ"), cell: (r) => (r.created_at ?? "").toString().slice(0, 10) || "-" },
         ]}
       />
       <ProjectPickerModal
         open={pick}
         onClose={() => setPick(false)}
         onPick={(p) => router.push(`/projects/${p.id}/boq/new`)}
-        title="ເລືອກໂຄງການເພື່ອສ້າງ BOQ (ຕ້ອງມີສັນຍາທີ່ອະນຸມັດແລ້ວ)"
+        title={t("boq.pickProjectTitle", "ເລືອກໂຄງການເພື່ອສ້າງ BOQ (ຕ້ອງມີສັນຍາທີ່ອະນຸມັດແລ້ວ)")}
         requireApprovedContract
       />
     </>

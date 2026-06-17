@@ -16,6 +16,7 @@ import { getCustomer } from "@/_actions/customers";
 import { saveBoq, getBoq, updateBoqErp } from "@/_actions/boq";
 import { Page, Card, Btn, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
 import InventoryPicker from "../../../../_components/InventoryPicker";
+import { useT } from "@/_lib/i18n";
 
 type Mat = { itemCode?: string; description: string; unit?: string; qty: number; locked?: boolean };
 
@@ -25,6 +26,7 @@ const num = (v: unknown) => {
 };
 
 export default function CreateBoqPage() {
+  const t = useT();
   const { id } = useParams();
   const router = useRouter();
   const editParam = useSearchParams().get("edit");
@@ -62,7 +64,7 @@ export default function CreateBoqPage() {
               })),
             );
           } else {
-            setError(bRes?.message || "ບໍ່ພົບ BOQ");
+            setError(bRes?.message || t("boqNew.notFound", "ບໍ່ພົບ BOQ"));
           }
           setLoading(false);
           return;
@@ -132,7 +134,7 @@ export default function CreateBoqPage() {
   // Excel import (materials)
   const fileRef = useRef<HTMLInputElement | null>(null);
   const downloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet([{ item_code: "", description: "ຕົວຢ່າງວັດສະດຸ", unit: "ອັນ", qty: 1 }]);
+    const ws = XLSX.utils.json_to_sheet([{ item_code: "", description: t("boqNew.exampleMaterial", "ຕົວຢ່າງວັດສະດຸ"), unit: t("boqNew.unitPiece", "ອັນ"), qty: 1 }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "BOQ");
     XLSX.writeFile(wb, "boq_materials_template.xlsx");
@@ -155,7 +157,7 @@ export default function CreateBoqPage() {
         .filter((r) => r.description);
       if (imported.length) setMats((a) => [...a, ...imported]);
     } catch {
-      setError("ອ່ານໄຟລ໌ Excel ບໍ່ສຳເລັດ");
+      setError(t("boqNew.excelReadFailed", "ອ່ານໄຟລ໌ Excel ບໍ່ສຳເລັດ"));
     } finally {
       if (fileRef.current) fileRef.current.value = "";
     }
@@ -166,7 +168,7 @@ export default function CreateBoqPage() {
     setError("");
     const valid = mats.filter((m) => m.description.trim() && num(m.qty) > 0);
     if (!valid.length) {
-      setError("ກະລຸນາມີລາຍການຢ່າງໜ້ອຍ 1 ແຖວ");
+      setError(t("boqNew.needAtLeastOneRow", "ກະລຸນາມີລາຍການຢ່າງໜ້ອຍ 1 ແຖວ"));
       return;
     }
     const items = valid.map((m) => ({
@@ -181,7 +183,7 @@ export default function CreateBoqPage() {
       if (editDocNo) {
         const res: any = await updateBoqErp(editDocNo, { items });
         if (res?.success) router.push(`/boq/${encodeURIComponent(editDocNo)}`);
-        else setError(res?.message || "ບັນທຶກບໍ່ສຳເລັດ");
+        else setError(res?.message || t("boqNew.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
         return;
       }
 
@@ -199,10 +201,10 @@ export default function CreateBoqPage() {
         await advanceProjectStage(String(id), "BOQ").catch(() => {});
         router.push(`/projects/${id}?tab=boq`);
       } else {
-        setError(res?.message || "ບັນທຶກບໍ່ສຳເລັດ");
+        setError(res?.message || t("boqNew.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
       }
     } catch (err: any) {
-      setError(err?.message || "ເກີດຂໍ້ຜິດພາດ");
+      setError(err?.message || t("boqNew.errorOccurred", "ເກີດຂໍ້ຜິດພາດ"));
     } finally {
       setSaving(false);
     }
@@ -212,7 +214,7 @@ export default function CreateBoqPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm">ກຳລັງໂຫຼດ...</span>
+        <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
@@ -222,10 +224,10 @@ export default function CreateBoqPage() {
       <Page max="max-w-[700px]">
         <Card className="border-t-2 border-t-cyan-400 p-6 text-center">
           <p className="text-[13px] text-[var(--theme-text-soft)]">
-            ຕ້ອງມີ <b>ສັນຍາ</b> ກ່ອນ ຈຶ່ງສ້າງ BOQ ໄດ້.
+            {t("boqNew.needContractPrefix", "ຕ້ອງມີ")} <b>{t("boqNew.contract", "ສັນຍາ")}</b> {t("boqNew.needContractSuffix", "ກ່ອນ ຈຶ່ງສ້າງ BOQ ໄດ້.")}
           </p>
           <div className="mt-4 flex justify-center">
-            <Btn onClick={() => router.push(`/projects/${id}`)}>ກັບໄປໂຄງການ</Btn>
+            <Btn onClick={() => router.push(`/projects/${id}`)}>{t("boqNew.backToProject", "ກັບໄປໂຄງການ")}</Btn>
           </div>
         </Card>
       </Page>
@@ -242,26 +244,26 @@ export default function CreateBoqPage() {
               onClick={() => router.push(`/projects/${project?.id ?? id}`)}
               className="mb-1 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]"
             >
-              <ArrowLeft size={14} /> ໄປໂຄງການ
+              <ArrowLeft size={14} /> {t("boqNew.toProject", "ໄປໂຄງການ")}
             </button>
             <h1 className="flex items-center gap-2 text-[19px] font-bold leading-tight text-[var(--theme-text)]">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-sky-500 text-white">
                 <ListChecks size={16} />
               </span>
-              {editDocNo ? "ແກ້ໄຂ BOQ" : "ສ້າງ BOQ"}
+              {editDocNo ? t("boqNew.editBoq", "ແກ້ໄຂ BOQ") : t("boqNew.createBoq", "ສ້າງ BOQ")}
             </h1>
             {(custName || project?.project_name) && (
               <p className="text-[12px] text-[var(--theme-text-mute)]">
-                {custName && <span className="font-medium text-[var(--theme-text-soft)]">ລູກຄ້າ: {custName}</span>}
+                {custName && <span className="font-medium text-[var(--theme-text-soft)]">{t("boqNew.customerLabel", "ລູກຄ້າ")}: {custName}</span>}
                 {custName && project?.project_name && " · "}
-                {project?.project_name && <>ໂຄງການ: {project.project_name}</>}
-                {erpContract?.contract_no && <> · ສັນຍາ: {erpContract.contract_no}</>}
+                {project?.project_name && <>{t("boqNew.projectLabel", "ໂຄງການ")}: {project.project_name}</>}
+                {erpContract?.contract_no && <> · {t("boqNew.contractLabel", "ສັນຍາ")}: {erpContract.contract_no}</>}
               </p>
             )}
           </div>
           <Btn type="submit" disabled={saving}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກ BOQ"}
+            {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("boqNew.saveBoq", "ບັນທຶກ BOQ")}
           </Btn>
         </div>
 
@@ -273,15 +275,15 @@ export default function CreateBoqPage() {
         <Card className="mb-4 overflow-hidden border-t-2 border-t-cyan-400">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--theme-border-subtle)] px-3 py-2">
             <h2 className="flex items-center gap-2 text-[13px] font-bold text-[var(--theme-text)]">
-              <span className="h-4 w-1 rounded bg-cyan-500" /> ລາຍການ BOQ (ຈຳນວນ)
+              <span className="h-4 w-1 rounded bg-cyan-500" /> {t("boqNew.boqItemsHeading", "ລາຍການ BOQ (ຈຳນວນ)")}
             </h2>
             <div className="flex flex-wrap items-center gap-2">
               <Btn type="button" variant="outline" onClick={downloadTemplate}><FileDown size={14} /> Template</Btn>
               <Btn type="button" variant="outline" onClick={() => fileRef.current?.click()}><Upload size={14} /> Import Excel</Btn>
               <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={onImportExcel} />
-              <Btn type="button" variant="outline" onClick={() => addMat({ description: "ຄ່າແຮງ" })}><Wrench size={14} /> ຄ່າແຮງ</Btn>
-              <Btn type="button" variant="outline" onClick={() => addMat({ description: "ວັດສະດຸສິ້ນເປືອງ" })}><PackageOpen size={14} /> ສິ້ນເປືອງ</Btn>
-              <Btn type="button" variant="outline" onClick={() => addMat()}><Plus size={14} /> ເພີ່ມແຖວ</Btn>
+              <Btn type="button" variant="outline" onClick={() => addMat({ description: "ຄ່າແຮງ" })}><Wrench size={14} /> {t("boqNew.labour", "ຄ່າແຮງ")}</Btn>
+              <Btn type="button" variant="outline" onClick={() => addMat({ description: "ວັດສະດຸສິ້ນເປືອງ" })}><PackageOpen size={14} /> {t("boqNew.consumable", "ສິ້ນເປືອງ")}</Btn>
+              <Btn type="button" variant="outline" onClick={() => addMat()}><Plus size={14} /> {t("boqNew.addRow", "ເພີ່ມແຖວ")}</Btn>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -289,9 +291,9 @@ export default function CreateBoqPage() {
               <thead>
                 <tr>
                   <th className={`${thCls} w-8`}>#</th>
-                  <th className={thCls}>ລາຍການ / ສິນຄ້າ</th>
-                  <th className={`${thCls} w-28`}>ໜ່ວຍ</th>
-                  <th className={`${thCls} w-28 text-right`}>ຈຳນວນ</th>
+                  <th className={thCls}>{t("boqNew.itemOrProduct", "ລາຍການ / ສິນຄ້າ")}</th>
+                  <th className={`${thCls} w-28`}>{t("common.unit", "ໜ່ວຍ")}</th>
+                  <th className={`${thCls} w-28 text-right`}>{t("common.qty", "ຈຳນວນ")}</th>
                   <th className={`${thCls} w-8`} />
                 </tr>
               </thead>
@@ -314,14 +316,14 @@ export default function CreateBoqPage() {
                       )}
                     </td>
                     <td className={tdCls}>
-                      <input value={m.unit ?? ""} onChange={(e) => setMat(i, { unit: e.target.value })} disabled={m.locked} className={`${inputCls} h-8 disabled:bg-[var(--theme-bg-muted)] disabled:opacity-70`} placeholder="ໜ່ວຍ" />
+                      <input value={m.unit ?? ""} onChange={(e) => setMat(i, { unit: e.target.value })} disabled={m.locked} className={`${inputCls} h-8 disabled:bg-[var(--theme-bg-muted)] disabled:opacity-70`} placeholder={t("common.unit", "ໜ່ວຍ")} />
                     </td>
                     <td className={tdCls}>
                       <input type="number" min="0" value={m.qty} onChange={(e) => setMat(i, { qty: Number(e.target.value) })} className={`${inputCls} h-8 text-right`} />
                     </td>
                     <td className={tdCls}>
                       {m.locked ? (
-                        <span title="ສິນຄ້າຈາກສັນຍາ — ລົບບໍ່ໄດ້" className="text-[var(--theme-text-mute)] opacity-40"><Trash2 size={15} /></span>
+                        <span title={t("boqNew.lockedFromContract", "ສິນຄ້າຈາກສັນຍາ — ລົບບໍ່ໄດ້")} className="text-[var(--theme-text-mute)] opacity-40"><Trash2 size={15} /></span>
                       ) : (
                         <button type="button" onClick={() => removeMat(i)} className="text-rose-500 hover:text-rose-700"><Trash2 size={15} /></button>
                       )}
@@ -329,19 +331,19 @@ export default function CreateBoqPage() {
                   </tr>
                 ))}
                 {mats.length === 0 && (
-                  <tr><td colSpan={5} className="px-3 py-4 text-center text-[12px] text-[var(--theme-text-mute)]">ບໍ່ມີ — ກົດ "ເພີ່ມແຖວ" / "ຄ່າແຮງ" / "ສິ້ນເປືອງ"</td></tr>
+                  <tr><td colSpan={5} className="px-3 py-4 text-center text-[12px] text-[var(--theme-text-mute)]">{t("boqNew.emptyHint", 'ບໍ່ມີ — ກົດ "ເພີ່ມແຖວ" / "ຄ່າແຮງ" / "ສິ້ນເປືອງ"')}</td></tr>
                 )}
               </tbody>
             </table>
           </div>
           <div className="flex items-center justify-between border-t border-[var(--theme-border-subtle)] px-3 py-2 text-[11px] text-[var(--theme-text-mute)]">
-            <span>ສິນຄ້າຈາກສັນຍາ ລົບບໍ່ໄດ້. ຄ່າແຮງ ແລະ ວັດສະດຸສິ້ນເປືອງ ໃສ່ເປັນແຖວລາຍການ.</span>
-            <span className="font-semibold text-[var(--theme-text-soft)]">{mats.length} ລາຍການ · {totalQty.toLocaleString("en-US")} ໜ່ວຍ</span>
+            <span>{t("boqNew.footerHint", "ສິນຄ້າຈາກສັນຍາ ລົບບໍ່ໄດ້. ຄ່າແຮງ ແລະ ວັດສະດຸສິ້ນເປືອງ ໃສ່ເປັນແຖວລາຍການ.")}</span>
+            <span className="font-semibold text-[var(--theme-text-soft)]">{mats.length} {t("boqNew.itemsUnit", "ລາຍການ")} · {totalQty.toLocaleString("en-US")} {t("common.unit", "ໜ່ວຍ")}</span>
           </div>
         </Card>
 
         <p className="text-[11.5px] text-[var(--theme-text-mute)]">
-          ຜູ້ຂໍ/ຜູ້ສ້າງ ບັນທຶກອັດຕະໂນມັດຈາກຜູ້ໃຊ້ທີ່ເຂົ້າລະບົບ · ຜູ້ອະນຸມັດ ບັນທຶກຕອນກົດອະນຸມັດ.
+          {t("boqNew.creatorApproverNote", "ຜູ້ຂໍ/ຜູ້ສ້າງ ບັນທຶກອັດຕະໂນມັດຈາກຜູ້ໃຊ້ທີ່ເຂົ້າລະບົບ · ຜູ້ອະນຸມັດ ບັນທຶກຕອນກົດອະນຸມັດ.")}
         </p>
       </form>
     </Page>

@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getProjectsBoq } from "@/_actions/projects";
 import ProjectForm, { type ProjectInitial } from "../../_ProjectForm";
+import { useT } from "@/_lib/i18n";
 
 const toDateInput = (v: unknown): string => {
   if (!v) return "";
@@ -21,6 +22,7 @@ const parseCoord = (v: unknown): { lat: number; lng: number } | null => {
 
 export default function EditProjectPage() {
   const { id } = useParams();
+  const t = useT();
   const [initial, setInitial] = useState<ProjectInitial | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -67,12 +69,12 @@ export default function EditProjectPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm">ກຳລັງໂຫຼດ...</span>
+        <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
   if (notFound || !initial) {
-    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">ບໍ່ພົບໂຄງການ</div>;
+    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">{t("projects.notFound", "ບໍ່ພົບໂຄງການ")}</div>;
   }
 
   return <ProjectForm mode="edit" projectId={String(id)} initial={initial} />;

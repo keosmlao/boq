@@ -8,6 +8,7 @@ import { ArrowLeft, PackageOpen, Truck, FolderKanban, User, CalendarClock, Wareh
 import { getRequestDetail, deleteRequest, setRequestStatus } from "@/_actions/request-v2";
 import { Page, Card, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
+import { useT } from "@/_lib/i18n";
 
 const num = (v: unknown) => {
   const n = Number(v);
@@ -30,6 +31,7 @@ const fmtWoDate = (date: unknown, time: unknown) => {
 export default function RequestDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const t = useT();
   const [r, setR] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
@@ -56,12 +58,12 @@ export default function RequestDetailPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm">ກຳລັງໂຫຼດ...</span>
+        <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
   if (!r) {
-    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">ບໍ່ພົບໃບຂໍເບີກ</div>;
+    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">{t("requests.notFound", "ບໍ່ພົບໃບຂໍເບີກ")}</div>;
   }
 
   const items = Array.isArray(r.items) ? r.items : [];
@@ -77,7 +79,7 @@ export default function RequestDetailPage() {
     try {
       const res: any = await setRequestStatus(String(id), withdrawn ? "requested" : "withdrawn");
       if (res?.success) await refresh();
-      else alert(res?.message || "ບໍ່ສຳເລັດ");
+      else alert(res?.message || t("requests.failed", "ບໍ່ສຳເລັດ"));
     } finally {
       setMarking(false);
     }
@@ -90,14 +92,14 @@ export default function RequestDetailPage() {
           onClick={() => router.push("/requests")}
           className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)] transition-colors"
         >
-          <ArrowLeft size={14} /> ກັບໄປລາຍການຂໍເບີກ
+          <ArrowLeft size={14} /> {t("requests.backToList", "ກັບໄປລາຍການຂໍເບີກ")}
         </button>
         {!withdrawn && (
           <DocActions
             editHref={r.project_id ? `/projects/${r.project_id}/request/new?edit=${encodeURIComponent(String(id))}` : undefined}
             onDelete={() => deleteRequest(String(id))}
             afterDelete="/requests"
-            label="ໃບຂໍເບີກ"
+            label={t("requests.docLabel", "ໃບຂໍເບີກ")}
           />
         )}
       </div>
@@ -115,7 +117,7 @@ export default function RequestDetailPage() {
                   <PackageOpen size={30} className="text-white" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-white/80">ເລກທີໃບຂໍເບີກ</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-white/80">{t("requests.docNoLabel", "ເລກທີໃບຂໍເບີກ")}</span>
                   <h1 className="font-mono text-2xl font-black leading-none tracking-tight">{r.request_no || r.doc_no || "-"}</h1>
                   <p className="mt-1 truncate text-xs text-white/75 font-medium">{r.project_name || "—"}</p>
                 </div>
@@ -125,7 +127,7 @@ export default function RequestDetailPage() {
                   withdrawn ? "border-transparent bg-white text-slate-900" : "border-white/20 bg-white/10 text-white"
                 }`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${withdrawn ? "bg-slate-900" : "bg-white animate-pulse"}`} />
-                  {withdrawn ? "ເບີກແລ້ວ" : "ຮ້ອງຂໍ"}
+                  {withdrawn ? t("requests.withdrawn", "ເບີກແລ້ວ") : t("requests.requested", "ຮ້ອງຂໍ")}
                 </span>
               </div>
             </div>
@@ -138,22 +140,22 @@ export default function RequestDetailPage() {
                 <span className="flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-slate-600 text-xs font-bold">
                   {items.length}
                 </span>
-                <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">ລາຍການຂໍເບີກ</h2>
+                <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">{t("requests.itemsTitle", "ລາຍການຂໍເບີກ")}</h2>
               </div>
             </div>
             {items.length === 0 ? (
-              <div className="px-4 py-10 text-center text-xs text-[var(--theme-text-mute)]">ບໍ່ມີລາຍການ</div>
+              <div className="px-4 py-10 text-center text-xs text-[var(--theme-text-mute)]">{t("requests.noItems", "ບໍ່ມີລາຍການ")}</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-0 text-[13px]">
                   <thead>
                     <tr>
                       <th className={`${thCls} w-10 text-center pl-4`}>#</th>
-                      <th className={`${thCls} pl-2`}>ລາຍການ</th>
-                      <th className={`${thCls} w-24 text-center`}>ໜ່ວຍ</th>
-                      <th className={`${thCls} w-24 text-right`}>ຈຳນວນຂໍ</th>
-                      <th className={`${thCls} w-24 text-right`}>ເບີກແລ້ວ</th>
-                      <th className={`${thCls} w-28 text-center pr-4`}>ສະຖານະ</th>
+                      <th className={`${thCls} pl-2`}>{t("requests.colItem", "ລາຍການ")}</th>
+                      <th className={`${thCls} w-24 text-center`}>{t("common.unit", "ໜ່ວຍ")}</th>
+                      <th className={`${thCls} w-24 text-right`}>{t("requests.colQtyRequested", "ຈຳນວນຂໍ")}</th>
+                      <th className={`${thCls} w-24 text-right`}>{t("requests.withdrawn", "ເບີກແລ້ວ")}</th>
+                      <th className={`${thCls} w-28 text-center pr-4`}>{t("common.status", "ສະຖານະ")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--theme-border-subtle)] bg-white">
@@ -187,7 +189,7 @@ export default function RequestDetailPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 px-1 text-[13px] font-bold text-[var(--theme-text-soft)]">
               <Truck size={16} className="text-slate-500" />
-              <span>ໃບເບີກທີ່ເຊື່ອມໂຍງ ({withdrawals.length})</span>
+              <span>{t("requests.linkedSlips", "ໃບເບີກທີ່ເຊື່ອມໂຍງ")} ({withdrawals.length})</span>
             </div>
 
             {withdrawals.length > 0 ? (
@@ -198,18 +200,18 @@ export default function RequestDetailPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-                            ໃບເບີກສາງ
+                            {t("requests.warehouseSlip", "ໃບເບີກສາງ")}
                           </span>
                           <span className="font-mono text-[13.5px] font-bold text-slate-900">{w.doc_no}</span>
                         </div>
-                        <span className="inline-flex items-center whitespace-nowrap rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-white">ເບີກແລ້ວ</span>
+                        <span className="inline-flex items-center whitespace-nowrap rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-white">{t("requests.withdrawn", "ເບີກແລ້ວ")}</span>
                       </div>
 
                       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[12px] sm:grid-cols-4 border-t border-slate-100 pt-2">
-                        <Info icon={<CalendarClock size={13} className="text-slate-500" />} label="ວັນທີ/ເວລາເບີກ" value={fmtWoDate(w.doc_date, w.doc_time)} />
-                        <Info icon={<User size={13} className="text-slate-500" />} label="ຜູ້ເບີກ" value={w.withdrawer} />
-                        <Info icon={<Warehouse size={13} className="text-slate-500" />} label="ສາງເກັບ" value={w.wh_name} />
-                        <Info icon={<MapPin size={13} className="text-slate-500" />} label="ຊັ້ນວາງ (Shelf)" value={w.shelf_name} />
+                        <Info icon={<CalendarClock size={13} className="text-slate-500" />} label={t("requests.withdrawDateTime", "ວັນທີ/ເວລາເບີກ")} value={fmtWoDate(w.doc_date, w.doc_time)} />
+                        <Info icon={<User size={13} className="text-slate-500" />} label={t("requests.withdrawer", "ຜູ້ເບີກ")} value={w.withdrawer} />
+                        <Info icon={<Warehouse size={13} className="text-slate-500" />} label={t("requests.warehouse", "ສາງເກັບ")} value={w.wh_name} />
+                        <Info icon={<MapPin size={13} className="text-slate-500" />} label={t("requests.shelf", "ຊັ້ນວາງ (Shelf)")} value={w.shelf_name} />
                       </div>
                     </div>
 
@@ -217,9 +219,9 @@ export default function RequestDetailPage() {
                       <table className="min-w-full border-separate border-spacing-0 text-[13px]">
                         <thead>
                           <tr>
-                            <th className={`${thCls} pl-4`}>ລາຍການ</th>
-                            <th className={`${thCls} w-24 text-center`}>ໜ່ວຍ</th>
-                            <th className={`${thCls} w-24 text-right pr-4`}>ເບີກຈິງ</th>
+                            <th className={`${thCls} pl-4`}>{t("requests.colItem", "ລາຍການ")}</th>
+                            <th className={`${thCls} w-24 text-center`}>{t("common.unit", "ໜ່ວຍ")}</th>
+                            <th className={`${thCls} w-24 text-right pr-4`}>{t("requests.colQtyActual", "ເບີກຈິງ")}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--theme-border-subtle)] bg-white">
@@ -246,8 +248,8 @@ export default function RequestDetailPage() {
                   <Truck className="h-6 w-6 opacity-60" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-[var(--theme-text)]">ຍັງບໍ່ມີການເບີກສິນຄ້າ</h3>
-                  <p className="text-xs text-[var(--theme-text-mute)] mt-0.5">ລາຍການຂໍເບີກນີ້ ຍັງບໍ່ທັນໄດ້ຖືກດຶງໄປສ້າງໃບເບີກເທື່ອ</p>
+                  <h3 className="text-sm font-semibold text-[var(--theme-text)]">{t("requests.noWithdrawal", "ຍັງບໍ່ມີການເບີກສິນຄ້າ")}</h3>
+                  <p className="text-xs text-[var(--theme-text-mute)] mt-0.5">{t("requests.noWithdrawalHint", "ລາຍການຂໍເບີກນີ້ ຍັງບໍ່ທັນໄດ້ຖືກດຶງໄປສ້າງໃບເບີກເທື່ອ")}</p>
                 </div>
               </Card>
             )}
@@ -259,19 +261,19 @@ export default function RequestDetailPage() {
           {/* Metadata Card */}
           <Card className="p-5 space-y-4 shadow-sm border-t-4 border-t-slate-500">
             <h3 className="text-sm font-bold text-[var(--theme-text)] border-b border-[var(--theme-border-subtle)] pb-2">
-              ຂໍ້ມູນການຂໍເບີກ
+              {t("requests.infoTitle", "ຂໍ້ມູນການຂໍເບີກ")}
             </h3>
 
             <div className="space-y-3.5">
-              <SidebarInfo icon={<FolderKanban size={15} className="text-slate-400" />} label="ໂຄງການ / ໂປຣເຈັກ" value={r.project_name} />
-              <SidebarInfo icon={<User size={15} className="text-slate-400" />} label="ຜູ້ຮ້ອງຂໍເບີກ" value={r.requester} />
-              <SidebarInfo icon={<CalendarClock size={15} className="text-slate-400" />} label="ວັນທີ/ເວລາ ຮ້ອງຂໍ" value={fmt(r.created_at, true)} />
-              <SidebarInfo icon={<PackageOpen size={15} className="text-slate-400" />} label="ຈຳນວນລາຍການທັງໝົດ" value={`${num(totalQty)} ມ້ວນ/ຊິ້ນ`} />
+              <SidebarInfo icon={<FolderKanban size={15} className="text-slate-400" />} label={t("requests.projectLabel", "ໂຄງການ / ໂປຣເຈັກ")} value={r.project_name} />
+              <SidebarInfo icon={<User size={15} className="text-slate-400" />} label={t("requests.requester", "ຜູ້ຮ້ອງຂໍເບີກ")} value={r.requester} />
+              <SidebarInfo icon={<CalendarClock size={15} className="text-slate-400" />} label={t("requests.requestDateTime", "ວັນທີ/ເວລາ ຮ້ອງຂໍ")} value={fmt(r.created_at, true)} />
+              <SidebarInfo icon={<PackageOpen size={15} className="text-slate-400" />} label={t("requests.totalItems", "ຈຳນວນລາຍການທັງໝົດ")} value={`${num(totalQty)} ${t("requests.unitRollsPieces", "ມ້ວນ/ຊິ້ນ")}`} />
             </div>
 
             {r.notes && (
               <div className="mt-4 border-t border-[var(--theme-border-subtle)] pt-3">
-                <span className="text-[11px] font-semibold text-[var(--theme-text-mute)] block mb-1">ໝາຍເຫດ</span>
+                <span className="text-[11px] font-semibold text-[var(--theme-text-mute)] block mb-1">{t("common.note", "ໝາຍເຫດ")}</span>
                 <p className="text-[12.5px] text-[var(--theme-text-soft)] bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed">
                   {r.notes}
                 </p>
@@ -293,7 +295,7 @@ export default function RequestDetailPage() {
                   }`}
                 >
                   <Truck size={15} />
-                  <span>{marking ? "ກຳລັງບັນທຶກ..." : withdrawn ? "ຍົກເລີກການເບີກ" : "ໝາຍວ່າເບີກແລ້ວ"}</span>
+                  <span>{marking ? t("common.saving", "ກຳລັງບັນທຶກ...") : withdrawn ? t("requests.cancelWithdraw", "ຍົກເລີກການເບີກ") : t("requests.markWithdrawn", "ໝາຍວ່າເບີກແລ້ວ")}</span>
                 </button>
               )}
               {r.project_id && (
@@ -302,7 +304,7 @@ export default function RequestDetailPage() {
                   className="flex w-full h-9 items-center justify-center gap-2 rounded-lg bg-white border border-[var(--theme-border-subtle)] text-[12.5px] font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-colors"
                 >
                   <FolderKanban size={15} />
-                  <span>ໄປໜ້າໂຄງການ</span>
+                  <span>{t("requests.goToProject", "ໄປໜ້າໂຄງການ")}</span>
                 </button>
               )}
 
@@ -311,7 +313,7 @@ export default function RequestDetailPage() {
                 className="flex w-full h-9 items-center justify-center gap-2 rounded-lg bg-white border border-[var(--theme-border-subtle)] text-[12.5px] font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-colors"
               >
                 <ArrowLeft size={15} />
-                <span>ກັບໄປລາຍການຂໍເບີກ</span>
+                <span>{t("requests.backToList", "ກັບໄປລາຍການຂໍເບີກ")}</span>
               </button>
             </div>
           </Card>
@@ -335,14 +337,15 @@ function Info({ icon, label, value }: { icon: React.ReactNode; label: string; va
 }
 
 function ItemStatus({ status }: { status: unknown }) {
+  const t = useT();
   const value = String(status || "requested");
   if (value === "withdrawn") {
-    return <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700">ເບີກແລ້ວ</span>;
+    return <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700">{t("requests.withdrawn", "ເບີກແລ້ວ")}</span>;
   }
   if (value === "partial") {
-    return <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10.5px] font-bold text-blue-700">ເບີກບາງສ່ວນ</span>;
+    return <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10.5px] font-bold text-blue-700">{t("requests.partial", "ເບີກບາງສ່ວນ")}</span>;
   }
-  return <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10.5px] font-bold text-amber-700">ລໍຖ້າເບີກ</span>;
+  return <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10.5px] font-bold text-amber-700">{t("requests.waitingWithdraw", "ລໍຖ້າເບີກ")}</span>;
 }
 
 function SidebarInfo({ icon, label, value }: { icon: React.ReactNode; label: string; value: any }) {

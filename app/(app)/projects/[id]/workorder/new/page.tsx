@@ -16,6 +16,7 @@ import { getProjectTasks } from "@/_actions/tasks-v2";
 import { getProjectMaterials } from "@/_actions/boq-v2";
 import { createWorkOrder } from "@/_actions/workorder";
 import { Page, Card, Btn, Field, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
+import { useT } from "@/_lib/i18n";
 
 type Row = { id: any; master_id?: string; title: string; phase?: string; task_code?: string; est_hours: number; include: boolean; actual_hours: number };
 type Avail = { item_code: string | null; description: string; unit: string | null; remaining: number };
@@ -28,6 +29,7 @@ const num = (v: unknown) => {
 };
 
 export default function WorkOrderPage() {
+  const t = useT();
   const { id } = useParams();
   const router = useRouter();
 
@@ -130,12 +132,12 @@ export default function WorkOrderPage() {
     e.preventDefault();
     setError("");
     if (!techCode) {
-      setError("ກະລຸນາເລືອກທີມ");
+      setError(t("workorderNew.selectTeam", "ກະລຸນາເລືອກທີມ"));
       return;
     }
     const picked = rows.filter((r) => r.include && (r.id || String(r.title).trim()));
     if (!picked.length) {
-      setError("ກະລຸນາເລືອກໜ້າວຽກຢ່າງໜ້ອຍ 1 ອັນ");
+      setError(t("workorderNew.selectAtLeastOneTask", "ກະລຸນາເລືອກໜ້າວຽກຢ່າງໜ້ອຍ 1 ອັນ"));
       return;
     }
     const tech = techs.find((t) => String(t.code) === techCode);
@@ -157,9 +159,9 @@ export default function WorkOrderPage() {
       if (res?.success) {
         await advanceProjectStage(String(id), "ໃບງານ").catch(() => {});
         router.push(`/projects/${id}?tab=workorders`);
-      } else setError(res?.message || "ບັນທຶກບໍ່ສຳເລັດ");
+      } else setError(res?.message || t("workorderNew.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
     } catch (err: any) {
-      setError(err?.message || "ເກີດຂໍ້ຜິດພາດ");
+      setError(err?.message || t("workorderNew.errorOccurred", "ເກີດຂໍ້ຜິດພາດ"));
     } finally {
       setSaving(false);
     }
@@ -169,7 +171,7 @@ export default function WorkOrderPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm">ກຳລັງໂຫຼດ...</span>
+        <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
@@ -179,11 +181,11 @@ export default function WorkOrderPage() {
       <Page max="max-w-[700px]">
         <Card className="border-t-2 border-t-emerald-400 p-6 text-center">
           <p className="text-[13px] text-[var(--theme-text-soft)]">
-            ໂຄງການນີ້ຍັງບໍ່ມີໜ້າວຽກ — ກະລຸນາກຳນົດໜ້າວຽກກ່ອນ ຈຶ່ງອອກໃບງານໄດ້.
+            {t("workorderNew.noTasksYet", "ໂຄງການນີ້ຍັງບໍ່ມີໜ້າວຽກ — ກະລຸນາກຳນົດໜ້າວຽກກ່ອນ ຈຶ່ງອອກໃບງານໄດ້.")}
           </p>
           <div className="mt-4 flex justify-center gap-2">
-            <Btn variant="outline" onClick={() => router.push(`/projects/${id}`)}>ກັບໄປໂຄງການ</Btn>
-            <Btn onClick={() => router.push(`/projects/${id}/tasks/new`)}>ກຳນົດໜ້າວຽກ</Btn>
+            <Btn variant="outline" onClick={() => router.push(`/projects/${id}`)}>{t("workorderNew.backToProject", "ກັບໄປໂຄງການ")}</Btn>
+            <Btn onClick={() => router.push(`/projects/${id}/tasks/new`)}>{t("workorderNew.planTasks", "ກຳນົດໜ້າວຽກ")}</Btn>
           </div>
         </Card>
       </Page>
@@ -196,25 +198,25 @@ export default function WorkOrderPage() {
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <button type="button" onClick={() => router.push(`/projects/${id}`)} className="mb-1 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]">
-              <ArrowLeft size={14} /> ໄປໂຄງການ
+              <ArrowLeft size={14} /> {t("workorderNew.toProject", "ໄປໂຄງການ")}
             </button>
             <h1 className="flex items-center gap-2 text-[19px] font-bold leading-tight text-[var(--theme-text)]">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 text-white">
                 <Wrench size={16} />
               </span>
-              ອອກໃບງານ
+              {t("workorderNew.title", "ອອກໃບງານ")}
             </h1>
             {(custName || project?.project_name) && (
               <p className="text-[12px] text-[var(--theme-text-mute)]">
-                {custName && <span className="font-medium text-[var(--theme-text-soft)]">ລູກຄ້າ: {custName}</span>}
+                {custName && <span className="font-medium text-[var(--theme-text-soft)]">{t("workorderNew.customerLabel", "ລູກຄ້າ")}: {custName}</span>}
                 {custName && project?.project_name && " · "}
-                {project?.project_name && <>ໂຄງການ: {project.project_name}</>}
+                {project?.project_name && <>{t("workorderNew.projectLabel", "ໂຄງການ")}: {project.project_name}</>}
               </p>
             )}
           </div>
           <Btn type="submit" disabled={saving}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກໃບງານ"}
+            {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("workorderNew.saveWorkOrder", "ບັນທຶກໃບງານ")}
           </Btn>
         </div>
 
@@ -225,21 +227,21 @@ export default function WorkOrderPage() {
         {/* WO header */}
         <Card className="mb-4 border-t-2 border-t-emerald-400 p-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="ທີມ / ຜູ້ຮັບຜິດຊອບ" required>
+            <Field label={t("workorderNew.team", "ທີມ / ຜູ້ຮັບຜິດຊອບ")} required>
               <select value={techCode} onChange={(e) => setTechCode(e.target.value)} className={inputCls}>
-                <option value="">ເລືອກທີມ...</option>
+                <option value="">{t("workorderNew.selectTeamOption", "ເລືອກທີມ...")}</option>
                 {techs.map((t, ti) => (
                   <option key={ti} value={String(t.code)}>{t.name_1}{t.role ? ` (${t.role})` : ""}</option>
                 ))}
               </select>
             </Field>
-            <Field label="ວັນເລີ່ມ">
+            <Field label={t("workorderNew.startDate", "ວັນເລີ່ມ")}>
               <input type="date" value={workDate} onChange={(e) => setWorkDate(e.target.value)} className={inputCls} />
             </Field>
-            <Field label="ວັນຈົບ">
+            <Field label={t("workorderNew.endDate", "ວັນຈົບ")}>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
             </Field>
-            <Field label="ອັດຕາ/ຊົ່ວໂມງ">
+            <Field label={t("workorderNew.ratePerHour", "ອັດຕາ/ຊົ່ວໂມງ")}>
               <input type="number" min="0" value={ratePerHour} onChange={(e) => setRatePerHour(Number(e.target.value))} className={`${inputCls} text-right`} />
             </Field>
           </div>
@@ -249,19 +251,19 @@ export default function WorkOrderPage() {
         <Card className="mb-4 overflow-hidden border-t-2 border-t-emerald-400">
           <div className="flex items-center justify-between border-b border-[var(--theme-border-subtle)] px-3 py-2">
             <h2 className="flex items-center gap-2 text-[13px] font-bold text-[var(--theme-text)]">
-              <span className="h-4 w-1 rounded bg-emerald-500" /> ເລືອກໜ້າວຽກ ({selected.length}/{rows.length})
+              <span className="h-4 w-1 rounded bg-emerald-500" /> {t("workorderNew.selectTasks", "ເລືອກໜ້າວຽກ")} ({selected.length}/{rows.length})
             </h2>
-            <Btn type="button" variant="outline" onClick={addTask}><Plus size={14} /> ເພີ່ມວຽກນອກແຜນ</Btn>
+            <Btn type="button" variant="outline" onClick={addTask}><Plus size={14} /> {t("workorderNew.addAdhocTask", "ເພີ່ມວຽກນອກແຜນ")}</Btn>
           </div>
           <div className="overflow-x-auto">
             <table className={tblCls}>
               <thead>
                 <tr>
-                  <th className={`${thCls} w-10 text-center`}>ເລືອກ</th>
-                  <th className={thCls}>ໜ້າວຽກ</th>
-                  <th className={`${thCls} w-32`}>ໄລຍະ</th>
-                  <th className={`${thCls} w-24 text-right`}>ປະມານ(ຊມ)</th>
-                  <th className={`${thCls} w-28 text-right`}>ຊົ່ວໂມງຈິງ</th>
+                  <th className={`${thCls} w-10 text-center`}>{t("workorderNew.select", "ເລືອກ")}</th>
+                  <th className={thCls}>{t("workorderNew.task", "ໜ້າວຽກ")}</th>
+                  <th className={`${thCls} w-32`}>{t("workorderNew.phase", "ໄລຍະ")}</th>
+                  <th className={`${thCls} w-24 text-right`}>{t("workorderNew.estHours", "ປະມານ(ຊມ)")}</th>
+                  <th className={`${thCls} w-28 text-right`}>{t("workorderNew.actualHours", "ຊົ່ວໂມງຈິງ")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -277,13 +279,13 @@ export default function WorkOrderPage() {
                           <div className="flex items-center gap-2">
                             {masters.length > 0 ? (
                               <select value={r.master_id || ""} onChange={(e) => onPickMaster(i, e.target.value)} className={`${inputCls} h-8`}>
-                                <option value="">{r.title || "ເລືອກວຽກຈາກ master..."}</option>
+                                <option value="">{r.title || t("workorderNew.selectFromMaster", "ເລືອກວຽກຈາກ master...")}</option>
                                 {masters.map((m, mi) => (
                                   <option key={mi} value={String(m.id)}>{m.phase ? `[${m.phase}] ` : ""}{m.task || m.name}</option>
                                 ))}
                               </select>
                             ) : (
-                              <input value={r.title} onChange={(e) => setRow(i, { title: e.target.value })} placeholder="ຊື່ວຽກນອກແຜນ" className={`${inputCls} h-8`} />
+                              <input value={r.title} onChange={(e) => setRow(i, { title: e.target.value })} placeholder={t("workorderNew.adhocTaskNamePlaceholder", "ຊື່ວຽກນອກແຜນ")} className={`${inputCls} h-8`} />
                             )}
                             <button type="button" onClick={() => removeTask(i)} className="text-rose-500 hover:text-rose-700"><Trash2 size={15} /></button>
                           </div>
@@ -292,7 +294,7 @@ export default function WorkOrderPage() {
                         )}
                       </td>
                       <td className={`${tdCls} text-[var(--theme-text-soft)]`}>
-                        {isAdhoc ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">ນອກແຜນ</span> : r.phase || "-"}
+                        {isAdhoc ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">{t("workorderNew.adhoc", "ນອກແຜນ")}</span> : r.phase || "-"}
                       </td>
                       <td className={`${tdCls} text-right tabular-nums text-[var(--theme-text-mute)]`}>{isAdhoc ? "-" : r.est_hours}</td>
                       <td className={tdCls}>
@@ -311,25 +313,25 @@ export default function WorkOrderPage() {
             <div className="flex items-center justify-between border-b border-[var(--theme-border-subtle)] px-3 py-2">
               <h2 className="flex items-center gap-2 text-[13px] font-bold text-[var(--theme-text)]">
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-cyan-100 text-cyan-600"><PackageOpen size={14} /></span>
-                ວັດສະດຸເບີກເຂົ້າໜ້າງານ {pickedMats.length > 0 && <span className="text-[11px] font-normal text-[var(--theme-text-mute)]">({pickedMats.length} ລາຍການ)</span>}
+                {t("workorderNew.materialsToSite", "ວັດສະດຸເບີກເຂົ້າໜ້າງານ")} {pickedMats.length > 0 && <span className="text-[11px] font-normal text-[var(--theme-text-mute)]">({pickedMats.length} {t("workorderNew.itemsUnit", "ລາຍການ")})</span>}
               </h2>
               <Btn type="button" variant="outline" onClick={addLine} disabled={avail.length === 0}>
-                <Plus size={14} /> ເພີ່ມລາຍການ
+                <Plus size={14} /> {t("workorderNew.addItem", "ເພີ່ມລາຍການ")}
               </Btn>
             </div>
             {avail.length === 0 ? (
-              <div className="px-3 py-4 text-center text-[12px] text-[var(--theme-text-mute)]">ບໍ່ມີວັດສະດຸຄົງເຫຼືອໃຫ້ເບີກ (ກວດ BOQ ຂອງໂຄງການ)</div>
+              <div className="px-3 py-4 text-center text-[12px] text-[var(--theme-text-mute)]">{t("workorderNew.noRemainingMaterials", "ບໍ່ມີວັດສະດຸຄົງເຫຼືອໃຫ້ເບີກ (ກວດ BOQ ຂອງໂຄງການ)")}</div>
             ) : lines.length === 0 ? (
-              <div className="px-3 py-6 text-center text-[12px] text-[var(--theme-text-mute)]">ກົດ "ເພີ່ມລາຍການ" ເພື່ອເລືອກວັດສະດຸທີ່ຈະເບີກ</div>
+              <div className="px-3 py-6 text-center text-[12px] text-[var(--theme-text-mute)]">{t("workorderNew.materialsEmptyHint", 'ກົດ "ເພີ່ມລາຍການ" ເພື່ອເລືອກວັດສະດຸທີ່ຈະເບີກ')}</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className={tblCls}>
                   <thead>
                     <tr>
-                      <th className={thCls}>ລາຍການ</th>
-                      <th className={`${thCls} w-14`}>ໜ່ວຍ</th>
-                      <th className={`${thCls} w-20 text-right`}>ຄົງເຫຼືອ</th>
-                      <th className={`${thCls} w-28 text-right`}>ເບີກ</th>
+                      <th className={thCls}>{t("workorderNew.item", "ລາຍການ")}</th>
+                      <th className={`${thCls} w-14`}>{t("common.unit", "ໜ່ວຍ")}</th>
+                      <th className={`${thCls} w-20 text-right`}>{t("workorderNew.remaining", "ຄົງເຫຼືອ")}</th>
+                      <th className={`${thCls} w-28 text-right`}>{t("workorderNew.withdraw", "ເບີກ")}</th>
                       <th className={`${thCls} w-8`} />
                     </tr>
                   </thead>
@@ -340,7 +342,7 @@ export default function WorkOrderPage() {
                         <tr key={i} className={l.qty > 0 ? "bg-cyan-50/40" : ""}>
                           <td className={tdCls}>
                             <select value={l.availIdx} onChange={(e) => pickLine(i, Number(e.target.value))} className={`${inputCls} h-8`}>
-                              <option value={-1}>ເລືອກວັດສະດຸ...</option>
+                              <option value={-1}>{t("workorderNew.selectMaterial", "ເລືອກວັດສະດຸ...")}</option>
                               {avail.map((m, mi) => (
                                 <option key={mi} value={mi}>{m.description}</option>
                               ))}
@@ -371,24 +373,24 @@ export default function WorkOrderPage() {
               </div>
             )}
             <p className="border-t border-[var(--theme-border-subtle)] px-3 py-1.5 text-[11px] text-[var(--theme-text-mute)]">
-              ເພີ່ມວັດສະດຸທີ່ຊ່າງຈະເບີກເຂົ້າໜ້າງານ (ຈຳນວນບໍ່ເກີນຄົງເຫຼືອ) — ບັນທຶກໃບງານ → ສ້າງໃບຂໍເບີກໃຫ້ອັດຕະໂນມັດ.
+              {t("workorderNew.materialsNote", "ເພີ່ມວັດສະດຸທີ່ຊ່າງຈະເບີກເຂົ້າໜ້າງານ (ຈຳນວນບໍ່ເກີນຄົງເຫຼືອ) — ບັນທຶກໃບງານ → ສ້າງໃບຂໍເບີກໃຫ້ອັດຕະໂນມັດ.")}
             </p>
           </Card>
 
           <Card className="border-t-2 border-t-emerald-400 p-4">
             <div className="mb-3 flex items-center gap-2 text-[13px] font-bold text-[var(--theme-text)]">
-              <span className="h-4 w-1 rounded bg-emerald-500" /> ສະຫຼຸບຄ່າແຮງ
+              <span className="h-4 w-1 rounded bg-emerald-500" /> {t("workorderNew.laborSummary", "ສະຫຼຸບຄ່າແຮງ")}
             </div>
             <div className="space-y-1.5 text-[12.5px]">
-              <div className="flex justify-between"><span className="text-[var(--theme-text-soft)]">ໜ້າວຽກ</span><span className="tabular-nums">{selected.length}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--theme-text-soft)]">ລວມຊົ່ວໂມງ</span><span className="tabular-nums font-semibold">{totalHours}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--theme-text-soft)]">ອັດຕາ/ຊົ່ວໂມງ</span><span className="tabular-nums">{money(num(ratePerHour))}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--theme-text-soft)]">{t("workorderNew.task", "ໜ້າວຽກ")}</span><span className="tabular-nums">{selected.length}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--theme-text-soft)]">{t("workorderNew.totalHours", "ລວມຊົ່ວໂມງ")}</span><span className="tabular-nums font-semibold">{totalHours}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--theme-text-soft)]">{t("workorderNew.ratePerHour", "ອັດຕາ/ຊົ່ວໂມງ")}</span><span className="tabular-nums">{money(num(ratePerHour))}</span></div>
             </div>
             <div className="mt-2 flex items-center justify-between border-t border-[var(--theme-border-subtle)] pt-2 text-[15px] font-bold text-[var(--theme-text)]">
-              <span>ຄ່າແຮງ</span>
+              <span>{t("workorderNew.laborCost", "ຄ່າແຮງ")}</span>
               <span className="tabular-nums text-[var(--theme-primary)]">{money(laborCost)}</span>
             </div>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputCls} mt-3 h-auto py-2`} placeholder="ໝາຍເຫດ" />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputCls} mt-3 h-auto py-2`} placeholder={t("common.note", "ໝາຍເຫດ")} />
           </Card>
         </div>
       </form>

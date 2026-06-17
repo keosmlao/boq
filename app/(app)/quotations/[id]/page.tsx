@@ -11,21 +11,23 @@ import DocActions from "../../_components/DocActions";
 import { getV2User } from "../../../_lib/session";
 import { can } from "@/_lib/permissions";
 import { useConfirm } from "../../_components/Confirm";
+import { useT } from "@/_lib/i18n";
 
 const money = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n.toLocaleString("en-US") : "-";
 };
 const d10 = (v: unknown) => (v ? String(v).slice(0, 10) : "-");
-const vatLabel = (t: unknown) => {
-  const s = String(t ?? "");
-  return s === "exclusive" ? "ແຍກນອກ" : s === "inclusive" ? "ລວມໃນ" : "ບໍ່ມີ (0%)";
-};
 
 export default function QuotationDetailPage() {
+  const t = useT();
   const { id } = useParams();
   const router = useRouter();
   const confirm = useConfirm();
+  const vatLabel = (v: unknown) => {
+    const s = String(v ?? "");
+    return s === "exclusive" ? t("quotations.vatExclusive", "ແຍກນອກ") : s === "inclusive" ? t("quotations.vatInclusive", "ລວມໃນ") : t("quotations.vatNone", "ບໍ່ມີ (0%)");
+  };
   const [q, setQ] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -51,11 +53,12 @@ export default function QuotationDetailPage() {
   }, [load]);
 
   const doApprove = async (newStatus: string) => {
-    if (!(await confirm({ title: newStatus === "ປະຕິເສດ" ? "ຢືນຢັນການປະຕິເສດ" : "ຢືນຢັນການອະນຸມັດ", message: `${newStatus === "ປະຕິເສດ" ? "ປະຕິເສດ" : "ອະນຸມັດ"} ໃບສະເໜີລາຄາ?`, confirmLabel: newStatus === "ປະຕິເສດ" ? "ປະຕິເສດ" : "ອະນຸມັດ", tone: newStatus === "ປະຕິເສດ" ? "danger" : "primary" }))) return;
+    const isReject = newStatus === "ປະຕິເສດ";
+    if (!(await confirm({ title: isReject ? t("quotations.confirmRejectTitle", "ຢືນຢັນການປະຕິເສດ") : t("quotations.confirmApproveTitle", "ຢືນຢັນການອະນຸມັດ"), message: isReject ? t("quotations.confirmRejectMsg", "ປະຕິເສດ ໃບສະເໜີລາຄາ?") : t("quotations.confirmApproveMsg", "ອະນຸມັດ ໃບສະເໜີລາຄາ?"), confirmLabel: isReject ? t("common.reject", "ປະຕິເສດ") : t("common.approve", "ອະນຸມັດ"), tone: isReject ? "danger" : "primary" }))) return;
     setBusy(true);
     try {
       const res: any = await approveQuotation(String(id), newStatus);
-      if (res?.success === false) alert(res.message || "ບໍ່ສຳເລັດ");
+      if (res?.success === false) alert(res.message || t("common.error", "ບໍ່ສຳເລັດ"));
       await load();
     } finally {
       setBusy(false);
@@ -66,12 +69,12 @@ export default function QuotationDetailPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm font-semibold">ກຳລັງໂຫຼດ...</span>
+        <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
   if (!q) {
-    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">ບໍ່ພົບໃບສະເໜີລາຄາ</div>;
+    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">{t("quotations.notFound", "ບໍ່ພົບໃບສະເໜີລາຄາ")}</div>;
   }
 
   const items = Array.isArray(q.items) ? q.items : [];
@@ -86,16 +89,16 @@ export default function QuotationDetailPage() {
           className="group inline-flex items-center gap-2 text-xs font-bold text-[var(--theme-text-soft)] transition-colors hover:text-blue-600"
         >
           <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" />
-          <span>ກັບໄປລາຍການໃບສະເໜີ</span>
+          <span>{t("quotations.backToList", "ກັບໄປລາຍການໃບສະເໜີ")}</span>
         </button>
         <div className="flex items-center gap-2.5">
           {canApprove && status === "ລໍຖ້າອະນຸມັດ" && (
             <>
               <Btn variant="primary" disabled={busy} onClick={() => doApprove("ອະນຸມັດແລ້ວ")}>
-                <CheckCircle2 size={15} /> ອະນຸມັດ
+                <CheckCircle2 size={15} /> {t("common.approve", "ອະນຸມັດ")}
               </Btn>
               <Btn variant="danger" disabled={busy} onClick={() => doApprove("ປະຕິເສດ")}>
-                <XCircle size={15} /> ປະຕິເສດ
+                <XCircle size={15} /> {t("common.reject", "ປະຕິເສດ")}
               </Btn>
             </>
           )}
@@ -103,7 +106,7 @@ export default function QuotationDetailPage() {
             editHref={q.project_id ? `/projects/${q.project_id}/quotation/new?edit=${id}` : undefined}
             onDelete={() => deleteQuotation(String(id))}
             afterDelete="/quotations"
-            label="ໃບສະເໜີ"
+            label={t("quotations.docLabel", "ໃບສະເໜີ")}
           />
         </div>
       </div>
@@ -126,36 +129,36 @@ export default function QuotationDetailPage() {
 
       {/* Info Grid Card */}
       <Card className="mb-5 p-5 border border-slate-200 shadow-sm rounded-2xl bg-white">
-        <SectionHeader icon={<FolderKanban size={14} />} title="ຂໍ້ມູນໃບສະເໜີ" tone="neutral" />
+        <SectionHeader icon={<FolderKanban size={14} />} title={t("quotations.infoTitle", "ຂໍ້ມູນໃບສະເໜີ")} tone="neutral" />
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-xs sm:grid-cols-3 mt-4 border-t border-slate-100 pt-4">
-          <Info label="ລູກຄ້າ" value={q.customer_name} />
-          <Info label="ໂທ" value={q.customer_phone} />
-          <Info label="ວັນທີ" value={d10(q.quotation_date)} />
-          <Info label="ມີຜົນເຖິງ" value={d10(q.validity_date)} />
-          <Info label="ປະເພດ VAT" value={vatLabel(q.tax_type)} />
-          <Info label="ທີ່ຢູ່" value={q.customer_address} />
-          <Info label="ໝາຍເຫດ" value={q.notes} full />
+          <Info label={t("common.customer", "ລູກຄ້າ")} value={q.customer_name} />
+          <Info label={t("common.phone", "ໂທ")} value={q.customer_phone} />
+          <Info label={t("common.date", "ວັນທີ")} value={d10(q.quotation_date)} />
+          <Info label={t("quotations.validUntil", "ມີຜົນເຖິງ")} value={d10(q.validity_date)} />
+          <Info label={t("quotations.vatType", "ປະເພດ VAT")} value={vatLabel(q.tax_type)} />
+          <Info label={t("quotations.address", "ທີ່ຢູ່")} value={q.customer_address} />
+          <Info label={t("common.note", "ໝາຍເຫດ")} value={q.notes} full />
         </div>
       </Card>
 
       {/* Items Table Card */}
       <Card className="mb-5 overflow-hidden border border-slate-200 shadow-sm rounded-2xl bg-white">
         <div className="border-b border-slate-100 bg-slate-50/50 px-4 py-3">
-          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">ລາຍການ</h2>
+          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">{t("quotations.items", "ລາຍການ")}</h2>
         </div>
         {items.length === 0 ? (
-          <div className="px-4 py-8 text-center text-xs text-slate-400">ບໍ່ມີລາຍການ</div>
+          <div className="px-4 py-8 text-center text-xs text-slate-400">{t("quotations.noItems", "ບໍ່ມີລາຍການ")}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full border-separate border-spacing-0 text-xs">
               <thead>
                 <tr className="bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   <th className="px-5 py-3 border-b border-slate-200/60 text-left w-12">#</th>
-                  <th className="px-5 py-3 border-b border-slate-200/60 text-left">ລາຍການ</th>
-                  <th className="px-5 py-3 border-b border-slate-200/60 text-left w-24">ໜ່ວຍ</th>
-                  <th className="px-5 py-3 border-b border-slate-200/60 text-right w-24">ຈຳນວນ</th>
-                  <th className="px-5 py-3 border-b border-slate-200/60 text-right w-32">ລາຄາ</th>
-                  <th className="px-5 py-3 border-b border-slate-200/60 text-right w-32">ລວມ</th>
+                  <th className="px-5 py-3 border-b border-slate-200/60 text-left">{t("quotations.items", "ລາຍການ")}</th>
+                  <th className="px-5 py-3 border-b border-slate-200/60 text-left w-24">{t("common.unit", "ໜ່ວຍ")}</th>
+                  <th className="px-5 py-3 border-b border-slate-200/60 text-right w-24">{t("common.qty", "ຈຳນວນ")}</th>
+                  <th className="px-5 py-3 border-b border-slate-200/60 text-right w-32">{t("common.price", "ລາຄາ")}</th>
+                  <th className="px-5 py-3 border-b border-slate-200/60 text-right w-32">{t("quotations.lineTotal", "ລວມ")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -185,18 +188,18 @@ export default function QuotationDetailPage() {
               onClick={() => router.push(`/projects/${q.project_id}`)}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-[0.98]"
             >
-              <FolderKanban size={14} /> <span>ໄປໜ້າໂຄງການ</span>
+              <FolderKanban size={14} /> <span>{t("quotations.goToProject", "ໄປໜ້າໂຄງການ")}</span>
             </button>
           )}
         </div>
         <Card className="w-full max-w-sm border border-slate-200 p-5 shadow-sm rounded-2xl bg-white">
           <div className="space-y-2.5 text-xs font-bold">
             <div className="flex justify-between">
-              <span className="text-slate-400">ລວມຍ່ອຍ</span>
+              <span className="text-slate-400">{t("quotations.subtotal", "ລວມຍ່ອຍ")}</span>
               <span className="font-mono text-slate-800">{money(q.subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">ສ່ວນຫຼຸດ</span>
+              <span className="text-slate-400">{t("quotations.discount", "ສ່ວນຫຼຸດ")}</span>
               <span className="font-mono text-slate-800">{money(q.discount)}</span>
             </div>
             <div className="flex justify-between">
@@ -205,7 +208,7 @@ export default function QuotationDetailPage() {
             </div>
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-sm font-black text-slate-900">
-            <span>ລວມທັງໝົດ</span>
+            <span>{t("quotations.grandTotal", "ລວມທັງໝົດ")}</span>
             <span className="font-mono text-lg text-slate-900 font-black tracking-tight">{money(q.total_amount)}</span>
           </div>
         </Card>

@@ -8,6 +8,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { getInventory } from "@/_actions/lookups";
+import { useT } from "@/_lib/i18n";
 
 export type InvItem = { code: string; name: string; unit: string; price: number };
 
@@ -20,13 +21,15 @@ export default function InventoryPicker({
   value,
   onText,
   onSelect,
-  placeholder = "ຄົ້ນຫາສິນຄ້າ (ລະຫັດ/ຊື່)...",
+  placeholder,
 }: {
   value: string;
   onText: (t: string) => void;
   onSelect: (item: InvItem) => void;
   placeholder?: string;
 }) {
+  const t = useT();
+  const ph = placeholder ?? t("components.inventoryPicker.searchPlaceholder", "ຄົ້ນຫາສິນຄ້າ (ລະຫັດ/ຊື່)...");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[]>([]);
@@ -103,7 +106,7 @@ export default function InventoryPicker({
             setOpen(true);
             if (!results.length) search(value);
           }}
-          placeholder={placeholder}
+          placeholder={ph}
           className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none"
         />
       </div>
@@ -115,9 +118,9 @@ export default function InventoryPicker({
           style={{ top: rect.top, left: rect.left, width: rect.width }}
         >
           {loading ? (
-            <div className="px-3 py-2 text-center text-[12px] text-[var(--theme-text-mute)]">ກຳລັງຄົ້ນຫາ...</div>
+            <div className="px-3 py-2 text-center text-[12px] text-[var(--theme-text-mute)]">{t("components.picker.searching", "ກຳລັງຄົ້ນຫາ...")}</div>
           ) : results.length === 0 ? (
-            <div className="px-3 py-2 text-center text-[12px] text-[var(--theme-text-mute)]">ບໍ່ພົບສິນຄ້າ</div>
+            <div className="px-3 py-2 text-center text-[12px] text-[var(--theme-text-mute)]">{t("components.inventoryPicker.notFound", "ບໍ່ພົບສິນຄ້າ")}</div>
           ) : (
             results.map((it, i) => (
               <button

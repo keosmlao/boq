@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, RefreshCw, ChevronRight, Inbox, Layers, FolderOpen, CircleAlert } from "lucide-react";
 import { Page, PageHeader, Card, Btn } from "./ui";
+import { useT } from "@/_lib/i18n";
 
 export type Column = { header: string; align?: "right" | "center"; cell: (r: any) => React.ReactNode };
 
@@ -16,12 +17,12 @@ export default function CrossList({
   initialRows,
   searchText,
   rowHref,
-  searchPlaceholder = "ຄົ້ນຫາ...",
-  empty = "ບໍ່ມີຂໍ້ມູນ",
+  searchPlaceholder,
+  empty,
   headerActions,
   groupBy,
   subGroupBy,
-  groupLabel = "ຈັດກຸ່ມ",
+  groupLabel,
   aboveTable,
 }: {
   title: string;
@@ -45,6 +46,10 @@ export default function CrossList({
   groupLabel?: string;
   aboveTable?: React.ReactNode;
 }) {
+  const t = useT();
+  const searchPh = searchPlaceholder ?? t("common.search", "ຄົ້ນຫາ...");
+  const emptyText = empty ?? t("common.noData", "ບໍ່ມີຂໍ້ມູນ");
+  const groupLbl = groupLabel ?? t("components.crossList.group", "ຈັດກຸ່ມ");
   const router = useRouter();
   const seeded = initialRows !== undefined;
   const [rows, setRows] = useState<any[]>(initialRows ?? []);
@@ -90,14 +95,14 @@ export default function CrossList({
     if (!groupBy) return [];
     const map: Record<string, any[]> = {};
     filtered.forEach((r) => {
-      const k = groupBy(r) || "(ບໍ່ລະບຸ)";
+      const k = groupBy(r) || t("components.crossList.unspecified", "(ບໍ່ລະບຸ)");
       (map[k] ||= []).push(r);
     });
     return Object.entries(map).map(([name, items]) => {
       if (!subGroupBy) return { name, items, subs: null as null | { name: string; items: any[] }[] };
       const sm: Record<string, any[]> = {};
       items.forEach((r) => {
-        const sk = subGroupBy(r) || "(ບໍ່ລະບຸ)";
+        const sk = subGroupBy(r) || t("components.crossList.unspecified", "(ບໍ່ລະບຸ)");
         (sm[sk] ||= []).push(r);
       });
       return { name, items, subs: Object.entries(sm).map(([sname, sitems]) => ({ name: sname, items: sitems })) };
@@ -151,7 +156,7 @@ export default function CrossList({
     <Page max="max-w-none w-full">
       <PageHeader
         title={title}
-        subtitle={subtitle ? subtitle(filtered.length) : `${filtered.length} ລາຍການ`}
+        subtitle={subtitle ? subtitle(filtered.length) : `${filtered.length} ${t("components.crossList.items", "ລາຍການ")}`}
         actions={
           <div className="flex items-center gap-2">
             <Btn variant="outline" onClick={() => void refresh()} disabled={loading} className="h-10 w-10 p-0 rounded-xl">
@@ -169,7 +174,7 @@ export default function CrossList({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder={searchPlaceholder}
+              placeholder={searchPh}
               className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none"
             />
           </div>
@@ -183,7 +188,7 @@ export default function CrossList({
               }`}
             >
               <Layers size={13} />
-              <span>{groupLabel}</span>
+              <span>{groupLbl}</span>
             </button>
           )}
         </div>
@@ -192,21 +197,21 @@ export default function CrossList({
         {loading ? (
           <div className="flex h-56 items-center justify-center gap-3 text-slate-400">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
-            <span className="text-sm font-semibold">ກຳລັງໂຫຼດ...</span>
+            <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
           </div>
         ) : error ? (
           <div className="flex h-56 flex-col items-center justify-center gap-2 px-6 text-center text-rose-500">
             <CircleAlert className="h-8 w-8 opacity-70" />
-            <span className="text-sm font-bold">ບໍ່ສາມາດໂຫຼດຂໍ້ມູນໄດ້</span>
+            <span className="text-sm font-bold">{t("components.crossList.loadError", "ບໍ່ສາມາດໂຫຼດຂໍ້ມູນໄດ້")}</span>
             <span className="max-w-xl font-mono text-[10.5px] font-medium text-rose-400">{error}</span>
             <Btn variant="outline" onClick={() => void refresh()} className="mt-2">
-              <RefreshCw size={13} /> ລອງໃໝ່
+              <RefreshCw size={13} /> {t("components.crossList.retry", "ລອງໃໝ່")}
             </Btn>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex h-56 flex-col items-center justify-center gap-2 text-slate-400">
             <Inbox className="h-8 w-8 opacity-40" />
-            <span className="text-sm font-semibold">{empty}</span>
+            <span className="text-sm font-semibold">{emptyText}</span>
           </div>
         ) : useGrouped ? (
           <div className="space-y-5 bg-slate-50/50 p-4 border-t border-slate-100">
@@ -220,7 +225,7 @@ export default function CrossList({
                     <span className="text-sm font-extrabold text-slate-800">{g.name}</span>
                   </div>
                   <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-bold text-slate-500">
-                    {g.items.length} ລາຍການ
+                    {g.items.length} {t("components.crossList.items", "ລາຍການ")}
                   </span>
                 </div>
                 <div className="overflow-x-auto">

@@ -11,6 +11,7 @@ import { checkAccountingApprove } from "@/_actions/boq";
 import { Page, Card, Btn, Pill, SectionHeader, tblCls, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
 import { useConfirm } from "../../_components/Confirm";
+import { useT } from "@/_lib/i18n";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -26,6 +27,7 @@ export default function ContractDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const confirm = useConfirm();
+  const t = useT();
   const [c, setC] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -52,12 +54,12 @@ export default function ContractDetailPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center gap-3 text-slate-400">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
-        <span className="text-sm font-semibold">ກຳລັງໂຫຼດ...</span>
+        <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
   if (!c) {
-    return <div className="px-4 py-10 text-center text-sm font-semibold text-slate-400">ບໍ່ພົບສັນຍາ</div>;
+    return <div className="px-4 py-10 text-center text-sm font-semibold text-slate-400">{t("contracts.notFound", "ບໍ່ພົບສັນຍາ")}</div>;
   }
 
   const items = Array.isArray(c.items) ? c.items : [];
@@ -71,13 +73,13 @@ export default function ContractDetailPage() {
 
   // v2 contracts (odg_contract): two-step toggle, supports undo.
   const setStep = async (which: "sales" | "accounting", approved: boolean) => {
-    if (approved && !(await confirm({ title: "ຢືນຢັນການອະນຸມັດ", message: which === "sales" ? "ອະນຸມັດຝ່າຍຂາຍ?" : "ອະນຸມັດຝ່າຍບັນຊີ?", confirmLabel: "ອະນຸມັດ" }))) return;
+    if (approved && !(await confirm({ title: t("contracts.confirmApproveTitle", "ຢືນຢັນການອະນຸມັດ"), message: which === "sales" ? t("contracts.approveSalesQ", "ອະນຸມັດຝ່າຍຂາຍ?") : t("contracts.approveAccountingQ", "ອະນຸມັດຝ່າຍບັນຊີ?"), confirmLabel: t("common.approve", "ອະນຸມັດ") }))) return;
     const approver = currentUser().name || "";
     const res: any = await setContractApproval(String(id), which, approved, approver);
     if (res?.success) {
       reload();
     } else {
-      alert(res?.message || "ບໍ່ສຳເລັດ");
+      alert(res?.message || t("contracts.failed", "ບໍ່ສຳເລັດ"));
     }
   };
 
@@ -88,17 +90,17 @@ export default function ContractDetailPage() {
     const u = currentUser();
     const username = u.username || u.name || "";
     if (which === "sales" && !c.project_id) {
-      alert("ສັນຍານີ້ບໍ່ມີໂຄງການ ຈຶ່ງອະນຸມັດຝ່າຍຂາຍບໍ່ໄດ້");
+      alert(t("contracts.noProjectCannotApprove", "ສັນຍານີ້ບໍ່ມີໂຄງການ ຈຶ່ງອະນຸມັດຝ່າຍຂາຍບໍ່ໄດ້"));
       return;
     }
-    if (!(await confirm({ title: "ຢືນຢັນການອະນຸມັດ", message: which === "sales" ? "ອະນຸມັດຝ່າຍຂາຍ?" : "ອະນຸມັດຝ່າຍບັນຊີ?", confirmLabel: "ອະນຸມັດ" }))) return;
+    if (!(await confirm({ title: t("contracts.confirmApproveTitle", "ຢືນຢັນການອະນຸມັດ"), message: which === "sales" ? t("contracts.approveSalesQ", "ອະນຸມັດຝ່າຍຂາຍ?") : t("contracts.approveAccountingQ", "ອະນຸມັດຝ່າຍບັນຊີ?"), confirmLabel: t("common.approve", "ອະນຸມັດ") }))) return;
     const res: any = which === "sales"
       ? await approveProjectAction(String(c.project_id), { username, contract_no: c.contract_no })
       : await checkAccountingApprove(String(c.contract_no), { username, project_id: c.project_id ? String(c.project_id) : undefined });
     if (res?.success) {
       reload();
     } else {
-      alert(res?.message || "ບໍ່ສຳເລັດ");
+      alert(res?.message || t("contracts.failed", "ບໍ່ສຳເລັດ"));
     }
   };
 
@@ -109,20 +111,20 @@ export default function ContractDetailPage() {
           onClick={() => router.push("/contracts")}
           className="group inline-flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors hover:text-blue-600"
         >
-          <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> ກັບໄປລາຍການສັນຍາ
+          <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> {t("contracts.backToList", "ກັບໄປລາຍການສັນຍາ")}
         </button>
         {c.src === "erp" ? (
           <DocActions
             onDelete={() => deleteProjectContract(String(c.project_id), String(c.contract_no))}
             afterDelete="/contracts"
-            label="ສັນຍາ"
+            label={t("contracts.title", "ສັນຍາ")}
           />
         ) : (
           <DocActions
             editHref={c.project_id ? `/projects/${c.project_id}/contract/new?edit=${id}` : undefined}
             onDelete={() => deleteContract(String(id))}
             afterDelete="/contracts"
-            label="ສັນຍາ"
+            label={t("contracts.title", "ສັນຍາ")}
           />
         )}
       </div>
@@ -138,7 +140,7 @@ export default function ContractDetailPage() {
               <FileSignature size={24} />
             </div>
             <div className="min-w-0">
-              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/80">ສັນຍາ</div>
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/80">{t("contracts.title", "ສັນຍາ")}</div>
               <h1 className="font-display truncate text-2xl font-bold tracking-tight text-white">{c.contract_no || "-"}</h1>
               <p className="mt-0.5 truncate text-xs font-medium text-white/80">
                 {c.project_name || ""}{c.customer_name ? ` · ${c.customer_name}` : ""}
@@ -146,9 +148,9 @@ export default function ContractDetailPage() {
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <Pill tone={full ? "green" : "amber"}>{full ? "ສົມບູນ" : "ລໍຖ້າອະນຸມັດ"}</Pill>
+            <Pill tone={full ? "green" : "amber"}>{full ? t("contracts.complete", "ສົມບູນ") : t("status.pending", "ລໍຖ້າອະນຸມັດ")}</Pill>
             <div className="text-right">
-              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">ມູນຄ່າສັນຍາ</div>
+              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t("contracts.contractValue", "ມູນຄ່າສັນຍາ")}</div>
               <div className="font-display text-xl font-bold tabular-nums text-white">{money(c.total_amount)}</div>
             </div>
           </div>
@@ -157,23 +159,23 @@ export default function ContractDetailPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
-          <SectionHeader icon={<FolderKanban size={15} />} title="ຂໍ້ມູນສັນຍາ" tone="blue" />
+          <SectionHeader icon={<FolderKanban size={15} />} title={t("contracts.infoTitle", "ຂໍ້ມູນສັນຍາ")} tone="blue" />
           <div className="grid grid-cols-2 gap-x-5 gap-y-3.5 xl:grid-cols-3">
-            <Info label="ລູກຄ້າ" value={c.customer_name} />
-            <Info label="ໂທ" value={c.customer_phone} />
-            <Info label="ວັນເຊັນ" value={d10(c.sign_date)} />
-            <Info label="ເລີ່ມ" value={d10(c.start_date)} />
-            <Info label="ສິ້ນສຸດ" value={d10(c.end_date)} />
-            <Info label="ມູນຄ່າ" value={money(c.total_amount)} />
-            <Info label="ເງື່ອນໄຂຈ່າຍ" value={c.payment_terms} full />
-            <Info label="ໝາຍເຫດ" value={c.notes} full />
+            <Info label={t("common.customer", "ລູກຄ້າ")} value={c.customer_name} />
+            <Info label={t("common.phone", "ໂທ")} value={c.customer_phone} />
+            <Info label={t("contracts.signDate", "ວັນເຊັນ")} value={d10(c.sign_date)} />
+            <Info label={t("contracts.startDate", "ເລີ່ມ")} value={d10(c.start_date)} />
+            <Info label={t("contracts.endDate", "ສິ້ນສຸດ")} value={d10(c.end_date)} />
+            <Info label={t("common.amount", "ມູນຄ່າ")} value={money(c.total_amount)} />
+            <Info label={t("contracts.paymentTerms", "ເງື່ອນໄຂຈ່າຍ")} value={c.payment_terms} full />
+            <Info label={t("common.note", "ໝາຍເຫດ")} value={c.notes} full />
           </div>
         </Card>
         <Card className="p-5">
-          <SectionHeader icon={<CheckCircle2 size={15} />} title="ການອະນຸມັດ" tone="emerald" />
+          <SectionHeader icon={<CheckCircle2 size={15} />} title={t("contracts.approvalTitle", "ການອະນຸມັດ")} tone="emerald" />
           <div className="space-y-2.5">
             <ApprovalRow
-              label="ຝ່າຍຂາຍ"
+              label={t("contracts.sales", "ຝ່າຍຂາຍ")}
               step={1}
               approved={!!c.sales_approved}
               who={c.sales_approver}
@@ -182,18 +184,18 @@ export default function ContractDetailPage() {
               onUndo={isErp || c.accounting_approved ? undefined : () => setStep("sales", false)}
             />
             <ApprovalRow
-              label="ບັນຊີ"
+              label={t("contracts.accounting", "ບັນຊີ")}
               step={2}
               approved={!!c.accounting_approved}
               who={c.accounting_approver}
               locked={!c.sales_approved}
-              lockedHint="ລໍຖ້າຝ່າຍຂາຍອະນຸມັດກ່ອນ"
+              lockedHint={t("contracts.waitSalesFirst", "ລໍຖ້າຝ່າຍຂາຍອະນຸມັດກ່ອນ")}
               onApprove={isErp ? () => approveErp("accounting") : () => setStep("accounting", true)}
               onUndo={isErp ? undefined : () => setStep("accounting", false)}
             />
           </div>
           {isErp && (
-            <p className="mt-3 text-[10.5px] font-semibold text-slate-400">ສັນຍາເກົ່າ — ການອະນຸມັດບໍ່ສາມາດຍົກເລີກໄດ້</p>
+            <p className="mt-3 text-[10.5px] font-semibold text-slate-400">{t("contracts.erpNoUndo", "ສັນຍາເກົ່າ — ການອະນຸມັດບໍ່ສາມາດຍົກເລີກໄດ້")}</p>
           )}
         </Card>
       </div>
@@ -204,10 +206,10 @@ export default function ContractDetailPage() {
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-50 text-cyan-600 ring-1 ring-cyan-100">
               <ListChecks size={15} />
             </span>
-            ລາຍການ
+            {t("boq.item", "ລາຍການ")}
           </h2>
           <span className="font-display rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-500">
-            {items.length} ລາຍການ
+            {items.length} {t("boq.itemUnit", "ລາຍການ")}
           </span>
         </div>
         {items.length === 0 ? (
@@ -215,7 +217,7 @@ export default function ContractDetailPage() {
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-300">
               <ListChecks className="h-7 w-7" />
             </div>
-            <span className="text-sm font-semibold">ບໍ່ມີລາຍການ</span>
+            <span className="text-sm font-semibold">{t("boq.noItems", "ບໍ່ມີລາຍການ")}</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -223,11 +225,11 @@ export default function ContractDetailPage() {
               <thead>
                 <tr>
                   <th className={`${thCls} w-8 pl-5`}>#</th>
-                  <th className={thCls}>ລາຍການ</th>
-                  <th className={`${thCls} w-24`}>ໜ່ວຍ</th>
-                  <th className={`${thCls} w-24 text-right`}>ຈຳນວນ</th>
-                  <th className={`${thCls} w-32 text-right`}>ລາຄາ</th>
-                  <th className={`${thCls} w-32 pr-5 text-right`}>ລວມ</th>
+                  <th className={thCls}>{t("boq.item", "ລາຍການ")}</th>
+                  <th className={`${thCls} w-24`}>{t("common.unit", "ໜ່ວຍ")}</th>
+                  <th className={`${thCls} w-24 text-right`}>{t("common.qty", "ຈຳນວນ")}</th>
+                  <th className={`${thCls} w-32 text-right`}>{t("common.price", "ລາຄາ")}</th>
+                  <th className={`${thCls} w-32 pr-5 text-right`}>{t("contracts.lineTotal", "ລວມ")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -246,7 +248,7 @@ export default function ContractDetailPage() {
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-200 bg-slate-50/70">
-                  <td className="px-5 py-3 text-[12px] font-black uppercase tracking-wider text-slate-700" colSpan={5}>ລວມມູນຄ່າ</td>
+                  <td className="px-5 py-3 text-[12px] font-black uppercase tracking-wider text-slate-700" colSpan={5}>{t("contracts.grandTotal", "ລວມມູນຄ່າ")}</td>
                   <td className="px-5 py-3 pr-5 text-right font-mono text-[14px] font-black tabular-nums text-blue-700">{money(itemsTotal)}</td>
                 </tr>
               </tfoot>
@@ -258,7 +260,7 @@ export default function ContractDetailPage() {
       {c.project_id && (
         <div className="mt-4">
           <Btn variant="outline" onClick={() => router.push(`/projects/${c.project_id}`)}>
-            <FolderKanban size={14} /> ໄປໜ້າໂຄງການ
+            <FolderKanban size={14} /> {t("boq.goToProject", "ໄປໜ້າໂຄງການ")}
           </Btn>
         </div>
       )}
@@ -295,6 +297,7 @@ function ApprovalRow({
   onApprove?: () => void;
   onUndo?: () => void;
 }) {
+  const t = useT();
   // A locked step (its prerequisite isn't approved yet) can't be approved.
   const blocked = !!locked && !approved;
   return (
@@ -314,30 +317,30 @@ function ApprovalRow({
           {label}
         </div>
         <div className="truncate text-[10.5px] font-semibold text-slate-500">
-          {approved ? who || "ອະນຸມັດແລ້ວ" : blocked ? lockedHint || "ລໍຖ້າຂັ້ນຕອນກ່ອນໜ້າ" : "ລໍຖ້າອະນຸມັດ"}
+          {approved ? who || t("status.approved", "ອະນຸມັດແລ້ວ") : blocked ? lockedHint || t("contracts.waitPrevStep", "ລໍຖ້າຂັ້ນຕອນກ່ອນໜ້າ") : t("status.pending", "ລໍຖ້າອະນຸມັດ")}
         </div>
       </div>
       <span className="ml-auto flex flex-shrink-0 items-center gap-2">
         {approved ? (
           <>
-            <Pill tone="green">ອະນຸມັດ</Pill>
+            <Pill tone="green">{t("common.approve", "ອະນຸມັດ")}</Pill>
             {onUndo && (
               <button onClick={onUndo} className="text-[10px] font-bold text-slate-400 transition-colors hover:text-rose-600">
-                ຍົກເລີກ
+                {t("common.cancel", "ຍົກເລີກ")}
               </button>
             )}
           </>
         ) : blocked ? (
-          <Pill tone="neutral">ລ໋ອກ</Pill>
+          <Pill tone="neutral">{t("contracts.locked", "ລ໋ອກ")}</Pill>
         ) : onApprove ? (
           <button
             onClick={onApprove}
             className="inline-flex h-7 items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 text-[11px] font-bold text-emerald-700 transition-all hover:bg-emerald-50 active:scale-[0.97]"
           >
-            <Check size={12} strokeWidth={2.5} /> ອະນຸມັດ
+            <Check size={12} strokeWidth={2.5} /> {t("common.approve", "ອະນຸມັດ")}
           </button>
         ) : (
-          <Pill tone="amber">ລໍຖ້າ</Pill>
+          <Pill tone="amber">{t("contracts.waiting", "ລໍຖ້າ")}</Pill>
         )}
       </span>
     </div>

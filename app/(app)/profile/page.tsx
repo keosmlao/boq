@@ -11,17 +11,19 @@ import { User, ShieldCheck, LogOut, Check, Minus, Settings } from "lucide-react"
 import { Page, PageHeader, Card, SectionTitle } from "../_components/ui";
 import { getV2User, clearV2User, type V2User } from "../../_lib/session";
 import { MODULES, ROLE_LABELS, can, isManager, type Action } from "@/_lib/permissions";
-
-const ACTIONS: { key: Action; label: string }[] = [
-  { key: "view", label: "ເບິ່ງ" },
-  { key: "create", label: "ສ້າງ" },
-  { key: "edit", label: "ແກ້ໄຂ" },
-  { key: "delete", label: "ລຶບ" },
-  { key: "approve", label: "ອະນຸມັດ" },
-];
+import { useT } from "@/_lib/i18n";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const t = useT();
+
+  const ACTIONS: { key: Action; label: string }[] = [
+    { key: "view", label: t("common.view", "ເບິ່ງ") },
+    { key: "create", label: t("common.create", "ສ້າງ") },
+    { key: "edit", label: t("common.edit", "ແກ້ໄຂ") },
+    { key: "delete", label: t("common.delete", "ລຶບ") },
+    { key: "approve", label: t("common.approve", "ອະນຸມັດ") },
+  ];
   const [user, setUser] = useState<V2User | null>(null);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function ProfilePage() {
 
   return (
     <Page max="max-w-[900px]">
-      <PageHeader title="ໂປຣໄຟລ໌ & ການຕັ້ງຄ່າ" subtitle="ຂໍ້ມູນບັນຊີ ແລະ ສິດການນຳໃຊ້ຂອງທ່ານ" />
+      <PageHeader title={t("profile.title", "ໂປຣໄຟລ໌ & ການຕັ້ງຄ່າ")} subtitle={t("profile.subtitle", "ຂໍ້ມູນບັນຊີ ແລະ ສິດການນຳໃຊ້ຂອງທ່ານ")} />
 
       {/* Identity card */}
       <Card className="mb-6 p-5">
@@ -65,7 +67,7 @@ export default function ProfilePage() {
               <ShieldCheck size={13} /> {roleLabel}
             </span>
             {user && isManager(accessUser) && (
-              <span className="text-[11px] font-bold text-slate-400">ສິດຜູ້ຄຸ້ມຄອງ</span>
+              <span className="text-[11px] font-bold text-slate-400">{t("profile.managerAccess", "ສິດຜູ້ຄຸ້ມຄອງ")}</span>
             )}
           </div>
         </div>
@@ -74,14 +76,14 @@ export default function ProfilePage() {
       {/* Permission matrix */}
       <Card className="mb-6 overflow-hidden">
         <div className="border-b border-slate-100 px-5 pt-5">
-          <SectionTitle label="ສິດການນຳໃຊ້ ຕາມໂມດູນ" />
+          <SectionTitle label={t("profile.permsByModule", "ສິດການນຳໃຊ້ ຕາມໂມດູນ")} />
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
             <thead>
               <tr>
                 <th className="sticky left-0 z-10 border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                  ໂມດູນ
+                  {t("profile.module", "ໂມດູນ")}
                 </th>
                 {ACTIONS.map((a) => (
                   <th key={a.key} className="border-b border-slate-200 bg-slate-50 px-3 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
@@ -118,19 +120,19 @@ export default function ProfilePage() {
 
       {/* Settings / actions */}
       <Card className="p-5">
-        <SectionTitle label="ການຕັ້ງຄ່າ" />
+        <SectionTitle label={t("profile.settings", "ການຕັ້ງຄ່າ")} />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-slate-500">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
               <Settings size={16} />
             </span>
-            <span className="text-[12.5px] font-semibold">ອອກຈາກລະບົບໃນອຸປະກອນນີ້</span>
+            <span className="text-[12.5px] font-semibold">{t("profile.logoutDevice", "ອອກຈາກລະບົບໃນອຸປະກອນນີ້")}</span>
           </div>
           <button
             onClick={doLogout}
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-rose-600 px-4 text-xs font-bold text-white shadow-sm shadow-rose-600/25 transition-all duration-150 hover:bg-rose-700 active:scale-[0.98]"
           >
-            <LogOut size={15} /> ອອກຈາກລະບົບ
+            <LogOut size={15} /> {t("profile.logout", "ອອກຈາກລະບົບ")}
           </button>
         </div>
       </Card>

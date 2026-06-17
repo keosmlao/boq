@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Page, Card } from "../_components/ui";
 import { MapPin, RefreshCw } from "lucide-react";
+import { useT } from "@/_lib/i18n";
 
 const ICON_BASE = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,15 +25,16 @@ const Popup = dynamic(() => import("react-leaflet").then((m) => m.Popup), { ssr:
 
 const LAOS: [number, number] = [17.9757, 102.6331];
 const fmt = (v: unknown) => (v ? new Date(String(v)).toLocaleString("en-GB") : "-");
-const ago = (v: unknown) => {
+const ago = (v: unknown, t: (k: string, f: string) => string) => {
   if (!v) return "";
   const mins = Math.floor((Date.now() - new Date(String(v)).getTime()) / 60000);
-  if (mins < 1) return "ຫາก่อน";
-  if (mins < 60) return `${mins} ນາທີກ່ອນ`;
-  return `${Math.floor(mins / 60)} ຊມ ກ່ອນ`;
+  if (mins < 1) return t("tracking.justNow", "ຫາก่อน");
+  if (mins < 60) return `${mins} ${t("tracking.minutesAgo", "ນາທີກ່ອນ")}`;
+  return `${Math.floor(mins / 60)} ${t("tracking.hoursAgo", "ຊມ ກ່ອນ")}`;
 };
 
 export default function TrackingPage() {
+  const t = useT();
   const [pts, setPts] = useState<any[]>([]);
   const [presence, setPresence] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,9 +63,9 @@ export default function TrackingPage() {
   return (
     <Page max="max-w-none">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl md:text-2xl font-bold text-[var(--theme-text)]">ຕິດຕາມຊ່າງ</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-[var(--theme-text)]">{t("tracking.title", "ຕິດຕາມຊ່າງ")}</h1>
         <button onClick={load} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> รีเฟรช
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> {t("tracking.refresh", "รีเฟรช")}
         </button>
       </div>
 
@@ -75,21 +77,21 @@ export default function TrackingPage() {
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
           </span>
           <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">
-            ຊ່າງออนไลน์ {presence.filter((p) => p.online).length}/{presence.length}
+            {t("tracking.online", "ຊ່າງออนไลน์")} {presence.filter((p) => p.online).length}/{presence.length}
           </h2>
         </div>
         {presence.length === 0 ? (
-          <p className="py-3 text-center text-xs text-[var(--theme-text-mute)]">ຍັງບໍ່ມีข้อมูล (ช่างต้องเปิดแอป)</p>
+          <p className="py-3 text-center text-xs text-[var(--theme-text-mute)]">{t("tracking.noPresence", "ຍັງບໍ່ມีข้อมูล (ช่างต้องเปิดแอป)")}</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {presence.map((p, i) => (
               <span
                 key={i}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold ${p.online ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-400"}`}
-                title={`ເຫັນລ່າสุด: ${fmt(p.last_seen)}`}
+                title={`${t("tracking.lastSeen", "ເຫັນລ່າສຸດ")}: ${fmt(p.last_seen)}`}
               >
                 <span className={`h-2 w-2 rounded-full ${p.online ? "bg-emerald-500" : "bg-slate-300"}`} />
-                {p.name}{!p.online ? ` · ${ago(p.last_seen)}` : ""}
+                {p.name}{!p.online ? ` · ${ago(p.last_seen, t)}` : ""}
               </span>
             ))}
           </div>
@@ -105,9 +107,9 @@ export default function TrackingPage() {
                 <Popup>
                   <b>{p.name}</b>
                   <br />
-                  {p.work_no ? `ໃບງານ: ${p.work_no}` : "—"}
+                  {p.work_no ? `${t("tracking.workNo", "ໃບງານ")}: ${p.work_no}` : "—"}
                   <br />
-                  ອັບເດດ: {fmt(p.updated_at)}
+                  {t("tracking.updated", "ອັບເດດ")}: {fmt(p.updated_at)}
                 </Popup>
               </Marker>
             ))}
@@ -117,7 +119,7 @@ export default function TrackingPage() {
 
       <div className="mt-4 space-y-2">
         {pts.length === 0 && !loading && (
-          <p className="py-6 text-center text-sm text-[var(--theme-text-mute)]">ຍັງບໍ່ມີຊ່າງສົ່ງຕຳແໜ່ງ (ຕ້ອງ check-in ແລະ ເປີດ tracking ໃນແອັບ)</p>
+          <p className="py-6 text-center text-sm text-[var(--theme-text-mute)]">{t("tracking.noPositions", "ຍັງບໍ່ມີຊ່າງສົ່ງຕຳແໜ່ງ (ຕ້ອງ check-in ແລະ ເປີດ tracking ໃນແອັບ)")}</p>
         )}
         {pts.map((p, i) => (
           <Card key={i} className="flex items-center gap-3 p-3">
@@ -126,7 +128,7 @@ export default function TrackingPage() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-bold text-[var(--theme-text)]">{p.name}</div>
-              <div className="text-[11.5px] text-[var(--theme-text-mute)]">{p.work_no ? `ໃບງານ ${p.work_no} · ` : ""}{ago(p.updated_at)}</div>
+              <div className="text-[11.5px] text-[var(--theme-text-mute)]">{p.work_no ? `${t("tracking.workNo", "ໃບງານ")} ${p.work_no} · ` : ""}{ago(p.updated_at, t)}</div>
             </div>
             <a
               href={`https://www.google.com/maps?q=${p.lat},${p.lng}`}

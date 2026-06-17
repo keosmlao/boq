@@ -40,68 +40,91 @@ import ChatWidget from "./ChatWidget";
 import ConfirmProvider from "./Confirm";
 import MyActivitiesBell from "./MyActivitiesBell";
 import NotificationsBell from "./NotificationsBell";
+import LanguageSwitcher from "./LanguageSwitcher";
+import { useT } from "@/_lib/i18n";
 
-type NavItem = { label: string; href: string; icon: React.ReactNode };
-type NavSection = { section?: string; items: NavItem[] };
+type NavItem = { label: string; tKey: string; href: string; icon: React.ReactNode };
+type NavSection = { section?: string; sectionKey?: string; items: NavItem[] };
 
 const NAV_SECTIONS: NavSection[] = [
-  { items: [{ label: "ພາບລວມ", href: "/", icon: <Home size={16} /> }] },
+  { items: [{ label: "ພາບລວມ", tKey: "nav.overview", href: "/", icon: <Home size={16} /> }] },
   {
-    section: "ການຂາຍ & ໂຄງການ",
+    section: "ການຂາຍ",
+    sectionKey: "nav.section.sales",
     items: [
-      { label: "ລູກຄ້າ", href: "/customers", icon: <Users size={16} /> },
-      { label: "ໂຄງການ", href: "/projects", icon: <FolderKanban size={16} /> },
-      { label: "ໃບສະເໜີລາຄາ", href: "/quotations", icon: <FileText size={16} /> },
-      { label: "ສັນຍາ", href: "/contracts", icon: <FileSignature size={16} /> },
+      { label: "ລູກຄ້າ", tKey: "nav.customers", href: "/customers", icon: <Users size={16} /> },
+      { label: "ໂຄງການ", tKey: "nav.projects", href: "/projects", icon: <FolderKanban size={16} /> },
+      { label: "ໃບສະເໜີລາຄາ", tKey: "nav.quotations", href: "/quotations", icon: <FileText size={16} /> },
+      { label: "ສັນຍາ", tKey: "nav.contracts", href: "/contracts", icon: <FileSignature size={16} /> },
     ],
   },
   {
-    section: "ດຳເນີນງານ",
+    section: "ໜ້າງານ & ຕິດຕັ້ງ",
+    sectionKey: "nav.section.work",
     items: [
-      { label: "BOQ", href: "/boq", icon: <ListChecks size={16} /> },
-      { label: "ຕາຕະລາງວຽກ", href: "/schedule", icon: <CalendarRange size={16} /> },
-      { label: "ໃບງານ", href: "/work-orders", icon: <Wrench size={16} /> },
-      { label: "ງານຕິດຕັ້ງມາດຕະຖານ", href: "/std-tasks", icon: <ClipboardCheck size={16} /> },
-      { label: "ຈັດການທີມຊ່າງ", href: "/tech-teams", icon: <UsersRound size={16} /> },
-      { label: "ສະຫຼຸບຜົນງານຊ່າງ", href: "/tech-summary", icon: <Award size={16} /> },
-      { label: "ຕິດຕາມຊ່າງ", href: "/tracking", icon: <MapPin size={16} /> },
-      { label: "ຕິດຕາມການຕິດຕັ້ງ", href: "/install-tracking", icon: <CalendarRange size={16} /> },
-      { label: "ການຂໍເບີກ", href: "/requests", icon: <PackageOpen size={16} /> },
-      { label: "ສິນຄ້າ / ສະຕັອກ", href: "/inventory", icon: <Boxes size={16} /> },
+      { label: "BOQ", tKey: "nav.boq", href: "/boq", icon: <ListChecks size={16} /> },
+      { label: "ຕາຕະລາງວຽກ", tKey: "nav.schedule", href: "/schedule", icon: <CalendarRange size={16} /> },
+      { label: "ໃບງານ", tKey: "nav.workorders", href: "/work-orders", icon: <Wrench size={16} /> },
+      { label: "ງານຕິດຕັ້ງມາດຕະຖານ", tKey: "nav.stdtasks", href: "/std-tasks", icon: <ClipboardCheck size={16} /> },
+      { label: "ຕິດຕາມການຕິດຕັ້ງ", tKey: "nav.installtracking", href: "/install-tracking", icon: <CalendarRange size={16} /> },
+    ],
+  },
+  {
+    section: "ທີມຊ່າງ",
+    sectionKey: "nav.section.techs",
+    items: [
+      { label: "ຈັດການທີມຊ່າງ", tKey: "nav.techteams", href: "/tech-teams", icon: <UsersRound size={16} /> },
+      { label: "ສະຫຼຸບຜົນງານຊ່າງ", tKey: "nav.techsummary", href: "/tech-summary", icon: <Award size={16} /> },
+      { label: "ຕິດຕາມຊ່າງ", tKey: "nav.tracking", href: "/tracking", icon: <MapPin size={16} /> },
+    ],
+  },
+  {
+    section: "ສິນຄ້າ & ເບີກ",
+    sectionKey: "nav.section.inventory",
+    items: [
+      { label: "ການຂໍເບີກ", tKey: "nav.requests", href: "/requests", icon: <PackageOpen size={16} /> },
+      { label: "ສິນຄ້າ / ສະຕັອກ", tKey: "nav.inventory", href: "/inventory", icon: <Boxes size={16} /> },
     ],
   },
   {
     section: "ການເງິນ & ລາຍງານ",
+    sectionKey: "nav.section.finance",
     items: [
-      { label: "ບັນຊີ / ງວດຈ່າຍ", href: "/finance", icon: <Wallet size={16} /> },
-      { label: "ລາຍງານ & ສະຖິຕິ", href: "/reports", icon: <BarChart3 size={16} /> },
+      { label: "ບັນຊີ / ງວດຈ່າຍ", tKey: "nav.finance", href: "/finance", icon: <Wallet size={16} /> },
+      { label: "ລາຍງານ & ສະຖິຕິ", tKey: "nav.reports", href: "/reports", icon: <BarChart3 size={16} /> },
     ],
   },
   {
     section: "ລະບົບ",
+    sectionKey: "nav.section.system",
     items: [
-      { label: "ຜູ້ໃຊ້ & ສິດ", href: "/users", icon: <ShieldCheck size={16} /> },
-      { label: "ທົດສອບແຈ້ງເຕືອນ", href: "/push-test", icon: <Bell size={16} /> },
+      { label: "ຜູ້ໃຊ້ & ສິດ", tKey: "nav.users", href: "/users", icon: <ShieldCheck size={16} /> },
+      { label: "ທົດສອບແຈ້ງເຕືອນ", tKey: "nav.pushtest", href: "/push-test", icon: <Bell size={16} /> },
     ],
   },
 ];
 
 const ALL_NAV = NAV_SECTIONS.flatMap((section) => section.items);
 
-function titleFor(pathname: string): string {
-  if (pathname === "/") return "ພາບລວມ";
-  if (pathname.startsWith("/projects/new")) return "ລົງທະບຽນໂຄງການ";
-  if (pathname.startsWith("/projects/")) return "ລາຍລະອຽດໂຄງການ";
-  if (pathname.startsWith("/profile")) return "ໂປຣໄຟລ໌ & ການຕັ້ງຄ່າ";
-  return ALL_NAV.find((item) => item.href !== "/" && pathname.startsWith(item.href))?.label || "ພາບລວມ";
+/** Returns a translation key + Lao fallback for the page header title. */
+function titleFor(pathname: string): { key: string; fallback: string } {
+  if (pathname === "/") return { key: "nav.overview", fallback: "ພາບລວມ" };
+  if (pathname.startsWith("/projects/new")) return { key: "title.registerProject", fallback: "ລົງທະບຽນໂຄງການ" };
+  if (pathname.startsWith("/projects/")) return { key: "title.projectDetail", fallback: "ລາຍລະອຽດໂຄງການ" };
+  if (pathname.startsWith("/profile")) return { key: "title.profile", fallback: "ໂປຣໄຟລ໌ & ການຕັ້ງຄ່າ" };
+  const item = ALL_NAV.find((it) => it.href !== "/" && pathname.startsWith(it.href));
+  return item ? { key: item.tKey, fallback: item.label } : { key: "nav.overview", fallback: "ພາບລວມ" };
 }
 
-function sectionFor(pathname: string): string {
-  if (pathname === "/") return "Workspace";
+/** Returns a translation key + fallback for the breadcrumb section label. */
+function sectionFor(pathname: string): { key: string; fallback: string } {
+  if (pathname === "/") return { key: "", fallback: "Workspace" };
   for (const section of NAV_SECTIONS) {
-    if (section.section && section.items.some((item) => item.href !== "/" && pathname.startsWith(item.href))) return section.section;
+    if (section.section && section.items.some((item) => item.href !== "/" && pathname.startsWith(item.href))) {
+      return { key: section.sectionKey || "", fallback: section.section };
+    }
   }
-  return "ODG Projects";
+  return { key: "", fallback: "ODG Projects" };
 }
 
 export default function Shell({ children }: { children: React.ReactNode }) {
@@ -112,6 +135,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { theme, toggle: toggleTheme } = useTheme();
+  const t = useT();
 
   useEffect(() => {
     const storedUser = getV2User();
@@ -173,7 +197,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen items-center justify-center bg-[var(--theme-page)]">
         <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-bold text-slate-500 shadow-sm">
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
-          ກຳລັງເປີດ Workspace...
+          {t("shell.opening")}
         </div>
       </div>
     );
@@ -190,9 +214,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="font-display block truncate text-[14.5px] font-extrabold tracking-tight text-white">ODG Projects</span>
-          <span className="mt-0.5 block truncate text-[8px] font-black uppercase tracking-[0.25em] text-blue-400/80">Sales & Installation</span>
+          <span className="mt-0.5 block truncate text-[8px] font-black uppercase tracking-[0.25em] text-blue-400/80">{t("app.subtitle")}</span>
         </span>
-        <button onClick={() => setMobileOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white md:hidden" aria-label="ປິດເມນູ">
+        <button onClick={() => setMobileOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white md:hidden" aria-label={t("shell.closeMenu")}>
           <X size={17} />
         </button>
       </div>
@@ -206,7 +230,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           >
             <span className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <Plus size={15} strokeWidth={3} className="transition-transform group-hover:rotate-90 duration-300 relative z-10" />
-            <span className="relative z-10">ລົງທະບຽນໂຄງການ</span>
+            <span className="relative z-10">{t("shell.registerProject")}</span>
           </Link>
         </div>
       )}
@@ -214,7 +238,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <div className="theme-scrollbar flex-1 space-y-5 overflow-y-auto px-3 py-3">
         {visibleSections.map((section, index) => (
           <div key={section.section || index}>
-            {section.section && <p className="mb-1.5 px-3 text-[8.5px] font-black uppercase tracking-[0.2em] text-slate-600">{section.section}</p>}
+            {section.section && <p className="mb-1.5 px-3 text-[8.5px] font-black uppercase tracking-[0.2em] text-slate-600">{t(section.sectionKey || "", section.section)}</p>}
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const active = activeHref === item.href;
@@ -242,7 +266,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     >
                       {item.icon}
                     </span>
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="min-w-0 flex-1 truncate">{t(item.tKey, item.label)}</span>
                     <ChevronRight
                       size={13}
                       className={`transition-all duration-200 ${
@@ -279,42 +303,43 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <button aria-label="ປິດເມນູ" className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]" onClick={() => setMobileOpen(false)} />
+          <button aria-label={t("shell.closeMenu")} className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]" onClick={() => setMobileOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-[min(290px,88vw)] shadow-2xl">{sidebar}</aside>
         </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="relative z-20 flex h-[72px] flex-shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--topbar-bg)] backdrop-blur-md px-4 md:px-6 transition-all duration-300">
-          <button onClick={() => setMobileOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition md:hidden" aria-label="ເປີດເມນູ">
+          <button onClick={() => setMobileOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition md:hidden" aria-label={t("shell.openMenu")}>
             <Menu size={18} />
           </button>
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--text-mute)]">
-              <span>ODG Projects</span><ChevronRight size={10} /><span className="truncate text-blue-600 dark:text-blue-400 font-extrabold">{sectionFor(pathname)}</span>
+              <span>ODG Projects</span><ChevronRight size={10} /><span className="truncate text-blue-600 dark:text-blue-400 font-extrabold">{(() => { const s = sectionFor(pathname); return t(s.key, s.fallback); })()}</span>
             </div>
-            <h2 className="mt-1 truncate text-[15.5px] font-black tracking-tight text-[var(--text)]">{titleFor(pathname)}</h2>
+            <h2 className="mt-1 truncate text-[15.5px] font-black tracking-tight text-[var(--text)]">{(() => { const ti = titleFor(pathname); return t(ti.key, ti.fallback); })()}</h2>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
             {canView(user, "schedule") && (
               <Link href="/schedule" className="hidden h-9 items-center gap-2 rounded-xl px-3 text-[11px] font-bold text-[var(--text-soft)] transition-all duration-200 hover:bg-[var(--surface-soft)] hover:text-[var(--text)] lg:inline-flex border border-transparent hover:border-[var(--border)]">
-                <CalendarRange size={14} /> ຕາຕະລາງວຽກ
+                <CalendarRange size={14} /> {t("nav.schedule")}
               </Link>
             )}
             {canView(user, "reports") && (
               <Link href="/reports" className="hidden h-9 items-center gap-2 rounded-xl px-3 text-[11px] font-bold text-[var(--text-soft)] transition-all duration-200 hover:bg-[var(--surface-soft)] hover:text-[var(--text)] lg:inline-flex border border-transparent hover:border-[var(--border)]">
-                <BarChart3 size={14} /> ລາຍງານ
+                <BarChart3 size={14} /> {t("nav.reports", "ລາຍງານ")}
               </Link>
             )}
+            <LanguageSwitcher />
             <NotificationsBell />
             <MyActivitiesBell />
             
             <button
               onClick={toggleTheme}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition-all duration-300 relative overflow-hidden active:scale-95 group"
-              title={theme === "dark" ? "ປ່ຽນເປັນໂໝດສະຫວ່າງ" : "ປ່ຽນເປັນໂໝດກາງຄືນ"}
+              title={theme === "dark" ? t("shell.theme.toLight") : t("shell.theme.toDark")}
             >
               <span className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <span className="relative z-10 transition-transform duration-500 group-hover:rotate-45">
@@ -347,10 +372,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       <p className="mt-0.5 text-[9.5px] font-semibold text-[var(--text-mute)] uppercase tracking-wider">{roleLabel}</p>
                     </div>
                     <button onClick={() => { setUserMenuOpen(false); router.push("/profile"); }} className="mt-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[11.5px] font-bold text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition-colors">
-                      <UserCog size={15} /> ໂປຣໄຟລ໌ & ການຕັ້ງຄ່າ
+                      <UserCog size={15} /> {t("shell.profileSettings")}
                     </button>
                     <button onClick={doLogout} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[11.5px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/25 transition-colors">
-                      <LogOut size={15} /> ອອກຈາກລະບົບ
+                      <LogOut size={15} /> {t("shell.logout")}
                     </button>
                   </div>
                 </>

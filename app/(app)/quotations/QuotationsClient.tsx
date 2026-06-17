@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getQuotations } from "@/_actions/quotations";
 import { Page, Card } from "../_components/ui";
+import { useT } from "@/_lib/i18n";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -30,10 +31,10 @@ const statusKind = (s: string): "done" | "off" | "wait" =>
 const initial = (s: string) => s.replace(/[^\p{L}\p{N}]/u, "").charAt(0).toUpperCase() || "?";
 
 const FILTERS = [
-  { key: "all", label: "ທັງໝົດ" },
-  { key: "ລໍຖ້າອະນຸມັດ", label: "ລໍຖ້າອະນຸມັດ" },
-  { key: "ອະນຸມັດແລ້ວ", label: "ອະນຸມັດແລ້ວ" },
-  { key: "ປະຕິເສດ", label: "ປະຕິເສດ" },
+  { key: "all", i18nKey: "common.all", label: "ທັງໝົດ" },
+  { key: "ລໍຖ້າອະນຸມັດ", i18nKey: "status.pending", label: "ລໍຖ້າອະນຸມັດ" },
+  { key: "ອະນຸມັດແລ້ວ", i18nKey: "status.approved", label: "ອະນຸມັດແລ້ວ" },
+  { key: "ປະຕິເສດ", i18nKey: "status.rejected", label: "ປະຕິເສດ" },
 ];
 
 type Quote = Record<string, any>;
@@ -46,6 +47,7 @@ function Tag({ status }: { status: string }) {
 }
 
 export default function QuotationsClient({ initialRows }: { initialRows: Quote[] }) {
+  const t = useT();
   const router = useRouter();
   const [rows, setRows] = useState<Quote[]>(initialRows ?? []);
   const [loading, setLoading] = useState(false);
@@ -89,14 +91,14 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
   const groups = useMemo(() => {
     const byCustomer: Record<string, Quote[]> = {};
     filtered.forEach((r) => {
-      const c = r.customer_name || "(ບໍ່ລະບຸລູກຄ້າ)";
+      const c = r.customer_name || t("quotations.noCustomer", "(ບໍ່ລະບຸລູກຄ້າ)");
       (byCustomer[c] ||= []).push(r);
     });
     return Object.entries(byCustomer)
       .map(([customer, list]) => {
         const byProject: Record<string, Quote[]> = {};
         list.forEach((r) => {
-          const p = r.project_name || "(ບໍ່ລະບຸໂຄງການ)";
+          const p = r.project_name || t("quotations.noProject", "(ບໍ່ລະບຸໂຄງການ)");
           (byProject[p] ||= []).push(r);
         });
         const projects = Object.entries(byProject).map(([project, quotes]) => ({
@@ -127,9 +129,9 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
       {/* Monochrome Minimalist Header */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-100 pb-5">
         <div className="min-w-0">
-          <h1 className="truncate text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-none">ໃບສະເໜີລາຄາ</h1>
+          <h1 className="truncate text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-none">{t("quotations.title", "ໃບສະເໜີລາຄາ")}</h1>
           <p className="mt-2 text-xs font-medium text-slate-400">
-            ໃບສະເໜີທັງໝົດ {stats.total} · ມູນຄ່າລວມ {money(stats.value)} ກີບ · ລໍຖ້າອະນຸມັດ {stats.pending} · ອະນຸມັດແລ້ວ {stats.approved}
+            {t("quotations.totalQuotes", "ໃບສະເໜີທັງໝົດ")} {stats.total} · {t("quotations.totalValue", "ມູນຄ່າລວມ")} {money(stats.value)} {t("common.currencyKip", "ກີບ")} · {t("status.pending", "ລໍຖ້າອະນຸມັດ")} {stats.pending} · {t("status.approved", "ອະນຸມັດແລ້ວ")} {stats.approved}
           </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
@@ -146,7 +148,7 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
             >
               {allOpen ? <ChevronsDownUp size={13} /> : <ChevronsUpDown size={13} />}
-              <span>{allOpen ? "ຍຸບທັງໝົດ" : "ຂະຫຍາຍທັງໝົດ"}</span>
+              <span>{allOpen ? t("common.collapseAll", "ຍຸບທັງໝົດ") : t("common.expandAll", "ຂະຫຍາຍທັງໝົດ")}</span>
             </button>
           )}
         </div>
@@ -160,7 +162,7 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="ຄົ້ນຫາ ເລກທີ, ໂຄງການ, ລູກຄ້າ..."
+              placeholder={t("quotations.searchPlaceholder", "ຄົ້ນຫາ ເລກທີ, ໂຄງການ, ລູກຄ້າ...")}
               className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none"
             />
           </div>
@@ -175,7 +177,7 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
                 }`}
               >
-                {f.label}
+                {t(f.i18nKey, f.label)}
               </button>
             ))}
           </div>
@@ -184,12 +186,12 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
         {loading ? (
           <div className="flex h-56 items-center justify-center gap-3 text-slate-400">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
-            <span className="text-sm font-semibold">ກຳລັງໂຫຼດ...</span>
+            <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
           </div>
         ) : groups.length === 0 ? (
           <div className="flex h-56 flex-col items-center justify-center gap-2 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
             <Inbox className="h-8 w-8 opacity-40" />
-            <span className="text-sm font-semibold">{rows.length ? "ບໍ່ພົບໃບສະເໜີທີ່ກົງ" : "ຍັງບໍ່ມີໃບສະເໜີລາຄາ"}</span>
+            <span className="text-sm font-semibold">{rows.length ? t("quotations.noMatch", "ບໍ່ພົບໃບສະເໜີທີ່ກົງ") : t("quotations.empty", "ຍັງບໍ່ມີໃບສະເໜີລາຄາ")}</span>
           </div>
         ) : (
           <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-xl bg-white overflow-hidden shadow-2xs">
@@ -209,12 +211,12 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-semibold text-slate-800 transition-colors group-hover:text-slate-900">{g.customer}</div>
                       <div className="mt-0.5 text-[10.5px] font-medium text-slate-400">
-                        {g.projects.length} ໂຄງການ · {g.count} ໃບສະເໜີ
+                        {g.projects.length} {t("quotations.projectsUnit", "ໂຄງການ")} · {g.count} {t("quotations.quotesUnit", "ໃບສະເໜີ")}
                       </div>
                     </div>
                     <div className="flex-shrink-0 text-right pr-2">
                       <div className="font-mono text-xs font-bold text-slate-700">{money(g.value)}</div>
-                      <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">ກີບ</div>
+                      <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t("common.currencyKip", "ກີບ")}</div>
                     </div>
                   </div>
 
@@ -227,7 +229,7 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
                             <div className="flex items-center gap-2 rounded-lg px-2 py-1 bg-white border border-slate-100 shadow-2xs">
                               <FolderKanban size={11} className="flex-shrink-0 text-slate-400" />
                               <span className="truncate text-[11.5px] font-semibold text-slate-600">{p.project}</span>
-                              <span className="ml-auto flex-shrink-0 font-mono text-[10px] font-semibold text-slate-400">{money(p.value)} ກີບ</span>
+                              <span className="ml-auto flex-shrink-0 font-mono text-[10px] font-semibold text-slate-400">{money(p.value)} {t("common.currencyKip", "ກີບ")}</span>
                             </div>
                             <div className="ml-3 border-l border-slate-200/50 pl-3 space-y-0.5">
                               {p.quotes.map((qt) => (
@@ -238,7 +240,7 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
                                 >
                                   <FileText size={12} className="flex-shrink-0 text-slate-400 group-hover:text-slate-600" />
                                   <div className="min-w-0 flex-1">
-                                    <div className="truncate font-mono text-[11.5px] font-semibold text-slate-700">{qt.quotation_no || "(ບໍ່ມີເລກທີ່)"}</div>
+                                    <div className="truncate font-mono text-[11.5px] font-semibold text-slate-700">{qt.quotation_no || t("quotations.noNumber", "(ບໍ່ມີເລກທີ່)")}</div>
                                     <div className="text-[10px] font-medium text-slate-400">{d10(qt.quotation_date)}</div>
                                   </div>
                                   <Tag status={norm(qt.status)} />

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Bell, BellRing, CheckCircle2, XCircle, RefreshCw, Send, Loader2, Smartphone, KeyRound } from "lucide-react";
 import { Page, PageHeader, Card } from "../_components/ui";
 import { getV2User } from "../../_lib/session";
+import { useT } from "@/_lib/i18n";
 
 type Device = { employee_code: string; name: string; tokens: number; platforms: string };
 type Status = {
@@ -35,6 +36,7 @@ function StatusBox({ ok, icon, title, value }: { ok?: boolean; icon: React.React
 
 export default function PushTestPage() {
   const router = useRouter();
+  const t = useT();
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [code, setCode] = useState("");
@@ -71,7 +73,7 @@ export default function PushTestPage() {
         body: JSON.stringify({ employeeCode }),
       });
       const j = await r.json().catch(() => ({}));
-      setResult({ ok: r.ok && j?.ok !== false, message: j?.message || (r.ok ? "ສຳເລັດ" : "ບໍ່ສຳເລັດ") });
+      setResult({ ok: r.ok && j?.ok !== false, message: j?.message || (r.ok ? t("common.success", "ສຳເລັດ") : t("common.error", "ບໍ່ສຳເລັດ")) });
       await load();
     } catch (e) {
       setResult({ ok: false, message: (e as Error).message });
@@ -82,31 +84,31 @@ export default function PushTestPage() {
 
   return (
     <Page max="max-w-2xl">
-      <PageHeader title="ທົດສອບ Push ໄປແອັບຊ່າງ" subtitle="Firebase Cloud Messaging (FCM) ສຳລັບ mobile app" />
+      <PageHeader title={t("pushTest.title", "ທົດສອບ Push ໄປແອັບຊ່າງ")} subtitle={t("pushTest.subtitle", "Firebase Cloud Messaging (FCM) ສຳລັບ mobile app")} />
 
       <Card className="mb-4 p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">ສະຖານະລະບົບ Mobile Push</h2>
+          <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">{t("pushTest.systemStatus", "ສະຖານະລະບົບ Mobile Push")}</h2>
           <button onClick={load} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50">
-            <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> ໂຫຼດໃໝ່
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> {t("pushTest.reload", "ໂຫຼດໃໝ່")}
           </button>
         </div>
 
         {loading && !status ? (
-          <div className="flex items-center gap-2 py-3 text-sm text-slate-400"><Loader2 size={16} className="animate-spin" /> ກຳລັງໂຫຼດ...</div>
+          <div className="flex items-center gap-2 py-3 text-sm text-slate-400"><Loader2 size={16} className="animate-spin" /> {t("common.loading", "ກຳລັງໂຫຼດ...")}</div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             <StatusBox
               ok={!!status?.configured}
               icon={status?.configured ? <CheckCircle2 size={20} className="text-emerald-600" /> : <XCircle size={20} className="text-rose-600" />}
               title="Firebase Admin"
-              value={status?.configured ? "ຕັ້ງຄ່າແລ້ວ" : "ຍັງບໍ່ມີ service account"}
+              value={status?.configured ? t("pushTest.configured", "ຕັ້ງຄ່າແລ້ວ") : t("pushTest.noServiceAccount", "ຍັງບໍ່ມີ service account")}
             />
             <StatusBox
               ok={null}
               icon={<Smartphone size={20} className="text-blue-600" />}
               title="Device token"
-              value={`${status?.totalTokens ?? 0} ໜ່ວຍ`}
+              value={`${status?.totalTokens ?? 0} ${t("pushTest.units", "ໜ່ວຍ")}`}
             />
           </div>
         )}
@@ -119,20 +121,20 @@ export default function PushTestPage() {
 
         {status && !status.configured && (
           <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11.5px] font-medium text-amber-800">
-            <div className="mb-1 flex items-center gap-1.5 font-bold"><KeyRound size={13} /> ຂາດ server key ສຳລັບສົ່ງ FCM</div>
-            ໃຫ້ເອົາ Firebase service account JSON ຂອງ project <b>saleproject-36fc8</b> ມາວາງເປັນ
-            <b> BOQ2026/firebase-service-account.json</b> ຫຼືຕັ້ງ <b>FIREBASE_SERVICE_ACCOUNT</b> ໃນ `.env`, ແລ້ວ restart server.
+            <div className="mb-1 flex items-center gap-1.5 font-bold"><KeyRound size={13} /> {t("pushTest.missingServerKey", "ຂາດ server key ສຳລັບສົ່ງ FCM")}</div>
+            {t("pushTest.setupHintPre", "ໃຫ້ເອົາ Firebase service account JSON ຂອງ project")} <b>saleproject-36fc8</b> {t("pushTest.setupHintMid", "ມາວາງເປັນ")}
+            <b> BOQ2026/firebase-service-account.json</b> {t("pushTest.setupHintOr", "ຫຼືຕັ້ງ")} <b>FIREBASE_SERVICE_ACCOUNT</b> {t("pushTest.setupHintEnv", "ໃນ `.env`, ແລ້ວ restart server.")}
           </div>
         )}
       </Card>
 
       <Card className="mb-4 p-4">
-        <h2 className="mb-2 text-[13.5px] font-bold text-[var(--theme-text)]">ສົ່ງທົດສອບໄປແອັບ</h2>
+        <h2 className="mb-2 text-[13.5px] font-bold text-[var(--theme-text)]">{t("pushTest.sendTestTitle", "ສົ່ງທົດສອບໄປແອັບ")}</h2>
         <div className="flex gap-2">
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="employee_code (ເຊັ່ນ 21012)"
+            placeholder={t("pushTest.codePlaceholder", "employee_code (ເຊັ່ນ 21012)")}
             className="flex-1 rounded-xl border border-slate-200 px-3.5 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/12"
           />
           <button
@@ -140,7 +142,7 @@ export default function PushTestPage() {
             disabled={!code.trim() || sending || !status?.configured}
             className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 text-[13px] font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
           >
-            {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} ສົ່ງ
+            {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} {t("pushTest.send", "ສົ່ງ")}
           </button>
         </div>
         {result && (
@@ -151,9 +153,9 @@ export default function PushTestPage() {
       </Card>
 
       <Card className="p-4">
-        <h2 className="mb-3 text-[13.5px] font-bold text-[var(--theme-text)]">Device ທີ່ລົງທະບຽນ ({status?.devices?.length ?? 0})</h2>
+        <h2 className="mb-3 text-[13.5px] font-bold text-[var(--theme-text)]">{t("pushTest.registeredDevices", "Device ທີ່ລົງທະບຽນ")} ({status?.devices?.length ?? 0})</h2>
         {!status?.devices?.length ? (
-          <p className="py-4 text-center text-[12px] text-slate-400">ຍັງບໍ່ມີ device token — ໃຫ້ຊ່າງ login ໃນແອັບກ່ອນ</p>
+          <p className="py-4 text-center text-[12px] text-slate-400">{t("pushTest.noDevices", "ຍັງບໍ່ມີ device token — ໃຫ້ຊ່າງ login ໃນແອັບກ່ອນ")}</p>
         ) : (
           <div className="space-y-2">
             {status.devices.map((d) => (
@@ -168,7 +170,7 @@ export default function PushTestPage() {
                   disabled={sending || !status.configured}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11.5px] font-bold text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
                 >
-                  <BellRing size={13} /> ສົ່ງທົດສອບ
+                  <BellRing size={13} /> {t("pushTest.sendTest", "ສົ່ງທົດສອບ")}
                 </button>
               </div>
             ))}

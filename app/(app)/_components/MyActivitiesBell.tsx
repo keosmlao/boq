@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, ListTodo, Phone, Users, Mail, FileText } from "lucide-react";
 import type { Activity } from "@/_actions/activities";
+import { useT } from "@/_lib/i18n";
 
 const POLL_MS = 30000;
 
@@ -24,13 +25,13 @@ async function fetchMyActivities(): Promise<Activity[] | null> {
   }
 }
 
-const ENTITY_ROUTE: Record<string, { base: string; label: string }> = {
-  project: { base: "/projects", label: "ໂຄງການ" },
-  contract: { base: "/contracts", label: "ສັນຍາ" },
-  quotation: { base: "/quotations", label: "ໃບສະເໜີລາຄາ" },
-  boq: { base: "/boq", label: "BOQ" },
-  request: { base: "/requests", label: "ຂໍເບີກ" },
-  work_order: { base: "/work-orders", label: "ໃບງານ" },
+const ENTITY_ROUTE: Record<string, { base: string }> = {
+  project: { base: "/projects" },
+  contract: { base: "/contracts" },
+  quotation: { base: "/quotations" },
+  boq: { base: "/boq" },
+  request: { base: "/requests" },
+  work_order: { base: "/work-orders" },
 };
 const TYPE_ICON: Record<string, React.ReactNode> = {
   todo: <ListTodo size={13} />, call: <Phone size={13} />, meeting: <Users size={13} />, email: <Mail size={13} />, document: <FileText size={13} />,
@@ -43,6 +44,15 @@ const todayStr = () => {
 };
 
 export default function MyActivitiesBell() {
+  const tr = useT();
+  const ENTITY_LABEL: Record<string, string> = {
+    project: tr("components.entity.project", "ໂຄງການ"),
+    contract: tr("components.entity.contract", "ສັນຍາ"),
+    quotation: tr("components.entity.quotation", "ໃບສະເໜີລາຄາ"),
+    boq: tr("components.entity.boq", "BOQ"),
+    request: tr("components.entity.request", "ຂໍເບີກ"),
+    work_order: tr("components.entity.workOrder", "ໃບງານ"),
+  };
   const router = useRouter();
   const [items, setItems] = useState<Activity[]>([]);
   const [open, setOpen] = useState(false);
@@ -81,7 +91,7 @@ export default function MyActivitiesBell() {
       <button
         onClick={() => { setOpen((o) => !o); load(); }}
         className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition"
-        title="ກິດຈະກຳຂອງຂ້ອຍ"
+        title={tr("components.myActivities.title", "ກິດຈະກຳຂອງຂ້ອຍ")}
       >
         <CalendarClock size={17} />
         {dueCount > 0 && (
@@ -97,12 +107,12 @@ export default function MyActivitiesBell() {
           <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 origin-top-right overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_20px_45px_-12px_rgba(15,23,42,0.28)] animate-scale-up">
             <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-soft)]/70 px-4 py-3">
               <CalendarClock size={15} className="text-amber-600 dark:text-amber-400" />
-              <span className="text-[12.5px] font-black text-[var(--text)]">ກິດຈະກຳຂອງຂ້ອຍ</span>
+              <span className="text-[12.5px] font-black text-[var(--text)]">{tr("components.myActivities.title", "ກິດຈະກຳຂອງຂ້ອຍ")}</span>
               <span className="ml-auto rounded-lg bg-[var(--surface-soft)] border border-[var(--border-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--text-soft)]">{items.length}</span>
             </div>
             <div className="max-h-[360px] overflow-y-auto">
               {items.length === 0 ? (
-                <div className="px-4 py-8 text-center text-[12px] font-semibold text-[var(--text-mute)]">ບໍ່ມີກິດຈະກຳຄ້າງ 🎉</div>
+                <div className="px-4 py-8 text-center text-[12px] font-semibold text-[var(--text-mute)]">{tr("components.myActivities.empty", "ບໍ່ມີກິດຈະກຳຄ້າງ")} 🎉</div>
               ) : (
                 items.map((a) => {
                   const overdue = a.due_date && a.due_date < t;
@@ -121,9 +131,9 @@ export default function MyActivitiesBell() {
                         <div className="truncate text-[12.5px] font-bold text-[var(--text)]">{a.summary}</div>
                         <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] font-semibold">
                           <span className={overdue ? "text-rose-600 dark:text-rose-400" : today ? "text-amber-600 dark:text-amber-400" : "text-[var(--text-mute)]"}>
-                            {a.due_date ? (overdue ? `ເລີຍກຳນົດ · ${a.due_date}` : today ? "ມື້ນີ້" : a.due_date) : "ບໍ່ກຳນົດ"}
+                            {a.due_date ? (overdue ? `${tr("components.activities.overdue", "ເລີຍກຳນົດ")} · ${a.due_date}` : today ? tr("components.activities.today", "ມື້ນີ້") : a.due_date) : tr("components.activities.noDueDate", "ບໍ່ກຳນົດ")}
                           </span>
-                          {route && <span className="text-[var(--text-mute)]">· {route.label}</span>}
+                          {route && <span className="text-[var(--text-mute)]">· {ENTITY_LABEL[a.entity_type] ?? a.entity_type}</span>}
                         </div>
                       </div>
                     </button>

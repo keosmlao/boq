@@ -1287,6 +1287,40 @@ export async function deleteProjectCascade(projectId) {
       [contractIds, String(projectId)],
     );
 
+    // Project-scoped documents that are NOT tied to a contract row (keyed by
+    // project_id). Without this they were orphaned when the project was
+    // deleted. Order: children/referencing rows first.
+
+    // Material requests + their detail + the ERP mirror (ic_trans/ic_trans_detail).
+    const reqResult = await client.query(
+      `SELECT doc_no FROM odg_requests WHERE project_id = $1`,
+      [String(projectId)],
+    );
+    const reqDocNos = reqResult.rows.map((row) => cleanText(row.doc_no)).filter(Boolean);
+    if (reqDocNos.length) {
+      // 3 = request trans_type, 122 = request trans_flag (see syncRequestToIcTrans).
+      await client.query(
+        `DELETE FROM ic_trans_detail WHERE doc_no = ANY($1::text[]) AND trans_type = 3 AND trans_flag = 122`,
+        [reqDocNos],
+      );
+      await client.query(
+        `DELETE FROM ic_trans WHERE doc_no = ANY($1::text[]) AND trans_type = 3 AND trans_flag = 122`,
+        [reqDocNos],
+      );
+      await client.query(`DELETE FROM odg_requests_detail WHERE doc_no = ANY($1::text[])`, [reqDocNos]);
+    }
+    await client.query(`DELETE FROM odg_requests WHERE project_id = $1`, [String(projectId)]);
+
+    // Tasks reference work orders (work_order_id) and contracts — delete before both.
+    await client.query(`DELETE FROM odg_project_task WHERE project_id = $1`, [String(projectId)]);
+    // v2 work orders (odg_work_order) — keyed by project_id; this is what the
+    // project page lists. Delete before contracts in case of a contract FK.
+    await client.query(`DELETE FROM odg_work_order WHERE project_id = $1`, [String(projectId)]);
+
+    // Surveys + quotations (independent, keyed by project_id).
+    await client.query(`DELETE FROM odg_survey WHERE project_id = $1`, [String(projectId)]);
+    await client.query(`DELETE FROM odg_quotation WHERE project_id = $1`, [String(projectId)]);
+
     if (contractNos.length) {
       await client.query(
         `

@@ -8,8 +8,10 @@ import { getCustomer } from "@/_actions/customers";
 import { getProjects } from "@/_actions/projects";
 import { StatusBadge } from "@/_components/pipeline";
 import { Page, Card, Btn, tblCls, thCls, tdCls } from "../../_components/ui";
+import { useT } from "@/_lib/i18n";
 
 export default function CustomerDetailPage() {
+  const t = useT();
   const { code } = useParams();
   const router = useRouter();
   const custCode = decodeURIComponent(String(code || ""));
@@ -49,7 +51,7 @@ export default function CustomerDetailPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm">ກຳລັງໂຫຼດ...</span>
+        <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
@@ -60,7 +62,7 @@ export default function CustomerDetailPage() {
         onClick={() => router.push("/customers")}
         className="group mb-4 inline-flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors hover:text-blue-600"
       >
-        <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> ກັບໄປລາຍຊື່ລູກຄ້າ
+        <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> {t("customers.backToList", "ກັບໄປລາຍຊື່ລູກຄ້າ")}
       </button>
 
       {/* Customer header */}
@@ -90,7 +92,7 @@ export default function CustomerDetailPage() {
             </div>
           </div>
           <Btn onClick={() => router.push(registerHref)}>
-            <Plus size={14} strokeWidth={2.75} /> ລົງທະບຽນໂຄງການ
+            <Plus size={14} strokeWidth={2.75} /> {t("customers.registerProject", "ລົງທະບຽນໂຄງການ")}
           </Btn>
         </div>
       </Card>
@@ -102,10 +104,10 @@ export default function CustomerDetailPage() {
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 ring-1 ring-blue-100">
               <FolderOpen size={15} />
             </span>
-            ໂຄງການຂອງລູກຄ້າ
+            {t("customers.customerProjects", "ໂຄງການຂອງລູກຄ້າ")}
           </h2>
           <span className="font-display rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-500">
-            {projects.length} ໂຄງການ
+            {projects.length} {t("customers.projectsUnit", "ໂຄງການ")}
           </span>
         </div>
         {projects.length === 0 ? (
@@ -113,9 +115,9 @@ export default function CustomerDetailPage() {
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-300">
               <FolderOpen className="h-7 w-7" />
             </div>
-            <span className="text-sm font-semibold">ຍັງບໍ່ມີໂຄງການ</span>
+            <span className="text-sm font-semibold">{t("customers.noProjects", "ຍັງບໍ່ມີໂຄງການ")}</span>
             <Btn onClick={() => router.push(registerHref)} className="mt-1">
-              <Plus size={14} strokeWidth={2.75} /> ລົງທະບຽນໂຄງການ
+              <Plus size={14} strokeWidth={2.75} /> {t("customers.registerProject", "ລົງທະບຽນໂຄງການ")}
             </Btn>
           </div>
         ) : (
@@ -123,9 +125,9 @@ export default function CustomerDetailPage() {
             <table className={tblCls}>
               <thead>
                 <tr>
-                  <th className={`${thCls} pl-5`}>ໂຄງການ</th>
-                  <th className={`${thCls} hidden lg:table-cell`}>ສະຖານທີ່</th>
-                  <th className={thCls}>ສະຖານະ</th>
+                  <th className={`${thCls} pl-5`}>{t("customers.projectsUnit", "ໂຄງການ")}</th>
+                  <th className={`${thCls} hidden lg:table-cell`}>{t("customers.location", "ສະຖານທີ່")}</th>
+                  <th className={thCls}>{t("common.status", "ສະຖານະ")}</th>
                   <th className={`${thCls} w-10 pr-5`} />
                 </tr>
               </thead>
@@ -136,7 +138,7 @@ export default function CustomerDetailPage() {
                     onClick={() => router.push(`/projects/${encodeURIComponent(String(p.id))}`)}
                     className="group cursor-pointer transition-colors hover:bg-blue-50/40"
                   >
-                    <td className={`${tdCls} pl-5 font-bold text-slate-900 group-hover:text-blue-700 transition-colors`}>{p.project_name || "(ບໍ່ມີຊື່)"}</td>
+                    <td className={`${tdCls} pl-5 font-bold text-slate-900 group-hover:text-blue-700 transition-colors`}>{p.project_name || t("customers.noName", "(ບໍ່ມີຊື່)")}</td>
                     <td className={`${tdCls} hidden text-slate-500 lg:table-cell`}>{p.province_name || "-"}</td>
                     <td className={tdCls}><StatusBadge status={p.project_status} /></td>
                     <td className={`${tdCls} pr-5 text-right`}><ChevronRight className="inline-block h-4 w-4 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-blue-500" /></td>

@@ -38,6 +38,9 @@ import { getProjectTasks } from "@/_actions/tasks-v2";
 import { getWorkOrders } from "@/_actions/workorder";
 import { getRequests } from "@/_actions/request-v2";
 import { Page } from "../_components/ui";
+import { useT } from "@/_lib/i18n";
+
+type TFn = (key: string, fallback: string) => string;
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -48,23 +51,25 @@ const arr = (res: any): any[] => (res?.success ? res.data || [] : Array.isArray(
 
 /** Status rendered in grayscale only: solid = done, faint = rejected, outline = pending. */
 type Mono = { label: string; kind: "done" | "wait" | "off" } | null;
-const quoStatus = (s: any): Mono => {
+const quoStatus = (s: any, t: TFn): Mono => {
   const v = String(s || "ລໍຖ້າອະນຸມັດ");
-  return { label: v, kind: v === "ອະນຸມັດແລ້ວ" ? "done" : v === "ປະຕິເສດ" ? "off" : "wait" };
+  const kind = v === "ອະນຸມັດແລ້ວ" ? "done" : v === "ປະຕິເສດ" ? "off" : "wait";
+  const label = kind === "done" ? t("status.approved", "ອະນຸມັດແລ້ວ") : kind === "off" ? t("status.rejected", "ປະຕິເສດ") : t("status.pending", "ລໍຖ້າອະນຸມັດ");
+  return { label, kind };
 };
-const boqStatus = (b: any): Mono => {
+const boqStatus = (b: any, t: TFn): Mono => {
   const a = Number(b.approve_status);
-  return a === 1 ? { label: "ອະນຸມັດແລ້ວ", kind: "done" } : a === 2 ? { label: "ປະຕິເສດ", kind: "off" } : { label: "ລໍຖ້າອະນຸມັດ", kind: "wait" };
+  return a === 1 ? { label: t("status.approved", "ອະນຸມັດແລ້ວ"), kind: "done" } : a === 2 ? { label: t("status.rejected", "ປະຕິເສດ"), kind: "off" } : { label: t("status.pending", "ລໍຖ້າອະນຸມັດ"), kind: "wait" };
 };
-const contractStatus = (c: any): Mono => {
+const contractStatus = (c: any, t: TFn): Mono => {
   const isErp = c.src === "erp";
   const sales = isErp ? Number(c.approve_status_1) === 1 : !!c.sales_approved;
   const acc = isErp ? Math.max(Number(c.approve_status_2) || 0, Number(c.acc_approve) || 0) === 1 : !!c.accounting_approved;
-  return sales && acc ? { label: "ສົມບູນ", kind: "done" } : { label: "ລໍຖ້າອະນຸມັດ", kind: "wait" };
+  return sales && acc ? { label: t("customers.statusComplete", "ສົມບູນ"), kind: "done" } : { label: t("status.pending", "ລໍຖ້າອະນຸມັດ"), kind: "wait" };
 };
-const reqStatus = (r: any): Mono => {
+const reqStatus = (r: any, t: TFn): Mono => {
   const s = String(r.status || "requested");
-  return s === "withdrawn" ? { label: "ເບີກແລ້ວ", kind: "done" } : s === "rejected" ? { label: "ປະຕິເສດ", kind: "off" } : { label: "ຮ້ອງຂໍ", kind: "wait" };
+  return s === "withdrawn" ? { label: t("customers.statusWithdrawn", "ເບີກແລ້ວ"), kind: "done" } : s === "rejected" ? { label: t("status.rejected", "ປະຕິເສດ"), kind: "off" } : { label: t("customers.statusRequested", "ຮ້ອງຂໍ"), kind: "wait" };
 };
 
 function Tag({ status }: { status: Mono }) {
@@ -87,30 +92,32 @@ type Meta = {
   status: (it: any) => Mono;
   href: (it: any, pid: string) => string;
 };
-const META: Record<string, Meta> = {
-  quotation: { label: "ໃບສະເໜີລາຄາ", icon: <FileText size={13} />, primary: (q) => q.quotation_no || "(ບໍ່ມີເລກທີ່)", secondary: (q) => [d10(q.quotation_date), q.total_amount ? `${money(q.total_amount)} ກີບ` : ""].filter(Boolean).join(" · "), status: (q) => quoStatus(q.status), href: (q) => `/quotations/${q.id}` },
-  contract: { label: "ສັນຍາ", icon: <FileSignature size={13} />, primary: (c) => c.contract_no || "(ບໍ່ມີເລກທີ່)", secondary: (c) => [c.total_amount ? `${money(c.total_amount)} ກີບ` : "", d10(c.sign_date)].filter(Boolean).join(" · "), status: (c) => contractStatus(c), href: (c) => (c.src === "erp" ? `/contracts/${encodeURIComponent(c.contract_no || "")}` : `/contracts/${c.id}`) },
-  boq: { label: "BOQ", icon: <ListChecks size={13} />, primary: (b) => b.doc_no || b.boq_no || "(ບໍ່ມີເລກທີ່)", secondary: (b) => d10(b.doc_date), status: (b) => boqStatus(b), href: (b) => `/boq/${encodeURIComponent(b.doc_no || b.boq_no || "")}` },
-  request: { label: "ໃບຂໍເບີກ", icon: <PackageOpen size={13} />, primary: (r) => r.request_no || "(ບໍ່ມີເລກທີ່)", secondary: (r) => [d10(r.created_at), Array.isArray(r.items) ? `${r.items.length} ລາຍການ` : ""].filter(Boolean).join(" · "), status: (r) => reqStatus(r), href: (r) => `/requests/${encodeURIComponent(r.id)}` },
-  tasks: { label: "ໜ້າວຽກ", icon: <CalendarRange size={13} />, primary: (t) => t.title || "ໜ້າວຽກ", secondary: (t) => [t.phase, t.technician_name].filter(Boolean).join(" · "), status: () => null, href: (_t, pid) => `/projects/${pid}?tab=tasks` },
-  workorder: { label: "ໃບງານ", icon: <Wrench size={13} />, primary: (w) => w.work_no || "(ບໍ່ມີເລກທີ່)", secondary: (w) => [d10(w.work_date || w.created_at), w.technician_name].filter(Boolean).join(" · "), status: () => null, href: (w) => `/work-orders/${w.id}` },
-};
+const buildMeta = (t: TFn): Record<string, Meta> => ({
+  quotation: { label: t("quotations.title", "ໃບສະເໜີລາຄາ"), icon: <FileText size={13} />, primary: (q) => q.quotation_no || t("customers.noNumber", "(ບໍ່ມີເລກທີ່)"), secondary: (q) => [d10(q.quotation_date), q.total_amount ? `${money(q.total_amount)} ${t("common.currencyKip", "ກີບ")}` : ""].filter(Boolean).join(" · "), status: (q) => quoStatus(q.status, t), href: (q) => `/quotations/${q.id}` },
+  contract: { label: t("customers.catContract", "ສັນຍາ"), icon: <FileSignature size={13} />, primary: (c) => c.contract_no || t("customers.noNumber", "(ບໍ່ມີເລກທີ່)"), secondary: (c) => [c.total_amount ? `${money(c.total_amount)} ${t("common.currencyKip", "ກີບ")}` : "", d10(c.sign_date)].filter(Boolean).join(" · "), status: (c) => contractStatus(c, t), href: (c) => (c.src === "erp" ? `/contracts/${encodeURIComponent(c.contract_no || "")}` : `/contracts/${c.id}`) },
+  boq: { label: t("customers.catBoq", "BOQ"), icon: <ListChecks size={13} />, primary: (b) => b.doc_no || b.boq_no || t("customers.noNumber", "(ບໍ່ມີເລກທີ່)"), secondary: (b) => d10(b.doc_date), status: (b) => boqStatus(b, t), href: (b) => `/boq/${encodeURIComponent(b.doc_no || b.boq_no || "")}` },
+  request: { label: t("customers.catRequest", "ໃບຂໍເບີກ"), icon: <PackageOpen size={13} />, primary: (r) => r.request_no || t("customers.noNumber", "(ບໍ່ມີເລກທີ່)"), secondary: (r) => [d10(r.created_at), Array.isArray(r.items) ? `${r.items.length} ${t("customers.itemsUnit", "ລາຍການ")}` : ""].filter(Boolean).join(" · "), status: (r) => reqStatus(r, t), href: (r) => `/requests/${encodeURIComponent(r.id)}` },
+  tasks: { label: t("customers.catTasks", "ໜ້າວຽກ"), icon: <CalendarRange size={13} />, primary: (it) => it.title || t("customers.catTasks", "ໜ້າວຽກ"), secondary: (it) => [it.phase, it.technician_name].filter(Boolean).join(" · "), status: () => null, href: (_t, pid) => `/projects/${pid}?tab=tasks` },
+  workorder: { label: t("customers.catWorkorder", "ໃບງານ"), icon: <Wrench size={13} />, primary: (w) => w.work_no || t("customers.noNumber", "(ບໍ່ມີເລກທີ່)"), secondary: (w) => [d10(w.work_date || w.created_at), w.technician_name].filter(Boolean).join(" · "), status: () => null, href: (w) => `/work-orders/${w.id}` },
+});
 
 /** Nested workflow tree of document categories. */
 type CatNode = Meta & { key: string; children: CatNode[] };
-const node = (key: string, children: CatNode[] = []): CatNode => ({ key, ...META[key], children });
-const CAT_TREE: CatNode[] = [
-  node("quotation", [
-    node("contract", [node("boq", [node("request")])]),
-    node("tasks", [node("workorder")]),
-  ]),
-];
+const buildCatTree = (meta: Record<string, Meta>): CatNode[] => {
+  const node = (key: string, children: CatNode[] = []): CatNode => ({ key, ...meta[key], children });
+  return [
+    node("quotation", [
+      node("contract", [node("boq", [node("request")])]),
+      node("tasks", [node("workorder")]),
+    ]),
+  ];
+};
 const subtreeCount = (n: CatNode, cats: Record<string, any[]>): number =>
   (cats[n.key]?.length || 0) + n.children.reduce((s, c) => s + subtreeCount(c, cats), 0);
-const allCatKeys = (pid: string): string[] => {
+const allCatKeys = (pid: string, tree: CatNode[]): string[] => {
   const keys: string[] = [];
   const walk = (nodes: CatNode[]) => nodes.forEach((n) => { keys.push(`k:${pid}:${n.key}`); walk(n.children); });
-  walk(CAT_TREE);
+  walk(tree);
   return keys;
 };
 
@@ -139,9 +146,9 @@ async function fetchProjectCats(pid: string): Promise<Record<string, any[]>> {
 }
 
 const FILTERS = [
-  { key: "all", label: "ທັງໝົດ" },
-  { key: "has", label: "ມີໂຄງການ" },
-  { key: "none", label: "ບໍ່ມີໂຄງການ" },
+  { key: "all", i18nKey: "common.all", label: "ທັງໝົດ" },
+  { key: "has", i18nKey: "customers.filterHasProject", label: "ມີໂຄງການ" },
+  { key: "none", i18nKey: "customers.filterNoProject", label: "ບໍ່ມີໂຄງການ" },
 ];
 
 type Customer = Record<string, any> & { projects: any[] };
@@ -171,7 +178,10 @@ export default function CustomersClient({
   initialCustomers: any[];
   initialProjects: any[];
 }) {
+  const t = useT();
   const router = useRouter();
+  const META = useMemo(() => buildMeta(t), [t]);
+  const CAT_TREE = useMemo(() => buildCatTree(META), [META]);
   const [rows, setRows] = useState<any[]>(initialCustomers);
   const [projMap, setProjMap] = useState<Record<string, any[]>>(() => buildProjMap(initialProjects));
   const [loading, setLoading] = useState(false);
@@ -243,7 +253,7 @@ export default function CustomersClient({
       fetchProjectCats(pid)
         .then((cats) => {
           setProjData((d) => ({ ...d, [pid]: { loading: false, cats } }));
-          setOpen((prev) => new Set([...prev, ...allCatKeys(pid)]));
+          setOpen((prev) => new Set([...prev, ...allCatKeys(pid, CAT_TREE)]));
         })
         .catch(() => setProjData((d) => ({ ...d, [pid]: { loading: false, error: true } })));
     }
@@ -253,10 +263,10 @@ export default function CustomersClient({
   const toggleAll = () => setOpen(allOpen ? new Set() : new Set(filtered.map((c) => `c:${c.code}`)));
 
   const del = async (code: string) => {
-    if (!window.confirm("ລົບລູກຄ້ານີ້? ກູ້ຄືນບໍ່ໄດ້.")) return;
+    if (!window.confirm(t("customers.deleteConfirm", "ລົບລູກຄ້ານີ້? ກູ້ຄືນບໍ່ໄດ້."))) return;
     const res: any = await deleteCustomer(code);
     if (res?.success) setRows((a) => a.filter((x) => String(x.code) !== String(code)));
-    else alert(res?.message || "ລົບບໍ່ສຳເລັດ");
+    else alert(res?.message || t("customers.deleteFailed", "ລົບບໍ່ສຳເລັດ"));
   };
 
   // Recursive renderer — emits FLAT, full-width table rows (no nested cards or
@@ -321,9 +331,9 @@ export default function CustomersClient({
       {/* Monochrome Minimalist Header */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-100 pb-5">
         <div className="min-w-0">
-          <h1 className="truncate text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-none">ລູກຄ້າ</h1>
+          <h1 className="truncate text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-none">{t("customers.title", "ລູກຄ້າ")}</h1>
           <p className="mt-2 text-xs font-medium text-slate-400">
-            ລູກຄ້າທັງໝົດ {stats.total} · ມີໂຄງການ {stats.withP} · ບໍ່ມີໂຄງການ {stats.withoutP}
+            {t("customers.totalCustomers", "ລູກຄ້າທັງໝົດ")} {stats.total} · {t("customers.withProject", "ມີໂຄງການ")} {stats.withP} · {t("customers.withoutProject", "ບໍ່ມີໂຄງການ")} {stats.withoutP}
           </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
@@ -340,14 +350,14 @@ export default function CustomersClient({
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
             >
               {allOpen ? <ChevronsDownUp size={13} /> : <ChevronsUpDown size={13} />}
-              <span>{allOpen ? "ຍຸບທັງໝົດ" : "ຂະຫຍາຍທັງໝົດ"}</span>
+              <span>{allOpen ? t("common.collapseAll", "ຍຸບທັງໝົດ") : t("common.expandAll", "ຂະຫຍາຍທັງໝົດ")}</span>
             </button>
           )}
           <button
             onClick={() => router.push("/customers/new")}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-700 active:scale-[0.98] cursor-pointer"
           >
-            <Plus size={14} strokeWidth={2.5} /> ສ້າງລູກຄ້າ
+            <Plus size={14} strokeWidth={2.5} /> {t("customers.createCustomer", "ສ້າງລູກຄ້າ")}
           </button>
         </div>
       </div>
@@ -360,7 +370,7 @@ export default function CustomersClient({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="ຄົ້ນຫາ ລະຫັດ, ຊື່ລູກຄ້າ..."
+              placeholder={t("customers.searchPlaceholder", "ຄົ້ນຫາ ລະຫັດ, ຊື່ລູກຄ້າ...")}
               className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none"
             />
           </div>
@@ -375,7 +385,7 @@ export default function CustomersClient({
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
                 }`}
               >
-                {f.label}
+                {t(f.i18nKey, f.label)}
               </button>
             ))}
           </div>
@@ -384,21 +394,21 @@ export default function CustomersClient({
         {loading ? (
           <div className="flex h-56 items-center justify-center gap-3 text-slate-400">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
-            <span className="text-sm font-semibold">ກຳລັງໂຫຼດ...</span>
+            <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex h-56 flex-col items-center justify-center gap-2 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
             <Users className="h-8 w-8 opacity-40" />
-            <span className="text-sm font-semibold">{rows.length ? "ບໍ່ພົບລູກຄ້າ" : "ຍັງບໍ່ມີລູກຄ້າ"}</span>
+            <span className="text-sm font-semibold">{rows.length ? t("customers.noMatch", "ບໍ່ພົບລູກຄ້າ") : t("customers.empty", "ຍັງບໍ່ມີລູກຄ້າ")}</span>
           </div>
         ) : (
           <div className="border border-slate-200/80 rounded-xl bg-white overflow-hidden shadow-2xs">
             {/* Table head */}
             <div className="flex items-center border-b border-slate-200 bg-slate-50/70 px-4.5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none">
-              <span className="flex-1 pl-[20px]">ລູກຄ້າ</span>
-              <span className="hidden sm:block w-24 flex-shrink-0">ລະຫັດ</span>
-              <span className="hidden md:block w-32 flex-shrink-0">ເບີໂທ</span>
-              <span className="w-[120px] flex-shrink-0 text-right pr-1">ສະຖານະ · ຈຳນວນ</span>
+              <span className="flex-1 pl-[20px]">{t("customers.title", "ລູກຄ້າ")}</span>
+              <span className="hidden sm:block w-24 flex-shrink-0">{t("customers.code", "ລະຫັດ")}</span>
+              <span className="hidden md:block w-32 flex-shrink-0">{t("customers.phone", "ເບີໂທ")}</span>
+              <span className="w-[120px] flex-shrink-0 text-right pr-1">{t("customers.statusCount", "ສະຖານະ · ຈຳນວນ")}</span>
               <span className="w-16 flex-shrink-0 text-right" />
             </div>
 
@@ -425,21 +435,21 @@ export default function CustomersClient({
                       </div>
                       <div className={RIGHT}>
                         <span className="w-16 flex-shrink-0 text-right text-[10px] text-slate-400 font-medium select-none">
-                          {c.projects.length > 0 ? "ມີໂຄງການ" : "ບໍ່ມີໂຄງການ"}
+                          {c.projects.length > 0 ? t("customers.withProject", "ມີໂຄງການ") : t("customers.withoutProject", "ບໍ່ມີໂຄງການ")}
                         </span>
                         <span className={`${COUNT} text-slate-500`}>{c.projects.length}</span>
                       </div>
                       <div className={`${ACT} opacity-0 group-hover:opacity-100 transition-opacity duration-150`} onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => router.push(`/customers/new?edit=${encodeURIComponent(code)}`)}
-                          title="ແກ້ໄຂ"
+                          title={t("common.edit", "ແກ້ໄຂ")}
                           className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
                         >
                           <Pencil size={13} />
                         </button>
                         <button
                           onClick={() => del(code)}
-                          title="ລົບ"
+                          title={t("common.delete", "ລົບ")}
                           className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
                         >
                           <Trash2 size={13} />
@@ -452,12 +462,12 @@ export default function CustomersClient({
                       <div className="divide-y divide-slate-100/70 border-t border-slate-100 bg-slate-50/20">
                         {c.projects.length === 0 ? (
                           <div style={{ paddingLeft: 30 }} className="flex items-center justify-between gap-3 py-2.5 pr-4">
-                            <span className="text-[11.5px] font-medium text-slate-400">ຍັງບໍ່ມີໂຄງການ</span>
+                            <span className="text-[11.5px] font-medium text-slate-400">{t("customers.noProjects", "ຍັງບໍ່ມີໂຄງການ")}</span>
                             <button
                               onClick={() => router.push(`/projects/new?cust=${encodeURIComponent(code)}&name=${encodeURIComponent(c.name || code)}`)}
                               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[10.5px] font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800 cursor-pointer"
                             >
-                              <Plus size={11} strokeWidth={2.75} /> ລົງທະບຽນໂຄງການ
+                              <Plus size={11} strokeWidth={2.75} /> {t("customers.registerProject", "ລົງທະບຽນໂຄງການ")}
                             </button>
                           </div>
                         ) : (
@@ -477,7 +487,7 @@ export default function CustomersClient({
                                   <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
                                     <FolderKanban size={12} />
                                   </span>
-                                  <span className="min-w-0 flex-1 truncate text-[11.5px] font-semibold text-slate-700">{p.project_name || "(ບໍ່ມີຊື່)"}</span>
+                                  <span className="min-w-0 flex-1 truncate text-[11.5px] font-semibold text-slate-700">{p.project_name || t("customers.noName", "(ບໍ່ມີຊື່)")}</span>
                                   <div className={RIGHT}>
                                     {p.project_status && (
                                       <span className="max-w-[78px] truncate rounded border border-slate-200/80 bg-white px-1.5 py-0.5 text-[9px] font-medium text-slate-500">
@@ -492,10 +502,10 @@ export default function CustomersClient({
                                 {pOpen &&
                                   (!pd || pd.loading ? (
                                     <div style={{ paddingLeft: 52 }} className="flex items-center gap-2 py-2 pr-4 text-[11px] font-medium text-slate-400">
-                                      <Loader2 size={12} className="animate-spin text-slate-400" /> ກຳລັງໂຫຼດເອກະສານ...
+                                      <Loader2 size={12} className="animate-spin text-slate-400" /> {t("customers.loadingDocs", "ກຳລັງໂຫຼດເອກະສານ...")}
                                     </div>
                                   ) : pd.error ? (
-                                    <div style={{ paddingLeft: 52 }} className="py-2 pr-4 text-[11px] font-medium text-slate-500">ໂຫຼດເອກະສານບໍ່ສຳເລັດ</div>
+                                    <div style={{ paddingLeft: 52 }} className="py-2 pr-4 text-[11px] font-medium text-slate-500">{t("customers.loadDocsFailed", "ໂຫຼດເອກະສານບໍ່ສຳເລັດ")}</div>
                                   ) : (
                                     CAT_TREE.map((n) => renderCat(n, pid, pd.cats!, 0))
                                   ))}

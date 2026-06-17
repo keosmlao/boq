@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { Search, Boxes, Loader2, Package, Ruler, Layers, ChevronRight } from "lucide-react";
 import { Page, PageHeader } from "../_components/ui";
 import { getInventory } from "@/_actions/lookups";
+import { useT } from "@/_lib/i18n";
 
 type Item = { code?: string; name_1?: string; unit?: string; balance_qty?: unknown; [k: string]: unknown };
 
@@ -61,6 +62,7 @@ function KpiTile({
 const LIMIT = 100;
 
 export default function InventoryClient({ initialRows }: { initialRows: any[] }) {
+  const t = useT();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<Item[]>(initialRows ?? []);
@@ -112,15 +114,15 @@ export default function InventoryClient({ initialRows }: { initialRows: any[] })
   return (
     <Page max="max-w-none">
       <PageHeader
-        title="ສິນຄ້າ / ສະຕັອກ"
-        subtitle="ຄ້ນຫາສິນຄ້າ — ກົດເຂົ້າແຕ່ລະລາຍການເພື່ອເບິ່ງยอดຄงเหลือ ແຍກຕາມຄลัง"
+        title={t("inventory.title", "ສິນຄ້າ / ສະຕັອກ")}
+        subtitle={t("inventory.subtitle", "ຄ້ນຫາສິນຄ້າ — ກົດເຂົ້າແຕ່ລະລາຍການເພື່ອເບິ່ງยอดຄงเหลือ ແຍກຕາມຄลัง")}
       />
 
       {/* KPI summary */}
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:max-w-2xl">
-        <KpiTile loading={loading} tone="blue" icon={<Package size={19} />} label="ລາຍການທີ່ສະແດງ" value={rows.length} />
-        <KpiTile loading={loading} tone="emerald" icon={<Layers size={19} />} label="ຄงเหลือรวม (ສະແດງ)" value={summary.hasBal ? qtyFmt(summary.totalBal) : "—"} />
-        <KpiTile loading={loading} tone="amber" icon={<Ruler size={19} />} label="ປະເພດໜ່ວຍ" value={summary.units} />
+        <KpiTile loading={loading} tone="blue" icon={<Package size={19} />} label={t("inventory.itemsShown", "ລາຍການທີ່ສະແດງ")} value={rows.length} />
+        <KpiTile loading={loading} tone="emerald" icon={<Layers size={19} />} label={t("inventory.totalBalanceShown", "ຄงเหลือรวม (ສະແດງ)")} value={summary.hasBal ? qtyFmt(summary.totalBal) : "—"} />
+        <KpiTile loading={loading} tone="amber" icon={<Ruler size={19} />} label={t("inventory.unitTypes", "ປະເພດໜ່ວຍ")} value={summary.units} />
       </div>
 
       {/* Search + table */}
@@ -131,18 +133,18 @@ export default function InventoryClient({ initialRows }: { initialRows: any[] })
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="ຄ້ນຫາ ລະຫັດ ຫຼື ຊື່ສິນຄ້າ..."
+              placeholder={t("inventory.searchPlaceholder", "ຄ້ນຫາ ລະຫັດ ຫຼື ຊື່ສິນຄ້າ...")}
               className="min-w-0 flex-1 bg-transparent py-2.5 text-[13px] font-semibold text-slate-800 placeholder-slate-400 outline-none"
             />
             {loading && <Loader2 size={15} className="flex-shrink-0 animate-spin text-slate-400" />}
             {search && !loading && (
               <button onClick={() => setSearch("")} className="flex-shrink-0 text-[11px] font-bold text-slate-400 hover:text-slate-600">
-                ລ້າງ
+                {t("inventory.clear", "ລ້າງ")}
               </button>
             )}
           </div>
           <span className="flex-shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">
-            {rows.length}{capped ? "+" : ""} ລາຍການ
+            {rows.length}{capped ? "+" : ""} {t("inventory.itemsUnit", "ລາຍການ")}
           </span>
         </div>
 
@@ -153,7 +155,7 @@ export default function InventoryClient({ initialRows }: { initialRows: any[] })
         ) : rows.length === 0 ? (
           <div className="flex h-56 flex-col items-center justify-center gap-2 text-xs font-semibold text-slate-400">
             <Boxes size={32} className="text-slate-300" />
-            {search ? "ບໍ່ພົບສິນຄ້າ" : "ຍັງບໍ່ມີສິນຄ້າ"}
+            {search ? t("inventory.notFound", "ບໍ່ພົບສິນຄ້າ") : t("inventory.empty", "ຍັງບໍ່ມີສິນຄ້າ")}
           </div>
         ) : (
           <div className="max-h-[calc(100vh-320px)] overflow-auto">
@@ -161,10 +163,10 @@ export default function InventoryClient({ initialRows }: { initialRows: any[] })
               <thead>
                 <tr>
                   <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-slate-500">#</th>
-                  <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ລະຫັດ</th>
-                  <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ຊື່ສິນຄ້າ</th>
-                  <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ໜ່ວຍ</th>
-                  <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-right text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ຄงเหลือ</th>
+                  <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{t("inventory.code", "ລະຫັດ")}</th>
+                  <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{t("inventory.itemName", "ຊື່ສິນຄ້າ")}</th>
+                  <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{t("inventory.unit", "ໜ່ວຍ")}</th>
+                  <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-right text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{t("inventory.balance", "ຄงเหลือ")}</th>
                   <th className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-2 py-2.5"></th>
                 </tr>
               </thead>
@@ -200,7 +202,7 @@ export default function InventoryClient({ initialRows }: { initialRows: any[] })
 
         {capped && (
           <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-2.5 text-center text-[11px] font-semibold text-slate-400">
-            ສະແດງສູງສຸດ {LIMIT} ລາຍການ — ພິມຄຳຄ້ນເພື່ອค้นหາສິນຄ້າທີ່ຕ້ອງການ
+            {t("inventory.cappedNote", "ສະແດງສູງສຸດ {limit} ລາຍການ — ພິມຄຳຄ້ນເພື່ອค้นหາສິນຄ້າທີ່ຕ້ອງການ").replace("{limit}", String(LIMIT))}
           </div>
         )}
       </div>

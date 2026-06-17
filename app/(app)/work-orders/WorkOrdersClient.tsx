@@ -8,6 +8,7 @@ import ProjectPickerModal from "../_components/ProjectPickerModal";
 import { Btn } from "../_components/ui";
 import { getWorkOrders } from "@/_actions/workorder";
 import { workOrderStage } from "@/_lib/workorder-stage";
+import { useT } from "@/_lib/i18n";
 
 const money = (v: unknown) => {
   const n = Number(v);
@@ -38,6 +39,7 @@ function getStageKey(r: any): string {
 }
 
 export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }) {
+  const t = useT();
   const router = useRouter();
   const [pick, setPick] = useState(false);
   const [allRows, setAllRows] = useState<any[]>(initialRows ?? []);
@@ -61,20 +63,20 @@ export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }
   }, [allRows, activeTab]);
 
   const tabs = [
-    { key: "all", label: "ທັງໝົດ", count: counts.all },
-    { key: "issued", label: "ອອກໃບງານ", count: counts.issued },
-    { key: "accepted", label: "ຊ່າງຮັບງານ", count: counts.accepted },
-    { key: "in_progress", label: "ກຳລັງເຂົ້າໜ້າງານ", count: counts.in_progress },
-    { key: "awaiting_review", label: "ລໍຖ້າກວດສອບ", count: counts.awaiting_review },
-    { key: "closed", label: "ປິດງານແລ້ວ", count: counts.closed },
-    { key: "rejected", label: "ປະຕິເສດ", count: counts.rejected },
+    { key: "all", label: t("common.all", "ທັງໝົດ"), count: counts.all },
+    { key: "issued", label: t("workorders.stageIssued", "ອອກໃບງານ"), count: counts.issued },
+    { key: "accepted", label: t("workorders.stageAccepted", "ຊ່າງຮັບງານ"), count: counts.accepted },
+    { key: "in_progress", label: t("workorders.stageInProgress", "ກຳລັງເຂົ້າໜ້າງານ"), count: counts.in_progress },
+    { key: "awaiting_review", label: t("workorders.stageAwaitingReview", "ລໍຖ້າກວດສອບ"), count: counts.awaiting_review },
+    { key: "closed", label: t("workorders.stageClosed", "ປິດງານແລ້ວ"), count: counts.closed },
+    { key: "rejected", label: t("workorders.stageRejected", "ປະຕິເສດ"), count: counts.rejected },
   ];
 
   return (
     <>
       <CrossList
         key={activeTab}
-        title="ໃບງານ"
+        title={t("workorders.title", "ໃບງານ")}
         load={async () => {
           const res = await getWorkOrders({});
           if (res?.success) {
@@ -91,11 +93,11 @@ export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }
         initialRows={filteredRows}
         searchText={(r) => `${r.work_no ?? ""} ${r.technician_name ?? ""} ${r.technician_code ?? ""} ${r.title ?? ""}`}
         rowHref={(r) => `/work-orders/${r.id}`}
-        searchPlaceholder="ຄົ້ນຫາ ໃບງານ, ວຽກ, ທີມ..."
-        empty="ຍັງບໍ່ມີໃບງານ"
+        searchPlaceholder={t("workorders.searchPlaceholder", "ຄົ້ນຫາ ໃບງານ, ວຽກ, ທີມ...")}
+        empty={t("workorders.empty", "ຍັງບໍ່ມີໃບງານ")}
         headerActions={
           <Btn onClick={() => setPick(true)}>
-            <Plus size={14} /> ອອກໃບງານ
+            <Plus size={14} /> {t("workorders.issue", "ອອກໃບງານ")}
           </Btn>
         }
         aboveTable={
@@ -127,32 +129,32 @@ export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }
         }
         columns={[
           {
-            header: "ໃບງານ",
+            header: t("workorders.colWorkOrder", "ໃບງານ"),
             cell: (r) => (
               <span className="font-mono text-[var(--theme-text)]">
                 {r.work_no || "-"}
-                {r.src === "erp" && <span className="ml-1.5 rounded bg-[var(--theme-bg-muted)] px-1 py-0.5 text-[9px] text-[var(--theme-text-mute)]">ເກົ່າ</span>}
+                {r.src === "erp" && <span className="ml-1.5 rounded bg-[var(--theme-bg-muted)] px-1 py-0.5 text-[9px] text-[var(--theme-text-mute)]">{t("workorders.legacy", "ເກົ່າ")}</span>}
               </span>
             ),
           },
-          { header: "ວຽກ", cell: (r) => r.title || "-" },
-          { header: "ທີມ/ຊ່າງ", cell: (r) => (r.technician_code ? `${r.technician_name || "-"} (${r.technician_code})` : r.technician_name || "-") },
-          { header: "ວັນທີ", cell: (r) => d10(r.work_date ?? r.created_at) },
+          { header: t("workorders.colJob", "ວຽກ"), cell: (r) => r.title || "-" },
+          { header: t("workorders.colTeam", "ທີມ/ຊ່າງ"), cell: (r) => (r.technician_code ? `${r.technician_name || "-"} (${r.technician_code})` : r.technician_name || "-") },
+          { header: t("common.date", "ວັນທີ"), cell: (r) => d10(r.work_date ?? r.created_at) },
           {
-            header: "ສະຖານະ",
+            header: t("common.status", "ສະຖານະ"),
             cell: (r) => {
               if (r.src === "erp") return r.status ? <span className="text-slate-600">{r.status}</span> : "-";
               return <span className="text-slate-600">{workOrderStage(r).label}</span>;
             },
           },
-          { header: "ຄ່າແຮງ", align: "right", cell: (r) => (r.src === "erp" ? "-" : money(r.labor_cost)) },
+          { header: t("workorders.colLaborCost", "ຄ່າແຮງ"), align: "right", cell: (r) => (r.src === "erp" ? "-" : money(r.labor_cost)) },
         ]}
       />
       <ProjectPickerModal
         open={pick}
         onClose={() => setPick(false)}
         onPick={(p) => router.push(`/projects/${p.id}/workorder/new`)}
-        title="ເລືອກໂຄງການເພື່ອອອກໃບງານ"
+        title={t("workorders.pickProject", "ເລືອກໂຄງການເພື່ອອອກໃບງານ")}
       />
     </>
   );

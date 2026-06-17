@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, Save, UserPlus, User, MapPin } from "lucide-react";
 import { createCustomer, getCustomer, updateCustomer } from "@/_actions/customers";
 import { getProvinces, getDistricts, getVillages } from "@/_actions/lookups";
 import { Page, Card, Btn, Field, SectionHeader, inputCls } from "../../_components/ui";
+import { useT } from "@/_lib/i18n";
 
 type Opt = { value: string; label: string };
 const toOpts = (res: any): Opt[] => {
@@ -19,6 +20,7 @@ const toOpts = (res: any): Opt[] => {
 const CUSTOMER_TYPES = ["ລູກຄ້າໂຄງການ", "ລູກຄ້າທົ່ວໄປ", "ຮ້ານຄ້າ"];
 
 export default function NewCustomerPage() {
+  const t = useT();
   const router = useRouter();
   const editCode = useSearchParams().get("edit");
   const [saving, setSaving] = useState(false);
@@ -80,16 +82,16 @@ export default function NewCustomerPage() {
     e.preventDefault();
     setError("");
     if (!form.name.trim()) {
-      setError("ກະລຸນາໃສ່ຊື່ລູກຄ້າ");
+      setError(t("customers.nameRequired", "ກະລຸນາໃສ່ຊື່ລູກຄ້າ"));
       return;
     }
     setSaving(true);
     try {
       const res: any = editCode ? await updateCustomer(editCode, form) : await createCustomer(form);
       if (res?.success) router.push(editCode ? "/customers" : `/customers/${encodeURIComponent(res.data.code)}`);
-      else setError(res?.message || "ບັນທຶກບໍ່ສຳເລັດ");
+      else setError(res?.message || t("customers.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
     } catch (err: any) {
-      setError(err?.message || "ເກີດຂໍ້ຜິດພາດ");
+      setError(err?.message || t("common.error", "ເກີດຂໍ້ຜິດພາດ"));
     } finally {
       setSaving(false);
     }
@@ -101,7 +103,7 @@ export default function NewCustomerPage() {
         onClick={() => router.push("/customers")}
         className="mb-2 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]"
       >
-        <ArrowLeft size={14} /> ກັບໄປລາຍຊື່ລູກຄ້າ
+        <ArrowLeft size={14} /> {t("customers.backToList", "ກັບໄປລາຍຊື່ລູກຄ້າ")}
       </button>
 
       {/* Colourful hero */}
@@ -110,8 +112,8 @@ export default function NewCustomerPage() {
           <UserPlus size={24} />
         </div>
         <div>
-          <h1 className="text-[18px] font-bold leading-tight">{editCode ? "ແກ້ໄຂລູກຄ້າ" : "ສ້າງລູກຄ້າໃໝ່"}</h1>
-          <p className="text-[12px] text-white/85">{editCode ? "ແກ້ໄຂຂໍ້ມູນລູກຄ້າ" : "ເພີ່ມລູກຄ້າໂຄງການ ເພື່ອເລີ່ມລົງທະບຽນໂຄງການ"}</p>
+          <h1 className="text-[18px] font-bold leading-tight">{editCode ? t("customers.editTitle", "ແກ້ໄຂລູກຄ້າ") : t("customers.createTitle", "ສ້າງລູກຄ້າໃໝ່")}</h1>
+          <p className="text-[12px] text-white/85">{editCode ? t("customers.editSubtitle", "ແກ້ໄຂຂໍ້ມູນລູກຄ້າ") : t("customers.createSubtitle", "ເພີ່ມລູກຄ້າໂຄງການ ເພື່ອເລີ່ມລົງທະບຽນໂຄງການ")}</p>
         </div>
       </div>
 
@@ -122,48 +124,48 @@ export default function NewCustomerPage() {
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="border-t-2 border-t-blue-400 p-4">
-          <SectionHeader icon={<User size={15} />} title="ຂໍ້ມູນລູກຄ້າ" tone="blue" />
+          <SectionHeader icon={<User size={15} />} title={t("customers.customerInfo", "ຂໍ້ມູນລູກຄ້າ")} tone="blue" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="ຊື່ລູກຄ້າ" required className="sm:col-span-2">
-              <input value={form.name} onChange={(e) => set("name", e.target.value)} className={inputCls} placeholder="ຊື່ລູກຄ້າ" />
+            <Field label={t("customers.customerName", "ຊື່ລູກຄ້າ")} required className="sm:col-span-2">
+              <input value={form.name} onChange={(e) => set("name", e.target.value)} className={inputCls} placeholder={t("customers.customerName", "ຊື່ລູກຄ້າ")} />
             </Field>
-            <Field label="ປະເພດລູກຄ້າ">
+            <Field label={t("customers.customerType", "ປະເພດລູກຄ້າ")}>
               <select value={form.customerType} onChange={(e) => set("customerType", e.target.value)} className={inputCls}>
                 {CUSTOMER_TYPES.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </Field>
-            <Field label="ເບີໂທ">
+            <Field label={t("customers.phone", "ເບີໂທ")}>
               <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} placeholder="020..." />
             </Field>
           </div>
         </Card>
 
         <Card className="border-t-2 border-t-emerald-400 p-4">
-          <SectionHeader icon={<MapPin size={15} />} title="ສະຖານທີ່" tone="emerald" />
+          <SectionHeader icon={<MapPin size={15} />} title={t("customers.location", "ສະຖານທີ່")} tone="emerald" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="ແຂວງ">
-              <Select value={form.province} onChange={onProvince} options={provinces} placeholder="ເລືອກແຂວງ" />
+            <Field label={t("customers.province", "ແຂວງ")}>
+              <Select value={form.province} onChange={onProvince} options={provinces} placeholder={t("customers.selectProvince", "ເລືອກແຂວງ")} />
             </Field>
-            <Field label="ເມືອງ">
-              <Select value={form.district} onChange={onDistrict} options={districts} placeholder="ເລືອກເມືອງ" disabled={!form.province} />
+            <Field label={t("customers.district", "ເມືອງ")}>
+              <Select value={form.district} onChange={onDistrict} options={districts} placeholder={t("customers.selectDistrict", "ເລືອກເມືອງ")} disabled={!form.province} />
             </Field>
-            <Field label="ບ້ານ">
-              <Select value={form.village} onChange={(v) => set("village", v)} options={villages} placeholder="ເລືອກບ້ານ" disabled={!form.district} />
+            <Field label={t("customers.village", "ບ້ານ")}>
+              <Select value={form.village} onChange={(v) => set("village", v)} options={villages} placeholder={t("customers.selectVillage", "ເລືອກບ້ານ")} disabled={!form.district} />
             </Field>
-            <Field label="ທີ່ຢູ່ (ລະອຽດ)">
-              <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputCls} placeholder="ບ້ານເລກທີ່, ໜ່ວຍ..." />
+            <Field label={t("customers.addressDetail", "ທີ່ຢູ່ (ລະອຽດ)")}>
+              <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputCls} placeholder={t("customers.addressPlaceholder", "ບ້ານເລກທີ່, ໜ່ວຍ...")} />
             </Field>
           </div>
         </Card>
         </div>
 
         <div className="mt-4 flex justify-end gap-2">
-          <Btn type="button" variant="outline" onClick={() => router.push("/customers")}>ຍົກເລີກ</Btn>
+          <Btn type="button" variant="outline" onClick={() => router.push("/customers")}>{t("common.cancel", "ຍົກເລີກ")}</Btn>
           <Btn type="submit" disabled={saving}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກລູກຄ້າ"}
+            {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("customers.saveCustomer", "ບັນທຶກລູກຄ້າ")}
           </Btn>
         </div>
       </form>
