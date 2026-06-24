@@ -5,10 +5,10 @@
  * - create → createProjectAction → continue to quotation creation
  * - edit   → editProjectAction → back to the project pipeline
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { ArrowLeft, Loader2, Save, ImagePlus, X, MapPin, FolderKanban, Tags, Check } from "lucide-react";
+import { ArrowLeft, Loader2, Save, ImagePlus, X, MapPin, FolderKanban, Tags, Check, Search, ChevronDown } from "lucide-react";
 import { createProjectAction, editProjectAction } from "@/_actions/projects";
 import {
   getProvinces,
@@ -346,16 +346,16 @@ export default function ProjectForm({
             <SectionHeader icon={<Tags size={15} />} title="ການຈັດປະເພດ" tone="violet" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Field label="ປະເພດທຸລະກິດ">
-                <Select value={form.businessType} onChange={onBizType} options={bizTypes} placeholder="ເລືອກປະເພດ" />
+                <SearchableSelect value={form.businessType} onChange={onBizType} options={bizTypes} placeholder="ເລືອກປະເພດ" />
               </Field>
               <Field label="ຮູບແບບທຸລະກິດ">
-                <Select value={form.businessModel} onChange={onBizModel} options={bizModels} placeholder="ເລືອກຮູບແບບ" disabled={!form.businessType} />
+                <SearchableSelect value={form.businessModel} onChange={onBizModel} options={bizModels} placeholder="ເລືອກຮູບແບບ" disabled={!form.businessType} />
               </Field>
               <Field label="ປະເພດໂຄງການ">
-                <Select value={form.projectType} onChange={(v) => set("projectType", v)} options={projTypes} placeholder="ເລືອກປະເພດໂຄງການ" disabled={!form.businessType} />
+                <SearchableSelect value={form.projectType} onChange={(v) => set("projectType", v)} options={projTypes} placeholder="ເລືອກປະເພດໂຄງການ" disabled={!form.businessType} />
               </Field>
               <Field label="ພະນັກງານຂາຍ">
-                <Select value={form.saleStaffId} onChange={(v) => set("saleStaffId", v)} options={saleStaffs} placeholder="ເລືອກພະນັກງານ" />
+                <SearchableSelect value={form.saleStaffId} onChange={(v) => set("saleStaffId", v)} options={saleStaffs} placeholder="ເລືອກພະນັກງານ" />
               </Field>
             </div>
           </Card>
@@ -371,13 +371,13 @@ export default function ProjectForm({
             </div>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Field label="ແຂວງ" required>
-                <Select value={form.province} onChange={onProvince} options={provinces} placeholder="ເລືອກແຂວງ" />
+                <SearchableSelect value={form.province} onChange={onProvince} options={provinces} placeholder="ເລືອກແຂວງ" />
               </Field>
               <Field label="ເມືອງ" required>
-                <Select value={form.district} onChange={onDistrict} options={districts} placeholder="ເລືອກເມືອງ" disabled={!form.province} />
+                <SearchableSelect value={form.district} onChange={onDistrict} options={districts} placeholder="ເລືອກເມືອງ" disabled={!form.province} />
               </Field>
               <Field label="ບ້ານ" required>
-                <Select value={form.village} onChange={(v) => set("village", v)} options={villages} placeholder="ເລືອກບ້ານ" disabled={!form.district} />
+                <SearchableSelect value={form.village} onChange={(v) => set("village", v)} options={villages} placeholder="ເລືອກບ້ານ" disabled={!form.district} />
               </Field>
             </div>
             <div className="mt-3">
@@ -409,7 +409,12 @@ export default function ProjectForm({
 }
 
 
-function Select({
+/**
+ * Type-to-search select for long option lists (e.g. ~400 sales staff) where a
+ * native <select> is impractical to scroll. Filters the already-loaded options
+ * client-side by label or code.
+ */
+function SearchableSelect({
   value,
   onChange,
   options,
@@ -422,19 +427,87 @@ function Select({
   placeholder: string;
   disabled?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const needle = q.trim().toLowerCase();
+  const filtered = needle
+    ? options.filter(
+        (o) => o.label.toLowerCase().includes(needle) || o.value.toLowerCase().includes(needle),
+      )
+    : options;
+
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      className={`${inputCls} disabled:cursor-not-allowed disabled:bg-[var(--theme-bg-muted)] disabled:opacity-60`}
-    >
-      <option value="">{placeholder}</option>
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
+        className={`${inputCls} flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:bg-[var(--theme-bg-muted)] disabled:opacity-60`}
+      >
+        <span className={`truncate ${selected ? "" : "text-slate-400"}`}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <ChevronDown size={15} className="shrink-0 text-slate-400" />
+      </button>
+
+      {open && !disabled && (
+        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-md border border-[var(--theme-border-subtle)] bg-white shadow-[var(--theme-shadow-lg)]">
+          <div className="border-b border-[var(--theme-border-subtle)] p-2">
+            <div className="flex h-8 items-center gap-2 rounded-md border border-[var(--theme-border-subtle)] px-2">
+              <Search size={13} className="text-[var(--theme-text-mute)]" />
+              <input
+                autoFocus
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="ຄົ້ນຫາຊື່ / ລະຫັດ..."
+                className="h-full w-full bg-transparent text-[13px] outline-none"
+              />
+              {q && (
+                <button type="button" onClick={() => setQ("")} className="text-[var(--theme-text-mute)] hover:text-rose-600">
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="max-h-56 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-3 text-center text-[12px] text-[var(--theme-text-mute)]">ບໍ່ພົບ</div>
+            ) : (
+              filtered.map((o) => (
+                <button
+                  type="button"
+                  key={o.value}
+                  onClick={() => {
+                    onChange(o.value);
+                    setOpen(false);
+                    setQ("");
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 border-b border-[var(--theme-border-subtle)] px-3 py-2 text-left text-[12.5px] last:border-0 hover:bg-[var(--theme-bg-muted)] ${
+                    o.value === value
+                      ? "bg-[var(--theme-primary-tint)] font-medium text-[var(--theme-primary)]"
+                      : "text-[var(--theme-text)]"
+                  }`}
+                >
+                  <span className="truncate">{o.label}</span>
+                  {o.value === value && <Check size={14} className="shrink-0 text-[var(--theme-primary)]" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

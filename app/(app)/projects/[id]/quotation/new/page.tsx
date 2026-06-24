@@ -24,6 +24,14 @@ const todayISO = () => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
 
+// Today + N days, ISO yyyy-mm-dd. Used for the default quotation validity.
+const todayPlusISO = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
 const genQuotationNo = () => {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
@@ -46,7 +54,7 @@ export default function CreateQuotationPage() {
 
   const [cust, setCust] = useState({ name: "", phone: "", address: "" });
   const [quotationDate, setQuotationDate] = useState(todayISO());
-  const [validityDate, setValidityDate] = useState("");
+  const [validityDate, setValidityDate] = useState(todayPlusISO(15));
   const [discount, setDiscount] = useState(0);
   const [vatType, setVatType] = useState<"none" | "exclusive" | "inclusive">("none");
   const [vatRate, setVatRate] = useState(10);
@@ -66,7 +74,7 @@ export default function CreateQuotationPage() {
             const q: any = qres;
             setCust({ name: q.customer_name || "", phone: q.customer_phone || "", address: q.customer_address || "" });
             setQuotationDate((q.quotation_date || todayISO()).toString().slice(0, 10));
-            setValidityDate((q.validity_date || "").toString().slice(0, 10));
+            setValidityDate((q.validity_date || todayPlusISO(15)).toString().slice(0, 10));
             setDiscount(Number(q.discount) || 0);
             setVatType(q.tax_type === "exclusive" || q.tax_type === "inclusive" ? q.tax_type : "none");
             setNotes(q.notes || "");
@@ -316,10 +324,10 @@ export default function CreateQuotationPage() {
         <Card className="mb-4 border-t-2 border-t-blue-400 p-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
             <Field label={t("quotationNew.customerName", "ຊື່ລູກຄ້າ")} className="lg:col-span-2">
-              <input value={cust.name} onChange={(e) => setCust({ ...cust, name: e.target.value })} className={inputCls} placeholder={t("quotationNew.customerName", "ຊື່ລູກຄ້າ")} />
+              <input value={cust.name} readOnly className={`${inputCls} cursor-default bg-[var(--theme-bg-muted)] text-[var(--theme-text-soft)] focus:border-slate-200 focus:ring-0`} placeholder={t("quotationNew.customerName", "ຊື່ລູກຄ້າ")} />
             </Field>
             <Field label={t("quotationNew.phone", "ເບີໂທ")}>
-              <input value={cust.phone} onChange={(e) => setCust({ ...cust, phone: e.target.value })} className={inputCls} placeholder="020..." />
+              <input value={cust.phone} readOnly className={`${inputCls} cursor-default bg-[var(--theme-bg-muted)] text-[var(--theme-text-soft)] focus:border-slate-200 focus:ring-0`} placeholder="020..." />
             </Field>
             <Field label={t("common.date", "ວັນທີ")}>
               <input type="date" value={quotationDate} onChange={(e) => setQuotationDate(e.target.value)} className={inputCls} />
@@ -335,7 +343,7 @@ export default function CreateQuotationPage() {
               </select>
             </Field>
             <Field label={t("quotationNew.customerAddress", "ທີ່ຢູ່ລູກຄ້າ")} className="sm:col-span-2 lg:col-span-6">
-              <input value={cust.address} onChange={(e) => setCust({ ...cust, address: e.target.value })} className={inputCls} placeholder={t("quotationNew.address", "ທີ່ຢູ່")} />
+              <input value={cust.address} readOnly className={`${inputCls} cursor-default bg-[var(--theme-bg-muted)] text-[var(--theme-text-soft)] focus:border-slate-200 focus:ring-0`} placeholder={t("quotationNew.address", "ທີ່ຢູ່")} />
             </Field>
           </div>
         </Card>

@@ -101,6 +101,10 @@ export default function CreateContractPage() {
       setError(t("contractNew.selectApprovedQuotation", "ກະລຸນາເລືອກໃບສະເໜີທີ່ອະນຸມັດແລ້ວ"));
       return;
     }
+    if (!startDate || !endDate) {
+      setError(t("contractNew.datesRequired", "ກະລຸນາໃສ່ວັນທີເລີ່ມ ແລະ ວັນທີສິ້ນສຸດ"));
+      return;
+    }
     setSaving(true);
     try {
       // Edit keeps the full contract (items/customer/totals) and only changes dates/terms/notes.
@@ -214,11 +218,11 @@ export default function CreateContractPage() {
               <Field label={t("contractNew.signDate", "ວັນທີເຊັນສັນຍາ")}>
                 <input type="date" value={signDate} onChange={(e) => setSignDate(e.target.value)} className={inputCls} />
               </Field>
-              <Field label={t("contractNew.startDate", "ວັນທີເລີ່ມ")}>
-                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
+              <Field label={t("contractNew.startDate", "ວັນທີເລີ່ມ")} required>
+                <input type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
               </Field>
-              <Field label={t("contractNew.endDate", "ວັນທີສິ້ນສຸດ")}>
-                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
+              <Field label={t("contractNew.endDate", "ວັນທີສິ້ນສຸດ")} required>
+                <input type="date" required value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
               </Field>
               <Field label={t("contractNew.paymentTerms", "ເງື່ອນໄຂການຊຳລະ")} className="lg:col-span-3">
                 <input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className={inputCls} placeholder={t("contractNew.paymentTermsPlaceholder", "ເຊັ່ນ: ມັດຈຳ 50% ກ່ອນ, ສ່ວນທີ່ເຫຼືອຫຼັງຕິດຕັ້ງ")} />
