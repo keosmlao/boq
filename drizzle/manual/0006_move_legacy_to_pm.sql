@@ -12,6 +12,9 @@
 --
 -- Reversible: ALTER TABLE pm.odg_* SET SCHEMA public;
 
+-- pm may not exist yet on this DB (rebuild 0000 not applied here) — create it.
+CREATE SCHEMA IF NOT EXISTS pm;
+
 ALTER TABLE IF EXISTS public.odg_project_manager_user   SET SCHEMA pm;
 ALTER TABLE IF EXISTS public.odg_project_type           SET SCHEMA pm;
 ALTER TABLE IF EXISTS public.odg_project_business_type  SET SCHEMA pm;

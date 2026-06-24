@@ -1,4 +1,4 @@
-CREATE SCHEMA "pm";
+CREATE SCHEMA IF NOT EXISTS "pm";
 --> statement-breakpoint
 CREATE TYPE "pm"."approval_status" AS ENUM('pending', 'approved', 'rejected');--> statement-breakpoint
 CREATE TYPE "pm"."contract_status" AS ENUM('draft', 'awaiting_sales', 'awaiting_accounting', 'active', 'closed', 'cancelled');--> statement-breakpoint

@@ -44,6 +44,11 @@ async function main() {
   console.log(`Connecting to ${process.env.DB_HOST}/${process.env.DB_NAME} ...`);
   await pool.query("SELECT 1");
 
+  // The pm schema may not exist yet on this DB (the rebuild's 0000 migration
+  // hasn't been applied here). Create it so the app-owned tables have a home.
+  await pool.query("CREATE SCHEMA IF NOT EXISTS pm");
+  console.log("  schema pm ready");
+
   for (const t of TABLES) {
     const before = await schemaOf(t);
     if (before.includes("pm")) {
