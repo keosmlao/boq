@@ -131,7 +131,7 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
         <div className="min-w-0">
           <h1 className="truncate text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-none">{t("quotations.title", "ໃບສະເໜີລາຄາ")}</h1>
           <p className="mt-2 text-xs font-medium text-slate-400">
-            {t("quotations.totalQuotes", "ໃບສະເໜີທັງໝົດ")} {stats.total} · {t("quotations.totalValue", "ມູນຄ່າລວມ")} {money(stats.value)} {t("common.currencyKip", "ກີບ")} · {t("status.pending", "ລໍຖ້າອະນຸມັດ")} {stats.pending} · {t("status.approved", "ອະນຸມັດແລ້ວ")} {stats.approved}
+            {t("quotations.totalQuotes", "ໃບສະເໜີທັງໝົດ")} {stats.total} · {t("quotations.totalValue", "ມູນຄ່າລວມ")} {money(stats.value)} {t("common.currencyKip", "ບາດ")} · {t("status.pending", "ລໍຖ້າອະນຸມັດ")} {stats.pending} · {t("status.approved", "ອະນຸມັດແລ້ວ")} {stats.approved}
           </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
@@ -216,7 +216,7 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
                     </div>
                     <div className="flex-shrink-0 text-right pr-2">
                       <div className="font-mono text-xs font-bold text-slate-700">{money(g.value)}</div>
-                      <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t("common.currencyKip", "ກີບ")}</div>
+                      <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t("common.currencyKip", "ບາດ")}</div>
                     </div>
                   </div>
 
@@ -229,7 +229,7 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
                             <div className="flex items-center gap-2 rounded-lg px-2 py-1 bg-white border border-slate-100 shadow-2xs">
                               <FolderKanban size={11} className="flex-shrink-0 text-slate-400" />
                               <span className="truncate text-[11.5px] font-semibold text-slate-600">{p.project}</span>
-                              <span className="ml-auto flex-shrink-0 font-mono text-[10px] font-semibold text-slate-400">{money(p.value)} {t("common.currencyKip", "ກີບ")}</span>
+                              <span className="ml-auto flex-shrink-0 font-mono text-[10px] font-semibold text-slate-400">{money(p.value)} {t("common.currencyKip", "ບາດ")}</span>
                             </div>
                             <div className="ml-3 border-l border-slate-200/50 pl-3 space-y-0.5">
                               {p.quotes.map((qt) => (

@@ -271,7 +271,7 @@ export default function DashboardClient({
               <Link href="/reports" className="inline-flex items-center gap-1 text-[10.5px] font-bold text-slate-300 hover:text-white">{t("overview.reports", "ລາຍງານ")} <ArrowUpRight size={12} /></Link>
             </div>
             <p className="mt-5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-slate-400">{t("overview.totalRevenue", "ລາຍຮັບລວມ")}</p>
-            <div className="mt-1 font-display text-[1.8rem] font-bold tracking-tight">{loading ? "—" : money(revenue?.total)} <span className="text-xs text-slate-400">{t("overview.kip", "ກີບ")}</span></div>
+            <div className="mt-1 font-display text-[1.8rem] font-bold tracking-tight">{loading ? "—" : money(revenue?.total)} <span className="text-xs text-slate-400">{t("overview.kip", "ບາດ")}</span></div>
             <div className="mt-5 grid grid-cols-2 gap-2 border-t border-white/10 pt-4">
               <div><p className="text-[10px] font-semibold text-slate-400">{t("overview.thisMonth", "ເດືອນນີ້")}</p><p className="mt-1 truncate text-[12px] font-bold">{loading ? "—" : money(revenue?.monthly)}</p></div>
               <div><p className="text-[10px] font-semibold text-slate-400">{t("overview.growth", "ການເຕີບໂຕ")}</p><p className="mt-1 text-[12px] font-bold text-slate-300">{loading ? "—" : `${Number(dashboard?.performance?.growth ?? 0)}%`}</p></div>

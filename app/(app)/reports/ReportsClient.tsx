@@ -134,14 +134,14 @@ export default function ReportsClient({
                   <div className="mt-1.5 h-6 w-28 animate-pulse rounded bg-slate-200" />
                 ) : (
                   <h3 className="truncate text-2xl font-black text-slate-900">
-                    {money(rev?.total)} <span className="text-sm font-bold text-slate-400">{t("reports.kip", "ກີບ")}</span>
+                    {money(rev?.total)} <span className="text-sm font-bold text-slate-400">{t("reports.kip", "ບາດ")}</span>
                   </h3>
                 )}
               </div>
             </div>
             <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5">
               <span className="text-[12px] font-bold text-slate-500">{t("reports.thisMonth", "ເດືອນນີ້")}</span>
-              <span className="text-[13px] font-black text-slate-800">{money(rev?.monthly)} {t("reports.kip", "ກີບ")}</span>
+              <span className="text-[13px] font-black text-slate-800">{money(rev?.monthly)} {t("reports.kip", "ບາດ")}</span>
             </div>
           </Card>
 

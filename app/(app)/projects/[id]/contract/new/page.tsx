@@ -140,7 +140,7 @@ export default function CreateContractPage() {
       ...(inst > 0 ? [{ installment_no: 2, total_amount: inst, label: "ຄ່າຕິດຕັ້ງ" }] : []),
     ];
     const composedTerms =
-      installments.map((x) => `${x.installment_no}. ${x.label}: ${x.total_amount.toLocaleString("en-US")} ກີບ`).join(" · ") || paymentTerms;
+      installments.map((x) => `${x.installment_no}. ${x.label}: ${x.total_amount.toLocaleString("en-US")} ບາດ`).join(" · ") || paymentTerms;
     setSaving(true);
     try {
       // Edit keeps the full contract (items/customer/totals) and only changes dates/terms/notes.
@@ -271,15 +271,15 @@ export default function CreateContractPage() {
               <div className="lg:col-span-3">
                 <div className="mb-1.5 text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("contractNew.paymentTerms", "ເງື່ອນໄຂການຊຳລະ")}</div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label={t("contractNew.installmentAc", "ງວດ 1 · ຄ່າແອ (ກີບ)")}>
+                  <Field label={t("contractNew.installmentAc", "ງວດ 1 · ຄ່າແອ (ບາດ)")}>
                     <input type="number" min="0" inputMode="numeric" value={acAmount} onChange={(e) => setAcAmount(e.target.value)} className={`${inputCls} text-right tabular-nums`} placeholder="0" />
                   </Field>
-                  <Field label={t("contractNew.installmentInstall", "ງວດ 2 · ຄ່າຕິດຕັ້ງ (ກີບ)")}>
+                  <Field label={t("contractNew.installmentInstall", "ງວດ 2 · ຄ່າຕິດຕັ້ງ (ບາດ)")}>
                     <input type="number" min="0" inputMode="numeric" value={installAmount} onChange={(e) => setInstallAmount(e.target.value)} className={`${inputCls} text-right tabular-nums`} placeholder="0" />
                   </Field>
                 </div>
                 <div className={`mt-1.5 flex items-center justify-between rounded-lg px-3 py-1.5 text-[12px] ${sumMatches ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                  <span>{t("contractNew.installmentSum", "ລວມ 2 ງວດ")}: <b className="tabular-nums">{money(installSum)}</b> {t("common.kip", "ກີບ")}</span>
+                  <span>{t("contractNew.installmentSum", "ລວມ 2 ງວດ")}: <b className="tabular-nums">{money(installSum)}</b> {t("common.kip", "ບາດ")}</span>
                   {contractTotal > 0 && (
                     <span>{sumMatches ? t("contractNew.sumOk", "= ຍອດສັນຍາ ✓") : `${t("contractNew.contractTotal", "ຍอดสัญญา")}: ${money(contractTotal)}`}</span>
                   )}

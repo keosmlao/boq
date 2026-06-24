@@ -134,7 +134,7 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
       {/* ── ສ່ວນທີ 1: ສະຫຼຸບ ─────────────────────────────── */}
       <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat icon={<FileSignature size={18} />} label={t("finance.totalContracts", "ສັນຍາທັງໝົດ")} value={stats.total} active={filter === "all"} onClick={() => setFilter("all")} />
-        <Stat icon={<Wallet size={18} />} label={t("finance.contractValueKip", "ມູນຄ່າສັນຍາ (ກີບ)")} value={money(stats.value)} />
+        <Stat icon={<Wallet size={18} />} label={t("finance.contractValueKip", "ມູນຄ່າສັນຍາ (ບາດ)")} value={money(stats.value)} />
         <Stat icon={<CheckCircle2 size={18} />} label={t("finance.approvedFull", "ອະນຸມັດຄົບ")} value={stats.full} active={filter === "full"} onClick={() => setFilter("full")} />
         <Stat icon={<Clock size={18} />} label={t("finance.pendingApproval", "ລໍຖ້າອະນຸມັດ")} value={stats.pending} active={filter === "pending"} onClick={() => setFilter("pending")} />
       </div>
@@ -209,7 +209,7 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
                   </div>
                   <div className="flex-shrink-0 text-right">
                     <div className="font-mono text-sm font-black text-slate-900">{money(g.value)}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("finance.kip", "ກີບ")}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t("finance.kip", "ບາດ")}</div>
                   </div>
                 </button>
 

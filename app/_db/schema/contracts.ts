@@ -50,7 +50,7 @@ export const contracts = pm.table(
     customerAddress: text("customer_address"),
     customerPhone: text("customer_phone"),
 
-    currencyCode: text("currency_code").notNull().default("LAK"),
+    currencyCode: text("currency_code").notNull().default("THB"),
     amount: numeric("amount", { precision: 18, scale: 2 }).notNull().default("0"),
     paymentType: text("payment_type"),
     brand: text("brand"),

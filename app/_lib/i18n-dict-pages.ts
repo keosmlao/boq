@@ -8,7 +8,7 @@ import type { Entry } from "./i18n-dict";
 export const PAGE_DICT: Record<string, Entry> = {
   // common additions
   "common.actionFailed": { lo: "ດຳເນີນການບໍ່ສຳເລັດ", th: "ดำเนินการไม่สำเร็จ", en: "Action failed" },
-  "common.currencyKip": { lo: "ກີບ", th: "กีบ", en: "LAK" },
+  "common.currencyKip": { lo: "ບາດ", th: "บาท", en: "THB" },
   "common.collapseAll": { lo: "ຍຸບທັງໝົດ", th: "ยุบทั้งหมด", en: "Collapse all" },
   "common.expandAll": { lo: "ຂະຫຍາຍທັງໝົດ", th: "ขยายทั้งหมด", en: "Expand all" },
 
@@ -689,7 +689,7 @@ export const PAGE_DICT: Record<string, Entry> = {
   "finance.pendingApproval": { th: "รออนุมัติ", en: "Pending approval" },
   "finance.approvedFull": { th: "อนุมัติครบ", en: "Fully approved" },
   "finance.totalContracts": { th: "สัญญาทั้งหมด", en: "Total contracts" },
-  "finance.contractValueKip": { th: "มูลค่าสัญญา (กีบ)", en: "Contract value (LAK)" },
+  "finance.contractValueKip": { th: "มูลค่าสัญญา (บาท)", en: "Contract value (THB)" },
   "finance.searchAndFilter": { th: "ค้นหาและกรอง", en: "Search & filter" },
   "finance.searchPlaceholder": { th: "ค้นหา เลขสัญญา, โครงการ, ลูกค้า...", en: "Search contract no., project, customer..." },
   "finance.valueByCustomer": { th: "มูลค่าสัญญา ตามลูกค้า", en: "Contract value by customer" },
@@ -699,7 +699,7 @@ export const PAGE_DICT: Record<string, Entry> = {
   "finance.noContracts": { th: "ยังไม่มีสัญญา", en: "No contracts yet" },
   "finance.noCustomer": { th: "(ไม่ระบุลูกค้า)", en: "(No customer)" },
   "finance.contractsUnit": { th: "สัญญา", en: "contracts" },
-  "finance.kip": { th: "กีบ", en: "LAK" },
+  "finance.kip": { th: "บาท", en: "THB" },
   "finance.noContractNo": { th: "(ไม่มีเลขที่)", en: "(No number)" },
   "finance.footerNote": { th: "หมายเหตุ: มูลค่าคำนวณจากสัญญาที่มีข้อมูลมูลค่า. งวดการจ่าย (installments) จะเพิ่มในขั้นต่อไป.", en: "Note: Value is calculated from contracts that have value data. Payment installments will be added in a later step." },
 
@@ -712,7 +712,7 @@ export const PAGE_DICT: Record<string, Entry> = {
   "reports.pending": { th: "รออนุมัติ", en: "Pending approval" },
   "reports.revenueContract": { th: "รายรับ (สัญญา)", en: "Revenue (contracts)" },
   "reports.grandTotal": { th: "รวมทั้งหมด", en: "Grand total" },
-  "reports.kip": { th: "กีบ", en: "LAK" },
+  "reports.kip": { th: "บาท", en: "THB" },
   "reports.thisMonth": { th: "เดือนนี้", en: "This month" },
   "reports.lastMonth": { th: "เดือนก่อน", en: "Last month" },
   "reports.salesContract": { th: "การขาย (สัญญา)", en: "Sales (contracts)" },
@@ -890,7 +890,7 @@ export const PAGE_DICT: Record<string, Entry> = {
   "overview.noPipeline": { lo: "ຍັງບໍ່ມີຂໍ້ມູນ Pipeline", th: "ยังไม่มีข้อมูล Pipeline", en: "No pipeline data yet" },
   "overview.reports": { lo: "ລາຍງານ", th: "รายงาน", en: "Reports" },
   "overview.totalRevenue": { lo: "ລາຍຮັບລວມ", th: "รายรับรวม", en: "Total revenue" },
-  "overview.kip": { lo: "ກີບ", th: "กีบ", en: "KIP" },
+  "overview.kip": { lo: "ບາດ", th: "บาท", en: "THB" },
   "overview.thisMonth": { lo: "ເດືອນນີ້", th: "เดือนนี้", en: "This month" },
   "overview.growth": { lo: "ການເຕີບໂຕ", th: "การเติบโต", en: "Growth" },
   "overview.teamAvailability": { lo: "ຄວາມວ່າງຂອງທີມຊ່າງ", th: "ความว่างของทีมช่าง", en: "Team availability" },
