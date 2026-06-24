@@ -82,6 +82,15 @@ async function schemaOf(name) {
   return rows.map((r) => r.table_schema);
 }
 
+async function countOf(schema, name) {
+  try {
+    const { rows } = await pool.query(`SELECT count(*)::int AS c FROM ${schema}.${name}`);
+    return rows[0].c;
+  } catch {
+    return null; // not a table (e.g. a view) — treat as "leave it alone"
+  }
+}
+
 async function main() {
   console.log(`Connecting to ${process.env.DB_HOST}/${process.env.DB_NAME} ...`);
   await pool.query("SELECT 1");
@@ -92,17 +101,36 @@ async function main() {
   console.log("  schema pm ready");
 
   for (const t of TABLES) {
-    const before = await schemaOf(t);
-    if (before.includes("pm")) {
-      console.log(`  ✓ ${t} already in pm — skip`);
+    const where = await schemaOf(t);
+    const inPm = where.includes("pm");
+    const inPub = where.includes("public");
+
+    // Simple cases.
+    if (inPm && !inPub) { console.log(`  ✓ ${t} already in pm — skip`); continue; }
+    if (!inPm && !inPub) { console.log(`  ! ${t} not found — skip`); continue; }
+    if (!inPm && inPub) {
+      await pool.query(`ALTER TABLE public.${t} SET SCHEMA pm`);
+      console.log(`  → moved public.${t}  ->  pm.${t}`);
       continue;
     }
-    if (!before.includes("public")) {
-      console.log(`  ! ${t} not found in public or pm — skip`);
-      continue;
+
+    // Shadow case: exists in BOTH. The app's `CREATE TABLE IF NOT EXISTS odg_*`
+    // (unqualified) created an empty copy in pm while the real data stayed in
+    // public. Repair: if the pm copy is empty and public has data, drop the
+    // empty pm shadow and move the real public table into pm.
+    const pmN = await countOf("pm", t);
+    const pubN = await countOf("public", t);
+    if (pmN === 0 && pubN > 0) {
+      await pool.query(`DROP TABLE pm.${t}`);
+      await pool.query(`ALTER TABLE public.${t} SET SCHEMA pm`);
+      console.log(`  ⤿ FIXED shadow ${t}: dropped empty pm copy, moved public (${pubN} rows) -> pm`);
+    } else if (pubN === 0 && pmN >= 0) {
+      // public copy is empty (real data already in pm) — drop the stray public one.
+      await pool.query(`DROP TABLE public.${t}`);
+      console.log(`  ⤿ cleaned ${t}: dropped empty public copy (pm has ${pmN})`);
+    } else {
+      console.log(`  ⚠️  ${t}: BOTH have data (public=${pubN}, pm=${pmN}) — needs manual merge, skipped`);
     }
-    await pool.query(`ALTER TABLE IF EXISTS public.${t} SET SCHEMA pm`);
-    console.log(`  → moved public.${t}  ->  pm.${t}`);
   }
 
   console.log("Done. Verifying final placement:");
