@@ -43,6 +43,8 @@ export default function CreateContractPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("");
+  const [acAmount, setAcAmount] = useState("");        // งวด 1 · ຄ່າແອ
+  const [installAmount, setInstallAmount] = useState(""); // งวด 2 · ຄ່າຕິດຕັ້ງ
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -95,6 +97,10 @@ export default function CreateContractPage() {
       ? contractData.items
       : [];
 
+  const contractTotal = Number(selected?.total_amount ?? contractData?.amount ?? 0);
+  const installSum = (Number(acAmount) || 0) + (Number(installAmount) || 0);
+  const sumMatches = contractTotal <= 0 || installSum === contractTotal;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -110,6 +116,14 @@ export default function CreateContractPage() {
       setError(t("contractNew.datesRequired", "ກະລຸນາໃສ່ວັນທີເລີ່ມ ແລະ ວັນທີສິ້ນສຸດ"));
       return;
     }
+    const ac = Number(acAmount) || 0;
+    const inst = Number(installAmount) || 0;
+    const installments = [
+      ...(ac > 0 ? [{ installment_no: 1, total_amount: ac, label: "ຄ່າແອ" }] : []),
+      ...(inst > 0 ? [{ installment_no: 2, total_amount: inst, label: "ຄ່າຕິດຕັ້ງ" }] : []),
+    ];
+    const composedTerms =
+      installments.map((x) => `${x.installment_no}. ${x.label}: ${x.total_amount.toLocaleString("en-US")} ກີບ`).join(" · ") || paymentTerms;
     setSaving(true);
     try {
       // Edit keeps the full contract (items/customer/totals) and only changes dates/terms/notes.
@@ -119,7 +133,7 @@ export default function CreateContractPage() {
             sign_date: signDate,
             start_date: startDate,
             end_date: endDate,
-            payment_terms: paymentTerms,
+            payment_terms: composedTerms,
             notes,
           })
         : await createContract(
@@ -129,7 +143,8 @@ export default function CreateContractPage() {
               sign_date: signDate,
               start_date: startDate,
               end_date: endDate,
-              payment_terms: paymentTerms,
+              payment_terms: composedTerms,
+              installments,
               notes,
             },
             { fromQuotation: quoId },
@@ -235,9 +250,23 @@ export default function CreateContractPage() {
               <Field label={t("contractNew.endDate", "ວັນທີສິ້ນສຸດ")} required>
                 <input type="date" required value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
               </Field>
-              <Field label={t("contractNew.paymentTerms", "ເງື່ອນໄຂການຊຳລະ")} className="lg:col-span-3">
-                <input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className={inputCls} placeholder={t("contractNew.paymentTermsPlaceholder", "ເຊັ່ນ: ມັດຈຳ 50% ກ່ອນ, ສ່ວນທີ່ເຫຼືອຫຼັງຕິດຕັ້ງ")} />
-              </Field>
+              <div className="lg:col-span-3">
+                <div className="mb-1.5 text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("contractNew.paymentTerms", "ເງື່ອນໄຂການຊຳລະ")}</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field label={t("contractNew.installmentAc", "ງວດ 1 · ຄ່າແອ (ກີບ)")}>
+                    <input type="number" min="0" inputMode="numeric" value={acAmount} onChange={(e) => setAcAmount(e.target.value)} className={`${inputCls} text-right tabular-nums`} placeholder="0" />
+                  </Field>
+                  <Field label={t("contractNew.installmentInstall", "ງວດ 2 · ຄ່າຕິດຕັ້ງ (ກີບ)")}>
+                    <input type="number" min="0" inputMode="numeric" value={installAmount} onChange={(e) => setInstallAmount(e.target.value)} className={`${inputCls} text-right tabular-nums`} placeholder="0" />
+                  </Field>
+                </div>
+                <div className={`mt-1.5 flex items-center justify-between rounded-lg px-3 py-1.5 text-[12px] ${sumMatches ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                  <span>{t("contractNew.installmentSum", "ລວມ 2 ງວດ")}: <b className="tabular-nums">{money(installSum)}</b> {t("common.kip", "ກີບ")}</span>
+                  {contractTotal > 0 && (
+                    <span>{sumMatches ? t("contractNew.sumOk", "= ຍອດສັນຍາ ✓") : `${t("contractNew.contractTotal", "ຍอดสัญญา")}: ${money(contractTotal)}`}</span>
+                  )}
+                </div>
+              </div>
               <Field label={t("common.note", "ໝາຍເຫດ")} className="lg:col-span-3">
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputCls} h-auto py-2`} />
               </Field>

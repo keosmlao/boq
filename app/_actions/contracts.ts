@@ -135,6 +135,26 @@ export async function createContract(body: any, opts: { fromQuotation?: string }
           [projectId, it.item_code || it.code || null, it.description || it.item_name || it.name || "", amount, row.contract_no],
         );
       }
+
+      // Payment installments (e.g. งวด 1 = ຄ່າແອ, งวด 2 = ຄ່າຕິດຕັ້ງ). Stored in
+      // odg_projects_item so the contract detail's installment schedule shows them.
+      const installments = Array.isArray(body.installments) ? body.installments : [];
+      for (const inst of installments) {
+        const amt = num(inst.total_amount);
+        if (!(amt > 0)) continue;
+        await client.query(
+          `INSERT INTO odg_projects_item
+             (project_id, contract_no, installment_no, total_amount, items, created_at)
+           VALUES ($1, $2, $3, $4, $5::jsonb, NOW())`,
+          [
+            num(projectId),
+            row.contract_no,
+            num(inst.installment_no),
+            amt,
+            JSON.stringify([{ description: inst.label || "", amount: amt }]),
+          ],
+        );
+      }
       return row;
     });
 
