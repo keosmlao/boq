@@ -4,6 +4,7 @@ import { query, withTransaction } from "@/_lib/db";
 import { invalidate } from "@/_lib/cache";
 import { logActivity } from "./chatter";
 import { dateOrNull, ensureContractSchema, generateContractNo, num } from "@/_lib/schemas/contracts";
+import { saveBase64File } from "@/_lib/uploads";
 
 type Fail = { success: false; message: string; [k: string]: unknown };
 
@@ -153,6 +154,24 @@ export async function createContract(body: any, opts: { fromQuotation?: string }
             amt,
             JSON.stringify([{ description: inst.label || "", amount: amt }]),
           ],
+        );
+      }
+
+      // Contract document attachments (base64 → saved file → linked by contract_no).
+      const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+      for (const att of attachments) {
+        if (!att?.base64) continue;
+        const filePath = await saveBase64File({
+          base64: att.base64,
+          fileName: att.fileName || "contract-doc",
+          relativeDir: "uploads/contracts",
+        });
+        if (!filePath) continue;
+        await client.query(
+          `INSERT INTO odg_project_request_attachments
+             (request_id, file_name, file_path, uploaded_at, contract_no)
+           VALUES (NULL, $1, $2, NOW(), $3)`,
+          [att.fileName || "contract-doc", filePath, row.contract_no],
         );
       }
       return row;

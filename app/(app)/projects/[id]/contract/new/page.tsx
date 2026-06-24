@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Save, FileSignature } from "lucide-react";
+import { ArrowLeft, Loader2, Save, FileSignature, Paperclip, X } from "lucide-react";
 import { getQuotations } from "@/_actions/quotations";
 import { createContract, getContracts, getContract, updateContract } from "@/_actions/contracts";
 import { advanceProjectStage } from "@/_actions/projects";
@@ -46,6 +46,23 @@ export default function CreateContractPage() {
   const [acAmount, setAcAmount] = useState("");        // งวด 1 · ຄ່າແອ
   const [installAmount, setInstallAmount] = useState(""); // งวด 2 · ຄ່າຕິດຕັ້ງ
   const [notes, setNotes] = useState("");
+  const [attachments, setAttachments] = useState<{ fileName: string; base64: string }[]>([]);
+
+  const onPickFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const read = await Promise.all(
+      files.map(
+        (f) =>
+          new Promise<{ fileName: string; base64: string }>((resolve) => {
+            const r = new FileReader();
+            r.onload = () => resolve({ fileName: f.name, base64: String(r.result).split(",")[1] || "" });
+            r.readAsDataURL(f);
+          }),
+      ),
+    );
+    setAttachments((prev) => [...prev, ...read.filter((x) => x.base64)]);
+    e.target.value = "";
+  };
 
   useEffect(() => {
     let alive = true;
@@ -145,6 +162,7 @@ export default function CreateContractPage() {
               end_date: endDate,
               payment_terms: composedTerms,
               installments,
+              attachments,
               notes,
             },
             { fromQuotation: quoId },
@@ -270,6 +288,27 @@ export default function CreateContractPage() {
               <Field label={t("common.note", "ໝາຍເຫດ")} className="lg:col-span-3">
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputCls} h-auto py-2`} />
               </Field>
+              {!editId && (
+                <div className="lg:col-span-3">
+                  <div className="mb-1.5 text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("contractNew.attachments", "ເອກະສານສັນຍາ (ແນບໄຟລ໌)")}</div>
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)]/40 px-3 py-3 text-[12.5px] text-[var(--theme-text-mute)] transition hover:border-[var(--theme-primary)] hover:text-[var(--theme-primary)]">
+                    <Paperclip size={15} /> {t("contractNew.pickFiles", "ກົດເພື່ອເລືອກໄຟລ໌ (PDF/ຮູບ)")}
+                    <input type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={onPickFiles} />
+                  </label>
+                  {attachments.length > 0 && (
+                    <ul className="mt-2 space-y-1.5">
+                      {attachments.map((a, i) => (
+                        <li key={i} className="flex items-center justify-between gap-2 rounded-md border border-[var(--theme-border-subtle)] bg-white px-2.5 py-1.5 text-[12px]">
+                          <span className="flex min-w-0 items-center gap-1.5 truncate text-[var(--theme-text)]"><Paperclip size={12} className="shrink-0 text-[var(--theme-text-mute)]" /> {a.fileName}</span>
+                          <button type="button" onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))} className="shrink-0 text-[var(--theme-text-mute)] hover:text-rose-600">
+                            <X size={13} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
 
