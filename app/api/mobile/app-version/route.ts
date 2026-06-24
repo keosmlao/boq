@@ -8,7 +8,14 @@ import { NextResponse } from "next/server";
 export function GET(req: Request) {
   // Default the download link to this server's own /download page so the
   // force-update button always has somewhere to go without extra config.
-  const origin = new URL(req.url).origin;
+  // Behind a reverse proxy `req.url` is the internal bind address (e.g.
+  // 0.0.0.0:3003), so derive the public origin from the forwarded headers.
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  const host =
+    req.headers.get("x-forwarded-host") ||
+    req.headers.get("host") ||
+    new URL(req.url).host;
+  const origin = `${proto}://${host}`;
   return NextResponse.json({
     minVersion: process.env.MOBILE_MIN_VERSION || "1.0.1",
     latestVersion: process.env.MOBILE_LATEST_VERSION || "1.0.1",
