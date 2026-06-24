@@ -38,6 +38,7 @@ export default function CreateContractPage() {
   const [error, setError] = useState("");
 
   const [quoId, setQuoId] = useState<string>("");
+  const [contractNo, setContractNo] = useState("");
   const [signDate, setSignDate] = useState(todayISO());
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -101,6 +102,10 @@ export default function CreateContractPage() {
       setError(t("contractNew.selectApprovedQuotation", "ກະລຸນາເລືອກໃບສະເໜີທີ່ອະນຸມັດແລ້ວ"));
       return;
     }
+    if (!editId && !contractNo.trim()) {
+      setError(t("contractNew.contractNoRequired", "ກະລຸນາພິມເລກທີສັນຍາ"));
+      return;
+    }
     if (!startDate || !endDate) {
       setError(t("contractNew.datesRequired", "ກະລຸນາໃສ່ວັນທີເລີ່ມ ແລະ ວັນທີສິ້ນສຸດ"));
       return;
@@ -120,6 +125,7 @@ export default function CreateContractPage() {
         : await createContract(
             {
               project_id: String(id),
+              contract_no: contractNo.trim(),
               sign_date: signDate,
               start_date: startDate,
               end_date: endDate,
@@ -205,7 +211,7 @@ export default function CreateContractPage() {
                   <input value={contractData?.contract_no || ""} readOnly className={`${inputCls} bg-[var(--theme-bg-muted)]`} />
                 </Field>
               ) : (
-                <Field label={t("contractNew.refQuotation", "ອ້າງອີງໃບສະເໜີ (ອະນຸມັດແລ້ວ)")} required className="lg:col-span-3">
+                <Field label={t("contractNew.refQuotation", "ອ້າງອີງໃບສະເໜີ (ອະນຸມັດແລ້ວ)")} required className="lg:col-span-2">
                   <select value={quoId} onChange={(e) => setQuoId(e.target.value)} className={inputCls}>
                     {approvedQuos.map((q) => (
                       <option key={q.id} value={String(q.id)}>
@@ -213,6 +219,11 @@ export default function CreateContractPage() {
                       </option>
                     ))}
                   </select>
+                </Field>
+              )}
+              {!editId && (
+                <Field label={t("contractNew.contractNo", "ເລກທີສັນຍາ")} required>
+                  <input value={contractNo} onChange={(e) => setContractNo(e.target.value)} className={inputCls} placeholder={t("contractNew.contractNoPlaceholder", "ພິມເລກທີສັນຍາ")} />
                 </Field>
               )}
               <Field label={t("contractNew.signDate", "ວັນທີເຊັນສັນຍາ")}>
