@@ -136,6 +136,16 @@ export default function InventoryPicker({
                   </span>
                 </div>
                 <div className="truncate text-[12px] text-[var(--theme-text)]">{it.name_1 ?? it.item_name ?? "-"}</div>
+                {(it.category_name || it.brand_name) && (
+                  <div className="mt-0.5 flex flex-wrap gap-1">
+                    {it.category_name && (
+                      <span className="rounded bg-[var(--theme-bg-muted)] px-1.5 py-0.5 text-[10px] text-[var(--theme-text-mute)]">{t("components.inventoryPicker.category", "ປະເພດ")}: {it.category_name}</span>
+                    )}
+                    {it.brand_name && (
+                      <span className="rounded bg-[var(--theme-bg-muted)] px-1.5 py-0.5 text-[10px] text-[var(--theme-text-mute)]">{t("components.inventoryPicker.brand", "ຫຍີ່ຫໍ້")}: {it.brand_name}</span>
+                    )}
+                  </div>
+                )}
               </button>
             ))
           )}

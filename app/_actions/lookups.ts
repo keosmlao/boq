@@ -237,17 +237,21 @@ export async function getInventory(opts: { search?: string; limit?: number } = {
     if (search) {
       params.push(`%${search}%`);
       params.push(`${search}%`);
-      where += ` AND (code ILIKE $1 OR name_1 ILIKE $1)`;
+      where += ` AND (inv.code ILIKE $1 OR inv.name_1 ILIKE $1)`;
       prefixIndex = 2;
     }
 
+    // JOIN the ERP brand/category lookups so the picker can show ປະເພດ (category)
+    // and ຫຍີ່ຫໍ້ (brand) — they live as codes on ic_inventory.item_category / item_brand.
     const sql = `
-      SELECT *
-      FROM ic_inventory
+      SELECT inv.*, cat.name_1 AS category_name, b.name_1 AS brand_name
+      FROM ic_inventory inv
+      LEFT JOIN ic_category cat ON cat.code = inv.item_category
+      LEFT JOIN ic_brand b ON b.code = inv.item_brand
       ${where}
       ORDER BY
-        ${prefixIndex ? `CASE WHEN code ILIKE $${prefixIndex} THEN 0 ELSE 1 END, ` : ""}
-        code ASC
+        ${prefixIndex ? `CASE WHEN inv.code ILIKE $${prefixIndex} THEN 0 ELSE 1 END, ` : ""}
+        inv.code ASC
       LIMIT ${limit}
     `;
 
