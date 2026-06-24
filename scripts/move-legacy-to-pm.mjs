@@ -121,12 +121,13 @@ async function main() {
     const pmN = await countOf("pm", t);
     const pubN = await countOf("public", t);
     if (pmN === 0 && pubN > 0) {
-      await pool.query(`DROP TABLE pm.${t}`);
+      // CASCADE: the empty pm shadow may have FKs to/from other empty shadows.
+      await pool.query(`DROP TABLE pm.${t} CASCADE`);
       await pool.query(`ALTER TABLE public.${t} SET SCHEMA pm`);
       console.log(`  ⤿ FIXED shadow ${t}: dropped empty pm copy, moved public (${pubN} rows) -> pm`);
     } else if (pubN === 0 && pmN >= 0) {
       // public copy is empty (real data already in pm) — drop the stray public one.
-      await pool.query(`DROP TABLE public.${t}`);
+      await pool.query(`DROP TABLE public.${t} CASCADE`);
       console.log(`  ⤿ cleaned ${t}: dropped empty public copy (pm has ${pmN})`);
     } else {
       console.log(`  ⚠️  ${t}: BOTH have data (public=${pubN}, pm=${pmN}) — needs manual merge, skipped`);
