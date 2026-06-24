@@ -12,15 +12,11 @@
  * Only the columns the app actually reads are declared (inferred from legacy
  * SQL). `SELECT *` usages may surface more columns at runtime.
  */
-import { pgTable, integer, text, numeric, date, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, numeric, date } from "drizzle-orm/pg-core";
 
-/* ── Auth: login user store (read-only here; provisioned elsewhere) ───────── */
-export const odgUser = pgTable("odg_project_manager_user", {
-  username: text("username").primaryKey(),
-  password: text("password"),
-  role: text("role"), // comma-separated role list
-  name1: text("name_1"),
-});
+// NOTE: odg_project_manager_user, odg_project_*type/model, odg_task_master and
+// odg_withdraw_info were moved OUT of here into the app-owned `pm` schema —
+// see app/_db/legacy.ts and drizzle/manual/0006_move_legacy_to_pm.sql.
 
 /* ── Lao geo lookups ─────────────────────────────────────────────────────── */
 export const erpProvince = pgTable("erp_province", {
@@ -44,34 +40,6 @@ export const biotimeEmployee = pgTable("biotime_employee", {
   code: text("code").primaryKey(),
   name1: text("name_1"),
   status: integer("status"),
-});
-
-/* ── Project taxonomy lookups ────────────────────────────────────────────── */
-export const odgBusinessType = pgTable("odg_project_business_type", {
-  roworder: integer("roworder"),
-  code: text("code"),
-  name1: text("name_1"),
-});
-export const odgBusinessModel = pgTable("odg_project_business_model", {
-  roworder: integer("roworder"),
-  code: text("code"),
-  name1: text("name_1"),
-  businessTypeId: text("business_type_id"),
-});
-export const odgProjectType = pgTable("odg_project_type", {
-  roworder: integer("roworder"),
-  code: text("code"),
-  name1: text("name_1"),
-  businessTypeId: text("business_type_id"),
-  businessModelId: text("business_model_id"),
-});
-export const odgTaskMaster = pgTable("odg_task_master", {
-  id: integer("id").primaryKey(),
-  code: text("code"),
-  phase: text("phase"),
-  task: text("task"),
-  owner: text("owner"),
-  status: text("status"),
 });
 
 /* ── Inventory / warehouse (ic_*) ────────────────────────────────────────── */
@@ -98,15 +66,6 @@ export const icShelf = pgTable("ic_shelf", {
 export const icWhShelf = pgTable("ic_wh_shelf", {
   whCode: text("wh_code"),
   shelfCode: text("shelf_code"),
-});
-
-/* ── Warehouse-side withdrawal info (populated by ERP; read-only) ─────────── */
-export const odgWithdrawInfo = pgTable("odg_withdraw_info", {
-  docNo: text("doc_no"),
-  docDate: date("doc_date"),
-  createuser: text("createuser"),
-  whName: text("wh_name"),
-  shelfName: text("shelf_name"),
 });
 
 /* ── ERP transaction mirror (request sync; app writes trans_type=3/flag=122) ─ */

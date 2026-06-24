@@ -9,6 +9,13 @@ function getPoolConfig() {
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
+    // Resolve unqualified table names against `pm` first, then `public`. This
+    // lets raw SQL keep using bare names (e.g. odg_project_manager_user) whether
+    // a table still lives in public or has been moved into the app-owned pm
+    // schema — so moving tables needs no coordinated code/deploy cutover.
+    // Safe: raw SQL only references public tables by their legacy odg_*/erp_*/ic_*
+    // names; pm tables are reached via Drizzle (already schema-qualified).
+    options: "-c search_path=pm,public",
     max: Number(process.env.DB_POOL_MAX || 20),
     idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 30_000),
     // Cap how long the pool will wait for a free connection before erroring;

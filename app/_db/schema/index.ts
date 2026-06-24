@@ -10,3 +10,4 @@ export * from "./contracts";
 export * from "./boq";
 export * from "./requests";
 export * from "./work-orders";
+export * from "../legacy"; // tables moved out of public.* into pm.* (kept outside the drizzle-kit glob)
