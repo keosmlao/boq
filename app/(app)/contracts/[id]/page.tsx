@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
-import { ArrowLeft, FileSignature, FolderKanban, CheckCircle2, Circle, ListChecks, Check } from "lucide-react";
+import { ArrowLeft, FileSignature, FolderKanban, CheckCircle2, Circle, ListChecks, Check, Paperclip } from "lucide-react";
 import { getContract, getLegacyContract, deleteContract, setContractApproval } from "@/_actions/contracts";
 import { deleteProjectContract, approveProjectAction } from "@/_actions/projects";
 import { checkAccountingApprove } from "@/_actions/boq";
@@ -170,6 +170,35 @@ export default function ContractDetailPage() {
             <Info label={t("contracts.paymentTerms", "ເງື່ອນໄຂຈ່າຍ")} value={c.payment_terms} full />
             <Info label={t("common.note", "ໝາຍເຫດ")} value={c.notes} full />
           </div>
+
+          {Array.isArray(c.installments) && c.installments.length > 0 && (
+            <div className="mt-4 border-t border-[var(--theme-border-subtle)] pt-3">
+              <div className="mb-2 text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("contracts.installments", "ງວດການຊຳລະ")}</div>
+              <ul className="space-y-1.5">
+                {c.installments.map((it: any, i: number) => (
+                  <li key={i} className="flex items-center justify-between rounded-md bg-[var(--theme-bg-muted)] px-3 py-1.5 text-[12.5px]">
+                    <span className="text-[var(--theme-text)]">{t("contracts.installmentNo", "ງວດ")} {it.installment_no}{it.items?.[0]?.description ? ` · ${it.items[0].description}` : ""}</span>
+                    <b className="tabular-nums">{money(it.total_amount)} {t("common.kip", "ບາດ")}</b>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {Array.isArray(c.attachments) && c.attachments.length > 0 && (
+            <div className="mt-4 border-t border-[var(--theme-border-subtle)] pt-3">
+              <div className="mb-2 text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("contracts.attachments", "ເອກະສານແນບ")}</div>
+              <ul className="space-y-1.5">
+                {c.attachments.map((a: any, i: number) => (
+                  <li key={i}>
+                    <a href={a.file_path} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--theme-primary)] hover:underline">
+                      <Paperclip size={13} /> {a.file_name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Card>
         <Card className="p-5">
           <SectionHeader icon={<CheckCircle2 size={15} />} title={t("contracts.approvalTitle", "ການອະນຸມັດ")} tone="emerald" />

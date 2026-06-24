@@ -217,7 +217,21 @@ export async function getContract(id: string): Promise<Record<string, unknown> |
     await ensureContractSchema();
     const result = await query(`SELECT * FROM odg_contract WHERE id = $1 LIMIT 1`, [id]);
     if (!result.rows.length) return fail("Contract not found");
-    return result.rows[0];
+    const c: any = result.rows[0];
+    // Installments + document attachments are linked by contract_no.
+    const [inst, att] = await Promise.all([
+      query(
+        `SELECT installment_no, total_amount, items FROM odg_projects_item
+           WHERE contract_no = $1 ORDER BY installment_no ASC`,
+        [c.contract_no],
+      ),
+      query(
+        `SELECT id, file_name, file_path FROM odg_project_request_attachments
+           WHERE contract_no = $1 ORDER BY id ASC`,
+        [c.contract_no],
+      ),
+    ]);
+    return { ...c, installments: inst.rows, attachments: att.rows };
   } catch (e) { return fail((e as Error).message); }
 }
 
@@ -258,8 +272,42 @@ export async function updateContract(id: string, body: any): Promise<{ success: 
       ],
     );
     if (!result.rows.length) return fail("Contract not found");
+    const updated: any = result.rows[0];
+    const contractNo = updated.contract_no;
+
+    // Installments — replace the whole set (งวด 1 = ຄ່າແອ, งวด 2 = ຄ່າຕິດຕັ້ງ).
+    if (Array.isArray(body.installments)) {
+      await query(`DELETE FROM odg_projects_item WHERE contract_no = $1`, [contractNo]);
+      for (const inst of body.installments) {
+        const amt = num(inst.total_amount);
+        if (!(amt > 0)) continue;
+        await query(
+          `INSERT INTO odg_projects_item
+             (project_id, contract_no, installment_no, total_amount, items, created_at)
+           VALUES ($1, $2, $3, $4, $5::jsonb, NOW())`,
+          [num(updated.project_id), contractNo, num(inst.installment_no), amt, JSON.stringify([{ description: inst.label || "", amount: amt }])],
+        );
+      }
+    }
+
+    // Attachments — delete removed, add new (base64) ones.
+    const removedIds = Array.isArray(body.removedAttachmentIds) ? body.removedAttachmentIds.map(Number).filter(Boolean) : [];
+    if (removedIds.length) {
+      await query(`DELETE FROM odg_project_request_attachments WHERE id = ANY($1::int[]) AND contract_no = $2`, [removedIds, contractNo]);
+    }
+    const newAtts = Array.isArray(body.attachments) ? body.attachments.filter((a: any) => a?.base64) : [];
+    for (const att of newAtts) {
+      const filePath = await saveBase64File({ base64: att.base64, fileName: att.fileName || "contract-doc", relativeDir: "uploads/contracts" });
+      if (!filePath) continue;
+      await query(
+        `INSERT INTO odg_project_request_attachments (request_id, file_name, file_path, uploaded_at, contract_no)
+         VALUES (NULL, $1, $2, NOW(), $3)`,
+        [att.fileName || "contract-doc", filePath, contractNo],
+      );
+    }
+
     invalidate("projects:");
-    return { success: true, data: result.rows[0] };
+    return { success: true, data: updated };
   } catch (e) { return fail((e as Error).message); }
 }
 

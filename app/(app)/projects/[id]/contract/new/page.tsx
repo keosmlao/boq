@@ -46,14 +46,16 @@ export default function CreateContractPage() {
   const [acAmount, setAcAmount] = useState("");        // งวด 1 · ຄ່າແອ
   const [installAmount, setInstallAmount] = useState(""); // งวด 2 · ຄ່າຕິດຕັ້ງ
   const [notes, setNotes] = useState("");
-  const [attachments, setAttachments] = useState<{ fileName: string; base64: string }[]>([]);
+  type Att = { id?: number; fileName: string; file_path?: string; base64?: string };
+  const [attachments, setAttachments] = useState<Att[]>([]);
+  const [removedAttIds, setRemovedAttIds] = useState<number[]>([]);
 
   const onPickFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const read = await Promise.all(
       files.map(
         (f) =>
-          new Promise<{ fileName: string; base64: string }>((resolve) => {
+          new Promise<Att>((resolve) => {
             const r = new FileReader();
             r.onload = () => resolve({ fileName: f.name, base64: String(r.result).split(",")[1] || "" });
             r.readAsDataURL(f);
@@ -62,6 +64,14 @@ export default function CreateContractPage() {
     );
     setAttachments((prev) => [...prev, ...read.filter((x) => x.base64)]);
     e.target.value = "";
+  };
+
+  const removeAttachment = (i: number) => {
+    setAttachments((prev) => {
+      const a = prev[i];
+      if (a?.id) setRemovedAttIds((ids) => [...ids, a.id!]);
+      return prev.filter((_, j) => j !== i);
+    });
   };
 
   useEffect(() => {
@@ -77,6 +87,14 @@ export default function CreateContractPage() {
             setEndDate((cres.end_date || "").toString().slice(0, 10));
             setPaymentTerms(cres.payment_terms || "");
             setNotes(cres.notes || "");
+            // Pre-fill the 2 installment amounts + existing attachments.
+            const insts: any[] = Array.isArray(cres.installments) ? cres.installments : [];
+            const i1 = insts.find((x) => Number(x.installment_no) === 1);
+            const i2 = insts.find((x) => Number(x.installment_no) === 2);
+            if (i1?.total_amount != null) setAcAmount(String(Number(i1.total_amount)));
+            if (i2?.total_amount != null) setInstallAmount(String(Number(i2.total_amount)));
+            const atts: any[] = Array.isArray(cres.attachments) ? cres.attachments : [];
+            setAttachments(atts.map((a) => ({ id: a.id, fileName: a.file_name, file_path: a.file_path })));
           }
           setLoading(false);
           return;
@@ -151,6 +169,9 @@ export default function CreateContractPage() {
             start_date: startDate,
             end_date: endDate,
             payment_terms: composedTerms,
+            installments,
+            attachments: attachments.filter((a) => a.base64),
+            removedAttachmentIds: removedAttIds,
             notes,
           })
         : await createContract(
@@ -288,7 +309,7 @@ export default function CreateContractPage() {
               <Field label={t("common.note", "ໝາຍເຫດ")} className="lg:col-span-3">
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputCls} h-auto py-2`} />
               </Field>
-              {!editId && (
+              {(
                 <div className="lg:col-span-3">
                   <div className="mb-1.5 text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("contractNew.attachments", "ເອກະສານສັນຍາ (ແນບໄຟລ໌)")}</div>
                   <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)]/40 px-3 py-3 text-[12.5px] text-[var(--theme-text-mute)] transition hover:border-[var(--theme-primary)] hover:text-[var(--theme-primary)]">
@@ -299,8 +320,12 @@ export default function CreateContractPage() {
                     <ul className="mt-2 space-y-1.5">
                       {attachments.map((a, i) => (
                         <li key={i} className="flex items-center justify-between gap-2 rounded-md border border-[var(--theme-border-subtle)] bg-white px-2.5 py-1.5 text-[12px]">
-                          <span className="flex min-w-0 items-center gap-1.5 truncate text-[var(--theme-text)]"><Paperclip size={12} className="shrink-0 text-[var(--theme-text-mute)]" /> {a.fileName}</span>
-                          <button type="button" onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))} className="shrink-0 text-[var(--theme-text-mute)] hover:text-rose-600">
+                          {a.file_path ? (
+                            <a href={a.file_path} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1.5 truncate text-[var(--theme-primary)] hover:underline"><Paperclip size={12} className="shrink-0" /> {a.fileName}</a>
+                          ) : (
+                            <span className="flex min-w-0 items-center gap-1.5 truncate text-[var(--theme-text)]"><Paperclip size={12} className="shrink-0 text-[var(--theme-text-mute)]" /> {a.fileName}</span>
+                          )}
+                          <button type="button" onClick={() => removeAttachment(i)} className="shrink-0 text-[var(--theme-text-mute)] hover:text-rose-600">
                             <X size={13} />
                           </button>
                         </li>
