@@ -13,13 +13,55 @@
  */
 import pg from "pg";
 
+// All tables OWNED by the BOQ2026 app (referenced in app code). Moved into pm.
+// EXCLUDES odg_employee — a shared HR master other systems own; the app only
+// JOIN-reads it, so it stays in public (modelled read-only under app/_db/erp).
 const TABLES = [
+  // lookups / auth / reference
   "odg_project_manager_user",
   "odg_project_type",
   "odg_project_business_type",
   "odg_project_business_model",
   "odg_task_master",
   "odg_withdraw_info",
+  // app-created (v2)
+  "odg_activities",
+  "odg_app_user",
+  "odg_chat_messages",
+  "odg_chat_read",
+  "odg_notifications",
+  "odg_record_activities",
+  "odg_record_followers",
+  "odg_device_token",
+  "odg_craftsman_location",
+  "odg_craftsman_presence",
+  // project management domain
+  "odg_projects",
+  "odg_projects_boq",
+  "odg_projects_boq_detail",
+  "odg_projects_contract",
+  "odg_projects_contract_detail",
+  "odg_projects_item",
+  "odg_project_task",
+  "odg_project_pause",
+  "odg_project_status_history",
+  "odg_project_request_attachments",
+  "odg_quotation",
+  "odg_contract",
+  "odg_request",
+  "odg_requests",
+  "odg_requests_detail",
+  "odg_survey",
+  "odg_technicians",
+  "odg_std_install_task",
+  "odg_wo_material_request",
+  "odg_work_order",
+  "odg_work_orders",
+  "odg_work_order_checkins",
+  "odg_work_order_logs",
+  "odg_work_order_materials",
+  "odg_work_order_tasks",
+  "odg_work_schedule",
 ];
 
 const pool = new pg.Pool({
