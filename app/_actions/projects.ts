@@ -170,6 +170,7 @@ export async function deleteProjectAction(id: string): Promise<Result> {
   try {
     await requirePermission("projects", "delete");
     await deleteProjectCascade(cleanText(id));
+    await logActivity("project", cleanText(id), "ລຶບໂຄງການ");
     invalidate("projects:");
     return ok({ message: "Deleted" });
   } catch (e) { return fail((e as Error).message); }
@@ -214,6 +215,7 @@ export async function editProjectAction(id: string, formData: FormData): Promise
       imageUrl,
     });
 
+    await logActivity("project", projectId, "ແກ້ໄຂໂຄງການ", projectName);
     invalidate("projects:");
     return ok({ message: "Updated" });
   } catch (e) { return fail((e as Error).message); }

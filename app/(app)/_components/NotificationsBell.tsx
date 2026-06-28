@@ -43,6 +43,7 @@ const ENTITY_ROUTE: Record<string, { base: string }> = {
   boq: { base: "/boq" },
   request: { base: "/requests" },
   work_order: { base: "/work-orders" },
+  customer: { base: "/customers" },
 };
 const KIND_ICON: Record<string, React.ReactNode> = {
   comment: <MessageSquare size={13} />,

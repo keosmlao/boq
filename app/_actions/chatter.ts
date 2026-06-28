@@ -19,7 +19,7 @@ type Fail = { success: false; message: string };
 function ok<T>(data: T): Ok<T> { return { success: true, data }; }
 function fail(message: string): Fail { return { success: false, message }; }
 
-const ENTITY_TYPES = ["project", "contract", "quotation", "boq", "request", "work_order"] as const;
+const ENTITY_TYPES = ["project", "contract", "quotation", "boq", "request", "work_order", "customer"] as const;
 type EntityType = (typeof ENTITY_TYPES)[number];
 
 export type FeedItem = {

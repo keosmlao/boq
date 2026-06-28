@@ -309,6 +309,7 @@ export async function updateContract(id: string, body: any): Promise<{ success: 
       );
     }
 
+    await logActivity("contract", id, "ແກ້ໄຂສັນຍາ", contractNo);
     invalidate("projects:");
     return { success: true, data: updated };
   } catch (e) { return fail((e as Error).message); }

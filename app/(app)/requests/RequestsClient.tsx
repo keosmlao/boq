@@ -39,6 +39,8 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
         rowHref={(r) => `/requests/${encodeURIComponent(r.id)}`}
         searchPlaceholder={t("requests.searchPlaceholder", "ຄົ້ນຫາ ເລກທີ່, ໂຄງການ...")}
         empty={t("requests.empty", "ຍັງບໍ່ມີການຂໍເບີກ")}
+        groupBy={(r) => r.project_name || t("requests.noProject", "(ບໍ່ລະບຸໂຄງການ)")}
+        groupLabel={t("requests.groupByProject", "ຈັດກຸ່ມຕາມໂຄງການ")}
         headerActions={
           <Btn onClick={() => setPick(true)}>
             <Plus size={14} /> {t("requests.create", "ສ້າງໃບຂໍເບີກ")}

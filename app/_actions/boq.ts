@@ -456,6 +456,7 @@ export async function updateBoqErp(
     });
 
     if (result.notFound) return fail("ບໍ່ພົບ BOQ");
+    await logActivity("boq", decodedDocNo, "ແກ້ໄຂ BOQ");
     invalidate("projects:");
     return { success: true, doc_no: decodedDocNo, total_items: validItems.length };
   } catch (e) {

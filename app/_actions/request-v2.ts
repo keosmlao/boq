@@ -559,6 +559,7 @@ export async function updateRequest(id: string, body: any): Promise<{ success: t
         const row = r.rows[0];
         if (!row) return;
         ok = true;
+        await logActivity("request", id, "ແກ້ໄຂໃບຂໍເບີກ");
         // Re-sync SML: a substituted (now-unapproved) request is pulled until
         // re-approved; otherwise the mirror is refreshed with the new lines.
         if (hasSub) {

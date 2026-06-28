@@ -130,6 +130,7 @@ export async function updateQuotation(id: string, body: any): Promise<{ success:
       ],
     );
     if (!result.rows.length) return fail("Quotation not found");
+    await logActivity("quotation", id, "ແກ້ໄຂໃບສະເໜີລາຄາ");
     invalidate("quotations:");
     return { success: true, data: result.rows[0] };
   } catch (e) { return fail((e as Error).message); }

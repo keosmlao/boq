@@ -2,6 +2,7 @@
 
 import { query } from "@/_lib/db";
 import { requirePermission } from "@/_lib/server-auth";
+import { logActivity } from "./chatter";
 import { ensureSurveySchema } from "@/_lib/schemas/survey";
 import { dateOrNull } from "@/_lib/schemas/quotations";
 import { saveWebFile } from "@/_lib/uploads";
@@ -28,8 +29,9 @@ export async function deleteSurvey(id: string): Promise<{ success: true } | Fail
   try {
     await requirePermission("projects", "delete");
     await ensureSurveySchema();
-    const r = await query(`DELETE FROM odg_survey WHERE id = $1 RETURNING id`, [id]);
+    const r = await query(`DELETE FROM odg_survey WHERE id = $1 RETURNING id, project_id`, [id]);
     if (!r.rows.length) return fail("Survey not found");
+    await logActivity("project", String(r.rows[0].project_id ?? ""), "ລຶບການສຳຫຼວດ");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -73,6 +75,7 @@ export async function createSurvey(formData: FormData): Promise<{ success: true;
         JSON.stringify(data),
       ],
     );
+    await logActivity("project", projectId, "ສ້າງການສຳຫຼວດ");
     return { success: true, data: result.rows[0] };
   } catch (e) {
     return fail((e as Error).message);

@@ -2,6 +2,7 @@
 
 import { query, withTransaction } from "@/_lib/db";
 import { requirePermission } from "@/_lib/server-auth";
+import { logActivity } from "./chatter";
 
 type Fail = { success: false; message: string };
 function fail(message: string): Fail {
@@ -122,6 +123,7 @@ export async function createCustomer(body: {
       );
     });
 
+    await logActivity("customer", code, "ສ້າງລູກຄ້າ", name);
     return { success: true, data: { code, name, phone: body?.phone || "" } };
   } catch (e) {
     return fail((e as Error).message);
@@ -142,6 +144,7 @@ export async function updateCustomer(
       [code, name, body?.address || "", body?.province || "", body?.district || "", body?.village || "", body?.phone || ""],
     );
     if (!r.rows.length) return fail("Customer not found");
+    await logActivity("customer", code, "ແກ້ໄຂລູກຄ້າ", name);
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -159,6 +162,7 @@ export async function deleteCustomer(code: string): Promise<{ success: true } | 
       deleted = r.rows.length;
     });
     if (!deleted) return fail("ລົບບໍ່ໄດ້ (ບໍ່ແມ່ນລູກຄ້າໂຄງການ ຫຼື ບໍ່ພົບ)");
+    await logActivity("customer", code, "ລຶບລູກຄ້າ");
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
