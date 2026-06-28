@@ -1231,18 +1231,23 @@ export async function deleteProjectCascade(projectId) {
   await withTransaction(async (client) => {
     const projectIdNumber = toNumber(projectId);
 
-    // Delete that tolerates an optional table not existing in this DB (42P01):
-    // a missing child table must not abort the whole project deletion.
-    const tryDelete = async (sql, params) => {
+    // Best-effort cleanup: an auxiliary table that doesn't exist / differs in
+    // this DB must never abort the project deletion. The statement runs inside a
+    // savepoint so any failure is rolled back and skipped, not propagated.
+    const tryRun = async (sql, params) => {
       await client.query("SAVEPOINT del_sp");
       try {
-        await client.query(sql, params);
+        const r = await client.query(sql, params);
         await client.query("RELEASE SAVEPOINT del_sp");
+        return r;
       } catch (err) {
         await client.query("ROLLBACK TO SAVEPOINT del_sp");
-        if (err?.code !== "42P01") throw err;
+        console.error("deleteProjectCascade: skipped a cleanup step:", err?.message || err);
+        return { rows: [] };
       }
     };
+    const tryDelete = tryRun;
+    const trySelect = tryRun;
     const contractResult = await client.query(
       `
         SELECT roworder, contract_no
@@ -1259,7 +1264,7 @@ export async function deleteProjectCascade(projectId) {
     // v2 contracts live in odg_contract (keyed by project_id). Gather their
     // contract numbers too so attachments / items / detail keyed by contract_no
     // are cleaned up, then delete the v2 contracts themselves below.
-    const v2ContractResult = await client.query(
+    const v2ContractResult = await trySelect(
       `SELECT contract_no FROM odg_contract WHERE project_id = $1`,
       [String(projectId)],
     );
@@ -1335,22 +1340,22 @@ export async function deleteProjectCascade(projectId) {
 
     // v2 material requests (odg_request, JSON) + their SML mirror in ic_trans
     // (doc_no = request_no, trans_type 3 / flag 122). Keyed by project_id (TEXT).
-    const v2ReqResult = await client.query(
+    const v2ReqResult = await trySelect(
       `SELECT request_no FROM odg_request WHERE project_id = $1`,
       [String(projectId)],
     );
     const v2ReqNos = v2ReqResult.rows.map((row) => cleanText(row.request_no)).filter(Boolean);
     if (v2ReqNos.length) {
-      await client.query(
+      await tryDelete(
         `DELETE FROM ic_trans_detail WHERE doc_no = ANY($1::text[]) AND trans_type = 3 AND trans_flag = 122`,
         [v2ReqNos],
       );
-      await client.query(
+      await tryDelete(
         `DELETE FROM ic_trans WHERE doc_no = ANY($1::text[]) AND trans_type = 3 AND trans_flag = 122`,
         [v2ReqNos],
       );
     }
-    await client.query(`DELETE FROM odg_request WHERE project_id = $1`, [String(projectId)]);
+    await tryDelete(`DELETE FROM odg_request WHERE project_id = $1`, [String(projectId)]);
 
     // Tasks reference work orders (work_order_id) and contracts — delete before both.
     await client.query(`DELETE FROM odg_project_task WHERE project_id = $1`, [String(projectId)]);
@@ -1418,7 +1423,7 @@ export async function deleteProjectCascade(projectId) {
     );
 
     // v2 contracts (odg_contract, keyed by project_id).
-    await client.query(`DELETE FROM odg_contract WHERE project_id = $1`, [String(projectId)]);
+    await tryDelete(`DELETE FROM odg_contract WHERE project_id = $1`, [String(projectId)]);
 
     await client.query(
       `
