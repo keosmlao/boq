@@ -124,17 +124,45 @@ export async function notifyManagers(
     const type = cleanText(entityType);
     const id = cleanText(entityId);
     if (!type || !id) return;
-    await query(
-      `INSERT INTO public.odg_notifications (recipient_username, entity_type, entity_id, kind, actor_username, actor_name, body)
-       SELECT u.username, $1, $2, $3, $4, $5, $6
-         FROM public.odg_app_user u
-        WHERE COALESCE(u.active, true) = true
-          AND (
-            lower(COALESCE(u.role, '')) IN ('admin', 'manager')
-            OR COALESCE(u.permissions -> 'notifications', '[]'::jsonb) ? 'receive'
-          )`,
-      [type, id, cleanText(kind), cleanText(actorUsername), cleanText(actorName) || null, cleanText(body) || null],
-    );
+    const kindC = cleanText(kind);
+    const actor = cleanText(actorUsername);
+    const aname = cleanText(actorName) || null;
+    const bodyC = cleanText(body) || null;
+    const params = [type, id, kindC, actor, aname, bodyC];
+
+    // 1) Managers/admins + anyone granted notifications.receive (excluding the
+    //    actor — they're added in step 2). Wrapped separately so a jsonb/type
+    //    quirk here can never block the actor's own notification below.
+    try {
+      await query(
+        `INSERT INTO public.odg_notifications (recipient_username, entity_type, entity_id, kind, actor_username, actor_name, body)
+         SELECT u.username, $1, $2, $3, $4, $5, $6
+           FROM public.odg_app_user u
+          WHERE COALESCE(u.active, true) = true
+            AND u.username <> $4
+            AND (
+              lower(COALESCE(u.role, '')) IN ('admin', 'manager')
+              OR COALESCE(u.permissions -> 'notifications', '[]'::jsonb) ? 'receive'
+            )`,
+        params,
+      );
+    } catch (e) {
+      console.error("notifyManagers (audience):", (e as Error).message);
+    }
+
+    // 2) The actor always gets it too — so whoever performs the action sees the
+    //    movement in their own bell (works even for ERP-only / non-app users).
+    if (actor) {
+      try {
+        await query(
+          `INSERT INTO public.odg_notifications (recipient_username, entity_type, entity_id, kind, actor_username, actor_name, body)
+           VALUES ($4, $1, $2, $3, $4, $5, $6)`,
+          params,
+        );
+      } catch (e) {
+        console.error("notifyManagers (actor):", (e as Error).message);
+      }
+    }
   } catch {
     /* non-critical */
   }
