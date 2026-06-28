@@ -7,11 +7,12 @@
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Save, FileSignature, Paperclip, X } from "lucide-react";
+import { ArrowLeft, Loader2, Save, FileSignature, Paperclip, X, Wind, Wrench } from "lucide-react";
 import { getQuotations } from "@/_actions/quotations";
 import { createContract, getContracts, getContract, updateContract } from "@/_actions/contracts";
 import { advanceProjectStage } from "@/_actions/projects";
 import { Page, Card, Btn, Field, inputCls } from "../../../../_components/ui";
+import RSelect from "../../../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
 
 const todayISO = () => {
@@ -266,13 +267,12 @@ export default function CreateContractPage() {
                 </Field>
               ) : (
                 <Field label={t("contractNew.refQuotation", "ອ້າງອີງໃບສະເໜີ (ອະນຸມັດແລ້ວ)")} required className="lg:col-span-2">
-                  <select value={quoId} onChange={(e) => setQuoId(e.target.value)} className={inputCls}>
-                    {approvedQuos.map((q) => (
-                      <option key={q.id} value={String(q.id)}>
-                        {q.quotation_no} — {money(q.total_amount)}
-                      </option>
-                    ))}
-                  </select>
+                  <RSelect
+                    value={quoId}
+                    onChange={setQuoId}
+                    options={approvedQuos.map((q) => ({ value: String(q.id), label: `${q.quotation_no} — ${money(q.total_amount)}` }))}
+                    placeholder={t("contractNew.refQuotation", "ອ້າງອີງໃບສະເໜີ (ອະນຸມັດແລ້ວ)")}
+                  />
                 </Field>
               )}
               {!editId && (
@@ -290,20 +290,58 @@ export default function CreateContractPage() {
                 <input type="date" required value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
               </Field>
               <div className="lg:col-span-3">
-                <div className="mb-1.5 text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("contractNew.paymentTerms", "ເງື່ອນໄຂການຊຳລະ")}</div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label={t("contractNew.installmentAc", "ງວດ 1 · ຄ່າແອ (ບາດ)")}>
-                    <input type="number" min="0" inputMode="numeric" value={acAmount} onChange={(e) => setAcAmount(e.target.value)} className={`${inputCls} text-right tabular-nums`} placeholder="0" />
-                  </Field>
-                  <Field label={t("contractNew.installmentInstall", "ງວດ 2 · ຄ່າຕິດຕັ້ງ (ບາດ)")}>
-                    <input type="number" min="0" inputMode="numeric" value={installAmount} onChange={(e) => setInstallAmount(e.target.value)} className={`${inputCls} text-right tabular-nums`} placeholder="0" />
-                  </Field>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="h-4 w-1 rounded bg-[var(--theme-primary)]" />
+                  <span className="text-[13px] font-bold text-[var(--theme-text)]">{t("contractNew.paymentTitle", "ການຊຳລະ — ແບ່ງເປັນ 2 ສ່ວນ")}</span>
                 </div>
-                <div className={`mt-1.5 flex items-center justify-between rounded-lg px-3 py-1.5 text-[12px] ${sumMatches ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                  <span>{t("contractNew.installmentSum", "ລວມ 2 ງວດ")}: <b className="tabular-nums">{money(installSum)}</b> {t("common.kip", "ບາດ")}</span>
-                  {contractTotal > 0 && (
-                    <span>{sumMatches ? t("contractNew.sumOk", "= ຍອດສັນຍາ ✓") : `${t("contractNew.contractTotal", "ຍอดสัญญา")}: ${money(contractTotal)}`}</span>
-                  )}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {/* ສ່ວນແອ */}
+                  <div className="rounded-xl border border-cyan-200 bg-cyan-50/40 p-3.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-100 text-cyan-600"><Wind size={17} /></span>
+                        <div>
+                          <div className="text-[12.5px] font-bold text-slate-800">{t("contractNew.partAc", "ສ່ວນແອ")}</div>
+                          <div className="text-[10.5px] text-slate-400">{t("contractNew.partAcDesc", "ຄ່າເຄື່ອງແອ")}</div>
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10.5px] font-bold tabular-nums text-cyan-700">{installSum > 0 ? Math.round(((Number(acAmount) || 0) / installSum) * 100) : 0}%</span>
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-cyan-200 bg-white px-2.5 focus-within:ring-2 focus-within:ring-cyan-100">
+                      <input type="number" min="0" inputMode="numeric" value={acAmount} onChange={(e) => setAcAmount(e.target.value)} className="h-9 min-w-0 flex-1 bg-transparent text-right text-[14px] font-bold tabular-nums text-slate-800 outline-none" placeholder="0" />
+                      <span className="text-[11px] font-semibold text-slate-400">{t("common.kip", "ບາດ")}</span>
+                    </div>
+                  </div>
+                  {/* ສ່ວນຕິດຕັ້ງ */}
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600"><Wrench size={17} /></span>
+                        <div>
+                          <div className="text-[12.5px] font-bold text-slate-800">{t("contractNew.partInstall", "ສ່ວນຕິດຕັ້ງ")}</div>
+                          <div className="text-[10.5px] text-slate-400">{t("contractNew.partInstallDesc", "ຄ່າແຮງຕິດຕັ້ງ")}</div>
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10.5px] font-bold tabular-nums text-amber-700">{installSum > 0 ? Math.round(((Number(installAmount) || 0) / installSum) * 100) : 0}%</span>
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-2.5 focus-within:ring-2 focus-within:ring-amber-100">
+                      <input type="number" min="0" inputMode="numeric" value={installAmount} onChange={(e) => setInstallAmount(e.target.value)} className="h-9 min-w-0 flex-1 bg-transparent text-right text-[14px] font-bold tabular-nums text-slate-800 outline-none" placeholder="0" />
+                      <span className="text-[11px] font-semibold text-slate-400">{t("common.kip", "ບາດ")}</span>
+                    </div>
+                  </div>
+                </div>
+                {/* ລວມທັງໝົດ */}
+                <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2.5 ${sumMatches ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+                  <span className="text-[12px] font-bold text-slate-600">{t("contractNew.paymentTotal", "ລວມທັງໝົດ")}</span>
+                  <div className="flex items-center gap-2">
+                    <b className={`text-[16px] tabular-nums ${sumMatches ? "text-emerald-700" : "text-amber-700"}`}>{money(installSum)}</b>
+                    <span className="text-[12px] text-slate-500">{t("common.kip", "ບາດ")}</span>
+                    {contractTotal > 0 && (
+                      <span className={`ml-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${sumMatches ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                        {sumMatches ? t("contractNew.sumOk", "= ຍອດສັນຍາ ✓") : `${t("contractNew.contractTotal", "ຍອດສັນຍາ")}: ${money(contractTotal)}`}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <Field label={t("common.note", "ໝາຍເຫດ")} className="lg:col-span-3">

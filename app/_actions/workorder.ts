@@ -6,6 +6,7 @@ import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { ensureProjectTaskSchema } from "@/_lib/schemas/tasks";
 import { requireUser, requirePermission } from "@/_lib/server-auth";
 import { can } from "@/_lib/permissions";
+import { logActivity } from "./chatter";
 import {
   approveWorkOrderAs,
   respondWorkOrderAs,
@@ -109,6 +110,7 @@ export async function deleteWorkOrder(id: string): Promise<{ success: true } | F
       );
       await client.query(`DELETE FROM odg_work_order WHERE id = $1`, [id]);
     });
+    await logActivity("work_order", String(id), "ລຶບໃບງານ");
     invalidate("wo:");
     invalidate("tasks:");
     return { success: true };
@@ -337,6 +339,7 @@ export async function createWorkOrder(body: any): Promise<{ success: true; data:
       { workOrderId: String(result.id), type: "wo_issued" },
     );
 
+    await logActivity("work_order", String(result.id), "ສ້າງໃບງານ", result.work_no ?? undefined);
     return { success: true, data: result };
   } catch (e) {
     return fail((e as Error).message);

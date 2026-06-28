@@ -11,7 +11,7 @@
  * The "users" admin area is gated by role (manager+), never by the matrix.
  */
 export type Role = "admin" | "manager" | "head_craftsman" | "staff";
-export type Action = "view" | "create" | "edit" | "delete" | "approve" | "approve_next" | "approve_substitute";
+export type Action = "view" | "create" | "edit" | "delete" | "approve" | "approve_next" | "approve_substitute" | "receive";
 export type Permissions = Record<string, Action[]>;
 
 export type AccessUser = {
@@ -45,6 +45,8 @@ export const MODULES: ModuleDef[] = [
   { key: "finance", label: "ບັນຊີ / ງວດຈ່າຍ", href: "/finance", actions: ["view"] },
   { key: "inventory", label: "ສິນຄ້າ / ສະຕັອກ", href: "/inventory", actions: ["view"] },
   { key: "reports", label: "ລາຍງານ & ສະຖິຕິ", href: "/reports", actions: ["view"] },
+  // Not a sidebar page — only grants who receives system movement notifications.
+  { key: "notifications", label: "ການແຈ້ງເຕືອນ", href: "/notifications", actions: ["receive"] },
 ];
 
 export const ACTION_LABELS: Record<Action, string> = {
@@ -55,6 +57,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   approve: "ອະນຸມັດ",
   approve_next: "ອະນຸມັດໃບທີ 2+",
   approve_substitute: "ອະນຸມັດການປ່ຽນແທນ",
+  receive: "ຮັບແຈ້ງເຕືອນ",
 };
 
 export const ROLE_LABELS: Record<Role, string> = {

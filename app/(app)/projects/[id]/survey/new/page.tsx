@@ -11,6 +11,7 @@ import { ArrowLeft, Loader2, Save, ClipboardCheck, Plus, Trash2, ImagePlus, X } 
 import { getProjectBasic, advanceProjectStage } from "@/_actions/projects";
 import { createSurvey } from "@/_actions/survey";
 import { Page, Card, Btn, Field, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
+import RSelect from "../../../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
 
 const todayISO = () => {
@@ -228,11 +229,17 @@ export default function SurveyPage() {
           <Sec>{t("surveyNew.siteChecklist", "Checklist ໜ້າງານ")}</Sec>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t("surveyNew.powerReady", "ໄຟຟ້າພ້ອມບໍ?")}>
-              <select value={check.power} onChange={(e) => setCheck({ ...check, power: e.target.value })} className={inputCls}>
-                <option value="">{t("surveyNew.selectDash", "- ເລືອກ -")}</option>
-                <option value="ມີ">{t("surveyNew.yes", "ມີ")}</option>
-                <option value="ບໍ່ມີ">{t("surveyNew.no", "ບໍ່ມີ")}</option>
-              </select>
+              <RSelect
+                value={check.power}
+                onChange={(v) => setCheck({ ...check, power: v })}
+                isSearchable={false}
+                isClearable
+                placeholder={t("surveyNew.selectDash", "- ເລືອກ -")}
+                options={[
+                  { value: "ມີ", label: t("surveyNew.yes", "ມີ") },
+                  { value: "ບໍ່ມີ", label: t("surveyNew.no", "ບໍ່ມີ") },
+                ]}
+              />
             </Field>
             <Field label={t("surveyNew.wallCeilingType", "ປະເພດຝາ/ເພດານ")}>
               <input value={check.wallType} onChange={(e) => setCheck({ ...check, wallType: e.target.value })} className={inputCls} placeholder={t("surveyNew.wallTypePlaceholder", "ກໍ່ອິດ / ໄມ້ / ...")} />

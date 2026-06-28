@@ -30,9 +30,11 @@ import {
   MapPin,
   Award,
   ClipboardCheck,
+  Inbox,
   X,
 } from "lucide-react";
 import { can, canView, isAdmin, ROLE_LABELS, type Role } from "@/_lib/permissions";
+import { getApprovalCount } from "@/_actions/approvals";
 import { clearV2User, getV2User, type V2User } from "../../_lib/session";
 import { useTheme } from "@/_components/theme/ThemeProvider";
 import NavProgress from "./NavProgress";
@@ -47,7 +49,10 @@ type NavItem = { label: string; tKey: string; href: string; icon: React.ReactNod
 type NavSection = { section?: string; sectionKey?: string; items: NavItem[] };
 
 const NAV_SECTIONS: NavSection[] = [
-  { items: [{ label: "ພາບລວມ", tKey: "nav.overview", href: "/", icon: <Home size={16} /> }] },
+  { items: [
+    { label: "ພາບລວມ", tKey: "nav.overview", href: "/", icon: <Home size={16} /> },
+    { label: "ລໍຖ້າອະນຸມັດ", tKey: "nav.approvals", href: "/approvals", icon: <Inbox size={16} />, permKey: "*" },
+  ] },
   {
     section: "ການຂາຍ",
     sectionKey: "nav.section.sales",
@@ -64,6 +69,7 @@ const NAV_SECTIONS: NavSection[] = [
     sectionKey: "nav.section.work",
     items: [
       { label: "BOQ", tKey: "nav.boq", href: "/boq", icon: <ListChecks size={16} /> },
+      { label: "ລວມວັດສະດຸ", tKey: "nav.materials", href: "/materials", icon: <Boxes size={16} />, permKey: "boq" },
       { label: "ຕາຕະລາງວຽກ", tKey: "nav.schedule", href: "/schedule", icon: <CalendarRange size={16} /> },
       { label: "ໃບງານ", tKey: "nav.workorders", href: "/work-orders", icon: <Wrench size={16} /> },
       { label: "ງານຕິດຕັ້ງມາດຕະຖານ", tKey: "nav.stdtasks", href: "/std-tasks", icon: <ClipboardCheck size={16} /> },
@@ -75,6 +81,7 @@ const NAV_SECTIONS: NavSection[] = [
     sectionKey: "nav.section.techs",
     items: [
       { label: "ຈັດການທີມຊ່າງ", tKey: "nav.techteams", href: "/tech-teams", icon: <UsersRound size={16} /> },
+      { label: "ປະຕິທິນງານຊ່າງ", tKey: "nav.techcalendar", href: "/tech-calendar", icon: <CalendarRange size={16} />, permKey: "work-orders" },
       { label: "ສະຫຼຸບຜົນງານຊ່າງ", tKey: "nav.techsummary", href: "/tech-summary", icon: <Award size={16} /> },
       { label: "ຕິດຕາມຊ່າງ", tKey: "nav.tracking", href: "/tracking", icon: <MapPin size={16} /> },
     ],
@@ -134,6 +141,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [user, setUser] = useState<V2User | null>(null);
   const [ready, setReady] = useState(false);
+  const [approvalCount, setApprovalCount] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { theme, toggle: toggleTheme } = useTheme();
@@ -148,6 +156,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     setUser(storedUser);
     setReady(true);
   }, [router]);
+
+  // Pending-approval count for the sidebar badge (refreshed periodically).
+  useEffect(() => {
+    let alive = true;
+    const tick = () => getApprovalCount().then((c) => { if (alive) setApprovalCount(c); }).catch(() => {});
+    tick();
+    const h = setInterval(tick, 60_000);
+    return () => { alive = false; clearInterval(h); };
+  }, [pathname]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -169,6 +186,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ...section,
         items: section.items.filter((item) => {
           if (item.href === "/") return true;
+          if (item.permKey === "*") return true;
           if (item.href === "/users" || item.href === "/push-test") return isAdmin(user);
           return canView(user, item.permKey ?? item.href.slice(1));
         }),
@@ -269,11 +287,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       {item.icon}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{t(item.tKey, item.label)}</span>
+                    {item.href === "/approvals" && approvalCount > 0 && (
+                      <span className="ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">{approvalCount > 99 ? "99+" : approvalCount}</span>
+                    )}
                     <ChevronRight
                       size={13}
                       className={`transition-all duration-200 ${
                         active ? "text-blue-200" : "text-slate-700 opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100"
-                      }`}
+                      } ${item.href === "/approvals" && approvalCount > 0 ? "hidden" : ""}`}
                     />
                   </Link>
                 );

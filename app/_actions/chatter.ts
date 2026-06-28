@@ -11,7 +11,8 @@ import { cleanText } from "@/_lib/http";
 import { getSessionUser } from "@/_lib/server-auth";
 import { isManager } from "@/_lib/permissions";
 import { ensureFollower } from "./followers";
-import { notifyFollowers } from "./notifications";
+import { notifyFollowers, notifyManagers } from "./notifications";
+import { notifyManagers as pushManagers } from "@/_lib/push";
 
 type Ok<T> = { success: true; data: T };
 type Fail = { success: false; message: string };
@@ -124,6 +125,10 @@ export async function logActivity(entityType: string, entityId: string, action: 
        VALUES ($1, $2, 'activity', $3, $4, $5, $6)`,
       [type, id, cleanText(action), cleanText(body) || null, user?.username ?? null, user?.name ?? null],
     );
+    // Every logged movement notifies the back office (in-app bell + push).
+    const msg = `${cleanText(action)}${body ? ` · ${cleanText(body)}` : ""}`.slice(0, 200);
+    await notifyManagers(type, id, "activity", msg, user?.username ?? "", user?.name ?? undefined);
+    await pushManagers(cleanText(action) || "ມีการเคลื่อนไหว", msg, { entity_type: type, entity_id: id });
   } catch {
     // Activity logging must never break the underlying action.
   }

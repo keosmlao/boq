@@ -511,6 +511,7 @@ export async function deleteRequest(id: string): Promise<{ success: true } | Fai
         }
       });
       if (deleted) {
+        await logActivity("request", id, "ລຶບໃບຂໍເບີກ");
         invalidate("req:");
         invalidate("ic:");
         return { success: true };

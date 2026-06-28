@@ -24,6 +24,7 @@ import {
 import { can } from "@/_lib/permissions";
 import { getV2User, type V2User } from "../_lib/session";
 import { Page } from "./_components/ui";
+import DashboardActivity from "./_components/DashboardActivity";
 import { useT } from "@/_lib/i18n";
 
 const text = (value: unknown) => String(value ?? "").trim();
@@ -277,6 +278,8 @@ export default function DashboardClient({
               <div><p className="text-[10px] font-semibold text-slate-400">{t("overview.growth", "ການເຕີບໂຕ")}</p><p className="mt-1 text-[12px] font-bold text-slate-300">{loading ? "—" : `${Number(dashboard?.performance?.growth ?? 0)}%`}</p></div>
             </div>
           </section>
+
+          <DashboardActivity />
 
           {teams && (
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

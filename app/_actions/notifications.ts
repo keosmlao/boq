@@ -10,6 +10,7 @@
  */
 import { query } from "@/_lib/db";
 import { cleanText } from "@/_lib/http";
+import { notifyManagers as pushManagers } from "@/_lib/push";
 import { getSessionUser } from "@/_lib/server-auth";
 
 type Ok<T> = { success: true; data: T };
@@ -100,6 +101,55 @@ export async function notifyUser(
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [rcpt, type, id, cleanText(kind), cleanText(actorUsername), cleanText(actorName) || null, cleanText(body) || null],
     );
+  } catch {
+    /* non-critical */
+  }
+}
+
+/**
+ * Notify the notification audience — every active admin/manager, plus anyone
+ * explicitly granted the "notifications: receive" permission. Includes the
+ * actor too, so the back office sees a complete movement log in their bell.
+ */
+export async function notifyManagers(
+  entityType: string,
+  entityId: string,
+  kind: string,
+  body: string,
+  actorUsername: string,
+  actorName?: string,
+): Promise<void> {
+  try {
+    await ensureTable();
+    const type = cleanText(entityType);
+    const id = cleanText(entityId);
+    if (!type || !id) return;
+    await query(
+      `INSERT INTO public.odg_notifications (recipient_username, entity_type, entity_id, kind, actor_username, actor_name, body)
+       SELECT u.username, $1, $2, $3, $4, $5, $6
+         FROM public.odg_app_user u
+        WHERE COALESCE(u.active, true) = true
+          AND (
+            lower(COALESCE(u.role, '')) IN ('admin', 'manager')
+            OR COALESCE(u.permissions -> 'notifications', '[]'::jsonb) ? 'receive'
+          )`,
+      [type, id, cleanText(kind), cleanText(actorUsername), cleanText(actorName) || null, cleanText(body) || null],
+    );
+  } catch {
+    /* non-critical */
+  }
+}
+
+/**
+ * One-line document-event notifier for server actions — resolves the current
+ * user and notifies the back office (in-app bell + push). Best-effort: never
+ * throws, so it can't break the action it's called from.
+ */
+export async function notifyDocEvent(entityType: string, entityId: string, kind: string, body: string): Promise<void> {
+  try {
+    const u = await getSessionUser();
+    await notifyManagers(entityType, entityId, kind, body, u?.username || "", u?.name);
+    await pushManagers(body, body, { entity_type: cleanText(entityType), entity_id: cleanText(entityId) });
   } catch {
     /* non-critical */
   }

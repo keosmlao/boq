@@ -178,6 +178,7 @@ export async function createContract(body: any, opts: { fromQuotation?: string }
       return row;
     });
 
+    await logActivity("contract", String((data as any)?.id ?? (data as any)?.contract_no ?? ""), "ສ້າງສັນຍາ", (data as any)?.contract_no ?? undefined);
     invalidate("projects:");
     return { success: true, data };
   } catch (e) { return fail((e as Error).message); }
@@ -319,6 +320,7 @@ export async function deleteContract(id: string): Promise<{ success: true } | Fa
     await ensureContractSchema();
     const result = await query(`DELETE FROM odg_contract WHERE id = $1 RETURNING id`, [id]);
     if (!result.rows.length) return fail("Contract not found");
+    await logActivity("contract", id, "ລຶບສັນຍາ");
     invalidate("projects:");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }

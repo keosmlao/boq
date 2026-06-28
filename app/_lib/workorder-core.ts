@@ -11,6 +11,7 @@ import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { saveBase64File } from "@/_lib/uploads";
 import { can, isManager, type Permissions } from "@/_lib/permissions";
 import { notifyCraftsman, notifyManagers } from "@/_lib/push";
+import { notifyManagers as notifyManagersInApp } from "@/_actions/notifications";
 
 export type ActingUser = {
   username: string;
@@ -311,6 +312,10 @@ export async function createMaterialRequestAs(
         wh?.shelf_name || null,
       ],
     );
+    // Notify the back office (bell + push) that a craftsman requested materials.
+    const summary = `${actorName(user)} ຂໍເບີກວັດສະດຸ ${clean.length} ລາຍການ`;
+    await notifyManagersInApp("work_order", String(id), "material_request", summary, user.username, actorName(user));
+    await notifyManagers("ມີຄຳຂໍເບີກວັດສະດຸໃໝ່", summary, { entity_type: "work_order", entity_id: String(id) });
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);

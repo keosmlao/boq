@@ -14,6 +14,7 @@ import { getSurveys } from "@/_actions/survey";
 import { getCustomer } from "@/_actions/customers";
 import { Page, Card, Btn, Field, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
 import InventoryPicker from "../../../../_components/InventoryPicker";
+import RSelect from "../../../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
 
 type Line = { itemCode?: string; description: string; unit?: string; qty: number; unitPrice: number };
@@ -336,11 +337,16 @@ export default function CreateQuotationPage() {
               <input type="date" value={validityDate} onChange={(e) => setValidityDate(e.target.value)} className={inputCls} />
             </Field>
             <Field label={t("quotationNew.vatType", "ປະເພດ ອມພ (VAT)")}>
-              <select value={vatType} onChange={(e) => setVatType(e.target.value as any)} className={inputCls}>
-                <option value="none">{t("quotationNew.vatNone", "ບໍ່ມີ (0%)")}</option>
-                <option value="exclusive">{t("quotationNew.vatExclusive", "ແຍກນອກ")}</option>
-                <option value="inclusive">{t("quotationNew.vatInclusive", "ລວມໃນ")}</option>
-              </select>
+              <RSelect
+                value={vatType}
+                onChange={(v) => setVatType(v as any)}
+                isSearchable={false}
+                options={[
+                  { value: "none", label: t("quotationNew.vatNone", "ບໍ່ມີ (0%)") },
+                  { value: "exclusive", label: t("quotationNew.vatExclusive", "ແຍກນອກ") },
+                  { value: "inclusive", label: t("quotationNew.vatInclusive", "ລວມໃນ") },
+                ]}
+              />
             </Field>
             <Field label={t("quotationNew.customerAddress", "ທີ່ຢູ່ລູກຄ້າ")} className="sm:col-span-2 lg:col-span-6">
               <input value={cust.address} readOnly className={`${inputCls} cursor-default bg-[var(--theme-bg-muted)] text-[var(--theme-text-soft)] focus:border-slate-200 focus:ring-0`} placeholder={t("quotationNew.address", "ທີ່ຢູ່")} />

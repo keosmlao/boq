@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
 import { ArrowLeft, PackageOpen, Truck, FolderKanban, User, CalendarClock, Warehouse, MapPin } from "lucide-react";
-import { getRequestDetail, deleteRequest, setRequestStatus, approveSubstitute } from "@/_actions/request-v2";
+import { getRequestDetail, deleteRequest, approveSubstitute } from "@/_actions/request-v2";
 import { Page, Card, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
 import { getV2User } from "../../../_lib/session";
@@ -81,19 +81,7 @@ export default function RequestDetailPage() {
   // until someone with requests.approve_substitute approves it.
   const hasSubstitute = items.some((it: any) => it.substituted);
   const substituteApproved = !!r.substitute_approved;
-  const needsSubstApproval = isV2 && hasSubstitute && !substituteApproved;
   const canApproveSubstitute = can(user, "requests", "approve_substitute");
-
-  const toggleWithdrawn = async () => {
-    setMarking(true);
-    try {
-      const res: any = await setRequestStatus(String(id), withdrawn ? "requested" : "withdrawn");
-      if (res?.success) await refresh();
-      else alert(res?.message || t("requests.failed", "ບໍ່ສຳເລັດ"));
-    } finally {
-      setMarking(false);
-    }
-  };
 
   const approveSubst = async () => {
     setMarking(true);
@@ -334,21 +322,8 @@ export default function RequestDetailPage() {
                   </div>
                 )
               )}
-              {isV2 && (
-                <button
-                  onClick={toggleWithdrawn}
-                  disabled={marking || (!withdrawn && needsSubstApproval)}
-                  title={!withdrawn && needsSubstApproval ? t("requests.substituteNeedsApproval", "ມີການປ່ຽນສິນຄ້າ — ຕ້ອງອະນຸມັດກ່ອນເບີກ") : undefined}
-                  className={`flex h-9 w-full items-center justify-center gap-2 rounded-lg text-[12.5px] font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-                    withdrawn
-                      ? "border border-[var(--theme-border-subtle)] bg-white text-slate-600 hover:bg-slate-50"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                  }`}
-                >
-                  <Truck size={15} />
-                  <span>{marking ? t("common.saving", "ກຳລັງບັນທຶກ...") : withdrawn ? t("requests.cancelWithdraw", "ຍົກເລີກການເບີກ") : t("requests.markWithdrawn", "ໝາຍວ່າເບີກແລ້ວ")}</span>
-                </button>
-              )}
+              {/* The actual withdrawal (ໃບເບີກ) is created in SML by the warehouse;
+                  the app no longer marks requests withdrawn manually. */}
               {r.project_id && (
                 <button
                   onClick={() => router.push(`/projects/${r.project_id}`)}

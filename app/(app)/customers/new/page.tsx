@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, Save, UserPlus, User, MapPin } from "lucide-react";
 import { createCustomer, getCustomer, updateCustomer } from "@/_actions/customers";
 import { getProvinces, getDistricts, getVillages } from "@/_actions/lookups";
 import { Page, Card, Btn, Field, SectionHeader, inputCls } from "../../_components/ui";
+import RSelect from "../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
 
 type Opt = { value: string; label: string };
@@ -78,11 +79,24 @@ export default function NewCustomerPage() {
     if (v && form.province) setVillages(toOpts(await getVillages(form.province, v)));
   };
 
+  // Every field must be filled before the customer can be saved.
+  const requiredFields: [keyof typeof form, string][] = [
+    ["name", t("customers.customerName", "ຊື່ລູກຄ້າ")],
+    ["customerType", t("customers.customerType", "ປະເພດລູກຄ້າ")],
+    ["phone", t("customers.phone", "ເບີໂທ")],
+    ["province", t("customers.province", "ແຂວງ")],
+    ["district", t("customers.district", "ເມືອງ")],
+    ["village", t("customers.village", "ບ້ານ")],
+    ["address", t("customers.addressDetail", "ທີ່ຢູ່ (ລະອຽດ)")],
+  ];
+  const missingFields = requiredFields.filter(([k]) => !String(form[k] || "").trim()).map(([, label]) => label);
+  const isComplete = missingFields.length === 0;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!form.name.trim()) {
-      setError(t("customers.nameRequired", "ກະລຸນາໃສ່ຊື່ລູກຄ້າ"));
+    if (!isComplete) {
+      setError(`${t("customers.fillAllRequired", "ກະລຸນາໃສ່ຂໍ້ມູນໃຫ້ຄົບ")}: ${missingFields.join(", ")}`);
       return;
     }
     setSaving(true);
@@ -129,14 +143,15 @@ export default function NewCustomerPage() {
             <Field label={t("customers.customerName", "ຊື່ລູກຄ້າ")} required className="sm:col-span-2">
               <input value={form.name} onChange={(e) => set("name", e.target.value)} className={inputCls} placeholder={t("customers.customerName", "ຊື່ລູກຄ້າ")} />
             </Field>
-            <Field label={t("customers.customerType", "ປະເພດລູກຄ້າ")}>
-              <select value={form.customerType} onChange={(e) => set("customerType", e.target.value)} className={inputCls}>
-                {CUSTOMER_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+            <Field label={t("customers.customerType", "ປະເພດລູກຄ້າ")} required>
+              <RSelect
+                value={form.customerType}
+                onChange={(v) => set("customerType", v)}
+                options={CUSTOMER_TYPES.map((ct) => ({ value: ct, label: ct }))}
+                placeholder={t("customers.customerType", "ປະເພດລູກຄ້າ")}
+              />
             </Field>
-            <Field label={t("customers.phone", "ເບີໂທ")}>
+            <Field label={t("customers.phone", "ເບີໂທ")} required>
               <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} placeholder="020..." />
             </Field>
           </div>
@@ -145,25 +160,30 @@ export default function NewCustomerPage() {
         <Card className="border-t-2 border-t-emerald-400 p-4">
           <SectionHeader icon={<MapPin size={15} />} title={t("customers.location", "ສະຖານທີ່")} tone="emerald" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label={t("customers.province", "ແຂວງ")}>
+            <Field label={t("customers.province", "ແຂວງ")} required>
               <Select value={form.province} onChange={onProvince} options={provinces} placeholder={t("customers.selectProvince", "ເລືອກແຂວງ")} />
             </Field>
-            <Field label={t("customers.district", "ເມືອງ")}>
+            <Field label={t("customers.district", "ເມືອງ")} required>
               <Select value={form.district} onChange={onDistrict} options={districts} placeholder={t("customers.selectDistrict", "ເລືອກເມືອງ")} disabled={!form.province} />
             </Field>
-            <Field label={t("customers.village", "ບ້ານ")}>
+            <Field label={t("customers.village", "ບ້ານ")} required>
               <Select value={form.village} onChange={(v) => set("village", v)} options={villages} placeholder={t("customers.selectVillage", "ເລືອກບ້ານ")} disabled={!form.district} />
             </Field>
-            <Field label={t("customers.addressDetail", "ທີ່ຢູ່ (ລະອຽດ)")}>
+            <Field label={t("customers.addressDetail", "ທີ່ຢູ່ (ລະອຽດ)")} required>
               <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputCls} placeholder={t("customers.addressPlaceholder", "ບ້ານເລກທີ່, ໜ່ວຍ...")} />
             </Field>
           </div>
         </Card>
         </div>
 
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          {!isComplete && (
+            <span className="mr-auto text-[11.5px] font-medium text-amber-600">
+              {t("customers.fillAllRequired", "ກະລຸນາໃສ່ຂໍ້ມູນໃຫ້ຄົບ")}: {missingFields.join(", ")}
+            </span>
+          )}
           <Btn type="button" variant="outline" onClick={() => router.push("/customers")}>{t("common.cancel", "ຍົກເລີກ")}</Btn>
-          <Btn type="submit" disabled={saving}>
+          <Btn type="submit" disabled={saving || !isComplete}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("customers.saveCustomer", "ບັນທຶກລູກຄ້າ")}
           </Btn>
@@ -186,17 +206,5 @@ function Select({
   placeholder: string;
   disabled?: boolean;
 }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      className={`${inputCls} disabled:cursor-not-allowed disabled:bg-[var(--theme-bg-muted)] disabled:opacity-60`}
-    >
-      <option value="">{placeholder}</option>
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
-  );
+  return <RSelect value={value} onChange={onChange} options={options} placeholder={placeholder} disabled={disabled} isClearable />;
 }

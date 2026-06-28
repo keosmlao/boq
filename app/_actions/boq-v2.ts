@@ -10,6 +10,65 @@ function fail(message: string): Fail {
 }
 
 /**
+ * Company-wide consolidated materials — sums BOQ across ALL projects with the
+ * requested / withdrawn totals from v2 requests. Powers the global "ລວມວັດສະດຸ"
+ * page so procurement can see total demand in one place.
+ */
+export async function getAllMaterials(): Promise<{ success: true; data: any[] } | Fail> {
+  try {
+    const map = new Map<string, any>();
+    const keyOf = (code: any, desc: any) => String(code || "").trim() || String(desc || "").trim().toLowerCase();
+
+    // BOQ totals across every project's BOQ details.
+    try {
+      const ld = await query(
+        `SELECT item_code, item_name, unit_code, SUM(qty)::numeric AS qty
+         FROM odg_projects_boq_detail
+         GROUP BY item_code, item_name, unit_code`,
+      );
+      for (const r of ld.rows as any[]) {
+        const k = keyOf(r.item_code, r.item_name);
+        if (!k) continue;
+        const e = map.get(k) || { item_code: r.item_code || "", description: r.item_name || "", unit: r.unit_code || "", boq_qty: 0, request_qty: 0, withdraw_qty: 0, project_count: 0 };
+        e.boq_qty += num(r.qty);
+        if (!e.unit && r.unit_code) e.unit = r.unit_code;
+        map.set(k, e);
+      }
+    } catch (e) {
+      console.error("getAllMaterials BOQ:", (e as Error).message);
+    }
+
+    // v2 requests (ຂໍເບີກ) across all projects — credited to the BOQ item.
+    try {
+      await ensureRequestSchema();
+      const reqs = await query(`SELECT status, items FROM odg_request WHERE COALESCE(status,'') <> 'rejected'`);
+      for (const r of reqs.rows as any[]) {
+        const withdrawn = r.status === "withdrawn";
+        for (const it of Array.isArray(r.items) ? r.items : []) {
+          const e = map.get(keyOf(it.boq_item_code || it.item_code, it.description));
+          if (!e) continue;
+          if (withdrawn) e.withdraw_qty += num(it.qty);
+          else e.request_qty += num(it.qty);
+        }
+      }
+    } catch (e) {
+      console.error("getAllMaterials requests:", (e as Error).message);
+    }
+
+    const data = Array.from(map.values()).map((e) => {
+      const boqQty = num(e.boq_qty);
+      const req = num(e.request_qty);
+      const wd = num(e.withdraw_qty);
+      return { ...e, boq_qty: boqQty, request_qty: req, withdraw_qty: wd, remaining: Math.max(boqQty - req - wd, 0) };
+    });
+    data.sort((a, b) => String(a.description).localeCompare(String(b.description)));
+    return { success: true, data };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/**
  * All BOQs for the cross-project list — sourced from the ERP BOQ tables
  * (odg_projects_boq via getListBoq). requester/approver are resolved to
  * employee names inside getListBoq.
@@ -71,13 +130,16 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
   try {
     const map = new Map<string, any>();
     const keyOf = (code: any, desc: any) => String(code || "").trim() || String(desc || "").trim().toLowerCase();
-    const add = (code: any, desc: any, unit: any, qty: any) => {
+    const add = (code: any, desc: any, unit: any, qty: any, docNo?: any) => {
       const k = keyOf(code, desc);
       if (!k) return;
-      const e = map.get(k) || { item_code: code || "", description: desc || "", unit: unit || "", boq_qty: 0, request_qty: 0, withdraw_qty: 0 };
+      const e = map.get(k) || { item_code: code || "", description: desc || "", unit: unit || "", boq_qty: 0, request_qty: 0, withdraw_qty: 0, boq_docs: new Set<string>() };
       e.boq_qty += num(qty);
       if (!e.unit && unit) e.unit = unit;
       if (!e.description && desc) e.description = desc;
+      // Track which BOQ document(s) this item comes from.
+      const dn = String(docNo || "").trim();
+      if (dn) e.boq_docs.add(dn);
       map.set(k, e);
     };
 
@@ -87,12 +149,12 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
       const docNos = (lb.rows as any[]).map((r) => r.doc_no).filter(Boolean);
       if (docNos.length) {
         const ld = await query(
-          `SELECT item_code, item_name, unit_code, SUM(qty)::numeric AS qty
+          `SELECT doc_no, item_code, item_name, unit_code, SUM(qty)::numeric AS qty
            FROM odg_projects_boq_detail WHERE doc_no = ANY($1::text[])
-           GROUP BY item_code, item_name, unit_code`,
+           GROUP BY doc_no, item_code, item_name, unit_code`,
           [docNos],
         );
-        for (const r of ld.rows as any[]) add(r.item_code, r.item_name, r.unit_code, r.qty);
+        for (const r of ld.rows as any[]) add(r.item_code, r.item_name, r.unit_code, r.qty, r.doc_no);
 
         const rq = await query(
           `WITH requested AS (
@@ -152,6 +214,13 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
           if (!e) continue;
           if (withdrawn) e.withdraw_qty += num(it.qty);
           else e.request_qty += num(it.qty);
+          // Record substitutions: line issued as a different product than its BOQ item.
+          const boqCode = String(it.boq_item_code || "").trim();
+          const realCode = String(it.item_code || "").trim();
+          if (boqCode && realCode && boqCode !== realCode) {
+            if (!e.substitutes) e.substitutes = new Set<string>();
+            e.substitutes.add(`${realCode}${String(it.description || it.item_name || "").trim()}`);
+          }
         }
       }
     } catch (e) {
@@ -164,6 +233,14 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
       const pendingRequestQty = num(e.request_qty);
       const withdrawnQty = num(e.withdraw_qty);
       const availableQty = Math.max(boqQty - pendingRequestQty - withdrawnQty, 0);
+      const boqDocs = e.boq_docs instanceof Set ? [...e.boq_docs] : Array.isArray(e.boq_docs) ? e.boq_docs : [];
+      const SEP = String.fromCharCode(1);
+      const substitutes = e.substitutes instanceof Set
+        ? [...e.substitutes].map((s: string) => {
+            const i = s.indexOf(SEP);
+            return i >= 0 ? { code: s.slice(0, i), name: s.slice(i + 1) } : { code: s, name: "" };
+          })
+        : [];
       return {
         ...e,
         boq_qty: boqQty,
@@ -172,6 +249,8 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
         withdraw_qty: withdrawnQty,
         available_qty: availableQty,
         remaining: availableQty,
+        boq_docs: boqDocs,
+        substitutes,
       };
     });
     data.sort((a, b) => String(a.description).localeCompare(String(b.description)));

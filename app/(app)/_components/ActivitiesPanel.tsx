@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarClock, Check, X, Plus, ListTodo, Phone, Users, Mail, FileText, Loader2 } from "lucide-react";
 import { getActivities, scheduleActivity, markActivityDone, cancelActivity, getAssignableUsers, type Activity } from "@/_actions/activities";
+import RSelect from "./RSelect";
 import { useT } from "@/_lib/i18n";
 
 const POLL_MS = 8000;
@@ -146,14 +147,15 @@ export default function ActivitiesPanel({ entityType, entityId }: { entityType: 
             className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/15"
           />
           <div className="flex flex-wrap gap-2">
-            <select
-              value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
-              className="h-9 min-w-[140px] flex-1 rounded-xl border border-slate-200 bg-white px-2.5 text-[12.5px] font-semibold text-slate-700 outline-none focus:border-blue-500"
-            >
-              <option value="">{t("components.activities.assignSelf", "ມອບໝາຍ (ຕົນເອງ)")}</option>
-              {users.map((u) => <option key={u.username} value={u.username}>{u.name}</option>)}
-            </select>
+            <div className="min-w-[140px] flex-1">
+              <RSelect
+                value={assignee}
+                onChange={setAssignee}
+                isClearable
+                placeholder={t("components.activities.assignSelf", "ມອບໝາຍ (ຕົນເອງ)")}
+                options={users.map((u) => ({ value: u.username, label: u.name }))}
+              />
+            </div>
             <input
               type="date"
               value={due}

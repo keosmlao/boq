@@ -14,6 +14,7 @@ import { getCustomer } from "@/_actions/customers";
 import { getTasks } from "@/_actions/lookups";
 import { getProjectTasks, saveTaskPlan } from "@/_actions/tasks-v2";
 import { Page, Card, Btn, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
+import RSelect from "../../../../_components/RSelect";
 import TaskPickerModal from "../../../../_components/TaskPickerModal";
 import { useT } from "@/_lib/i18n";
 
@@ -215,16 +216,14 @@ export default function TaskPlanPage() {
                     <td className={`${tdCls} text-[11px] text-[var(--theme-text-mute)]`}>{i + 1}</td>
                     <td className={tdCls}>
                       {masters.length > 0 ? (
-                        <select value={r.master_id || ""} onChange={(e) => onPickTask(i, e.target.value)} className={`${inputCls} h-8`}>
-                          <option value="">{r.title || t("tasksNew.selectTask", "ເລືອກໜ້າວຽກ...")}</option>
-                          {masters
+                        <RSelect
+                          value={r.master_id || ""}
+                          onChange={(v) => onPickTask(i, v)}
+                          placeholder={r.title || t("tasksNew.selectTask", "ເລືອກໜ້າວຽກ...")}
+                          options={masters
                             .filter((m) => !usedIds.has(String(m.id)) || String(m.id) === String(r.master_id))
-                            .map((m, mi) => (
-                              <option key={mi} value={String(m.id)}>
-                                {m.phase ? `[${m.phase}] ` : ""}{m.task || m.name}
-                              </option>
-                            ))}
-                        </select>
+                            .map((m) => ({ value: String(m.id), label: `${m.phase ? `[${m.phase}] ` : ""}${m.task || m.name}` }))}
+                        />
                       ) : (
                         <input value={r.title} onChange={(e) => setRow(i, { title: e.target.value })} className={`${inputCls} h-8`} placeholder={t("tasksNew.task", "ໜ້າວຽກ")} />
                       )}

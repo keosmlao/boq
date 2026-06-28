@@ -225,6 +225,7 @@ export async function deleteBoq(docNo: string): Promise<Ok | Fail> {
       await client.query(`DELETE FROM odg_projects_boq_detail WHERE doc_no = $1`, [decodedDocNo]);
       await client.query(`DELETE FROM odg_projects_boq WHERE doc_no = $1`, [decodedDocNo]);
     });
+    await logActivity("boq", decodedDocNo, "ລຶບ BOQ");
     invalidate("projects:");
     return { success: true };
   } catch (e) {
@@ -395,6 +396,7 @@ export async function saveBoq(payload: Record<string, unknown>): Promise<{ succe
 
     if (result.missingContract) return fail("ບໍ່ພົບສັນຍາສຳລັບອອກ BOQ");
 
+    await logActivity("boq", String(result.doc_no ?? ""), "ສ້າງ BOQ", result.doc_no ?? undefined);
     invalidate("projects:");
     return {
       success: true,

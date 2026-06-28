@@ -81,6 +81,7 @@ export async function createQuotation(body: any): Promise<{ success: true; data:
       ],
     );
     invalidate("quotations:");
+    await logActivity("quotation", String(result.rows[0]?.id ?? ""), "ສ້າງໃບສະເໜີລາຄາ", result.rows[0]?.quotation_no ?? undefined);
     return { success: true, data: result.rows[0] };
   } catch (e) { return fail((e as Error).message); }
 }
@@ -155,6 +156,7 @@ export async function deleteQuotation(id: string): Promise<{ success: true } | F
     await ensureQuotationSchema();
     const result = await query(`DELETE FROM odg_quotation WHERE id = $1 RETURNING id`, [id]);
     if (!result.rows.length) return fail("Quotation not found");
+    await logActivity("quotation", id, "ລຶບໃບສະເໜີລາຄາ");
     invalidate("quotations:");
     return { success: true };
   } catch (e) { return fail((e as Error).message); }

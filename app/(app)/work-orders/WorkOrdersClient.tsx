@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import CrossList from "../_components/CrossList";
 import ProjectPickerModal from "../_components/ProjectPickerModal";
+import TeamStatusCard from "./TeamStatusCard";
 import { Btn } from "../_components/ui";
 import { getWorkOrders } from "@/_actions/workorder";
 import { workOrderStage } from "@/_lib/workorder-stage";
@@ -101,6 +102,10 @@ export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }
           </Btn>
         }
         aboveTable={
+          <>
+          <div className="px-4 pt-4">
+            <TeamStatusCard />
+          </div>
           <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 bg-slate-50/20 px-4 py-3">
             {tabs.map((t) => {
               const active = activeTab === t.key;
@@ -126,6 +131,7 @@ export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }
               );
             })}
           </div>
+          </>
         }
         columns={[
           {

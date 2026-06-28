@@ -991,6 +991,7 @@ function MaterialsSummary({ rows }: { rows: any[] }) {
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-400">
             <th className="px-4 py-3 text-left">{t("projectDetail.itemsCol", "ລາຍການ")}</th>
+            <th className="px-4 py-3 text-left">{t("projectDetail.fromBoq", "ໃບ BOQ")}</th>
             <th className="px-4 py-3 text-left">{t("common.unit", "ໜ່ວຍ")}</th>
             <th className="px-4 py-3 text-right">{t("projectDetail.boqTotal", "ຍອດ BOQ")}</th>
             <th className="px-4 py-3 text-right">{t("projectDetail.requestMaterial", "ຂໍເບີກ")}</th>
@@ -1007,7 +1008,30 @@ function MaterialsSummary({ rows }: { rows: any[] }) {
             const status = withdrawn > 0 ? "withdrawn" : requested > 0 ? "requested" : "available";
             return (
               <tr key={i} className="hover:bg-slate-50/50">
-                <td className="px-4 py-3 font-bold text-slate-900">{r.description || r.item_code || "-"}</td>
+                <td className="px-4 py-3 font-bold text-slate-900">
+                  <div>{r.description || r.item_code || "-"}</div>
+                  {r.item_code && <div className="mt-0.5 font-mono text-[10.5px] font-medium text-slate-400">{t("projectDetail.itemCode", "ລະຫັດ")}: {r.item_code}</div>}
+                  {Array.isArray(r.substitutes) && r.substitutes.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {r.substitutes.map((s: any, si: number) => (
+                        <span key={si} className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                          ↻ {t("projectDetail.substitutedTo", "ປ່ຽນເປັນ")}: <span className="font-mono">{s.code}</span>{s.name ? ` · ${s.name}` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {Array.isArray(r.boq_docs) && r.boq_docs.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {r.boq_docs.map((dn: string) => (
+                        <Link key={dn} href={`/boq/${encodeURIComponent(dn)}`} className="rounded bg-blue-50 px-1.5 py-0.5 font-mono text-[10.5px] font-semibold text-blue-600 hover:bg-blue-100">{dn}</Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-slate-300">-</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-slate-500">{r.unit || "-"}</td>
                 <td className="px-4 py-3 text-right font-mono text-slate-700">{(Number(r.boq_qty) || 0).toLocaleString("en-US")}</td>
                 <td className="px-4 py-3 text-right font-mono font-semibold text-amber-600">{(Number(r.request_qty) || 0).toLocaleString("en-US")}</td>
@@ -1028,7 +1052,7 @@ function MaterialsSummary({ rows }: { rows: any[] }) {
         </tbody>
         <tfoot>
           <tr className="border-t border-slate-200 bg-slate-50/60 font-bold">
-            <td className="px-4 py-3 text-slate-900" colSpan={2}>{t("common.total", "ລວມ")}</td>
+            <td className="px-4 py-3 text-slate-900" colSpan={3}>{t("common.total", "ລວມ")}</td>
             <td className="px-4 py-3 text-right font-mono text-slate-700">{sum("boq_qty").toLocaleString("en-US")}</td>
             <td className="px-4 py-3 text-right font-mono text-amber-600">{sum("request_qty").toLocaleString("en-US")}</td>
             <td className="px-4 py-3 text-right font-mono text-emerald-600">{sum("withdraw_qty").toLocaleString("en-US")}</td>

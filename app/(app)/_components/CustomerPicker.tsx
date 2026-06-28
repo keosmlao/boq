@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Search, X, UserPlus, Check, Loader2, ChevronDown } from "lucide-react";
 import { getCustomers, createCustomer } from "@/_actions/customers";
 import { inputCls } from "./ui";
+import RSelect from "./RSelect";
 import { useT } from "@/_lib/i18n";
 
 export type PickedCustomer = {
@@ -79,8 +80,13 @@ export default function CustomerPicker({
 
   const submitCreate = async () => {
     setCErr("");
-    if (!c.name.trim()) {
-      setCErr(t("components.customerPicker.nameRequired", "ກະລຸນາໃສ່ຊື່ລູກຄ້າ"));
+    const missing = [
+      !c.name.trim() && t("customers.customerName", "ຊື່ລູກຄ້າ"),
+      !c.phone.trim() && t("customers.phone", "ເບີໂທ"),
+      !c.address.trim() && t("customers.addressDetail", "ທີ່ຢູ່"),
+    ].filter(Boolean) as string[];
+    if (missing.length) {
+      setCErr(`${t("customers.fillAllRequired", "ກະລຸນາໃສ່ຂໍ້ມູນໃຫ້ຄົບ")}: ${missing.join(", ")}`);
       return;
     }
     setCreating(true);
@@ -189,11 +195,16 @@ export default function CustomerPicker({
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("components.customerPicker.typeLabel", "ປະເພດ")}>
-                  <select value={c.customerType} onChange={(e) => setC({ ...c, customerType: e.target.value })} className={inputCls}>
-                    <option value="ລູກຄ້າໂຄງການ">{t("components.customerPicker.typeProject", "ລູກຄ້າໂຄງການ")}</option>
-                    <option value="ລູກຄ້າທົ່ວໄປ">{t("components.customerPicker.typeGeneral", "ລູກຄ້າທົ່ວໄປ")}</option>
-                    <option value="ຮ້ານຄ້າ">{t("components.customerPicker.typeShop", "ຮ້ານຄ້າ")}</option>
-                  </select>
+                  <RSelect
+                    value={c.customerType}
+                    onChange={(v) => setC({ ...c, customerType: v })}
+                    isSearchable={false}
+                    options={[
+                      { value: "ລູກຄ້າໂຄງການ", label: t("components.customerPicker.typeProject", "ລູກຄ້າໂຄງການ") },
+                      { value: "ລູກຄ້າທົ່ວໄປ", label: t("components.customerPicker.typeGeneral", "ລູກຄ້າທົ່ວໄປ") },
+                      { value: "ຮ້ານຄ້າ", label: t("components.customerPicker.typeShop", "ຮ້ານຄ້າ") },
+                    ]}
+                  />
                 </Field>
                 <Field label={t("common.phone", "ເບີໂທ")}>
                   <input value={c.phone} onChange={(e) => setC({ ...c, phone: e.target.value })} className={inputCls} placeholder="020..." />

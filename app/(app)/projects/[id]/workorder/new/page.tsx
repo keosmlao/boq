@@ -16,6 +16,7 @@ import { getProjectTasks } from "@/_actions/tasks-v2";
 import { getProjectMaterials } from "@/_actions/boq-v2";
 import { createWorkOrder } from "@/_actions/workorder";
 import { Page, Card, Btn, Field, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
+import RSelect from "../../../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
 
 type Row = { id: any; master_id?: string; title: string; phase?: string; task_code?: string; est_hours: number; include: boolean; actual_hours: number };
@@ -228,12 +229,13 @@ export default function WorkOrderPage() {
         <Card className="mb-4 border-t-2 border-t-emerald-400 p-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label={t("workorderNew.team", "ທີມ / ຜູ້ຮັບຜິດຊອບ")} required>
-              <select value={techCode} onChange={(e) => setTechCode(e.target.value)} className={inputCls}>
-                <option value="">{t("workorderNew.selectTeamOption", "ເລືອກທີມ...")}</option>
-                {techs.map((t, ti) => (
-                  <option key={ti} value={String(t.code)}>{t.name_1}{t.role ? ` (${t.role})` : ""}</option>
-                ))}
-              </select>
+              <RSelect
+                value={techCode}
+                onChange={setTechCode}
+                placeholder={t("workorderNew.selectTeamOption", "ເລືອກທີມ...")}
+                isClearable
+                options={techs.map((tc) => ({ value: String(tc.code), label: `${tc.name_1}${tc.role ? ` (${tc.role})` : ""}` }))}
+              />
             </Field>
             <Field label={t("workorderNew.startDate", "ວັນເລີ່ມ")}>
               <input type="date" value={workDate} onChange={(e) => setWorkDate(e.target.value)} className={inputCls} />
@@ -278,12 +280,12 @@ export default function WorkOrderPage() {
                         {isAdhoc ? (
                           <div className="flex items-center gap-2">
                             {masters.length > 0 ? (
-                              <select value={r.master_id || ""} onChange={(e) => onPickMaster(i, e.target.value)} className={`${inputCls} h-8`}>
-                                <option value="">{r.title || t("workorderNew.selectFromMaster", "ເລືອກວຽກຈາກ master...")}</option>
-                                {masters.map((m, mi) => (
-                                  <option key={mi} value={String(m.id)}>{m.phase ? `[${m.phase}] ` : ""}{m.task || m.name}</option>
-                                ))}
-                              </select>
+                              <RSelect
+                                value={r.master_id || ""}
+                                onChange={(v) => onPickMaster(i, v)}
+                                placeholder={r.title || t("workorderNew.selectFromMaster", "ເລືອກວຽກຈາກ master...")}
+                                options={masters.map((m) => ({ value: String(m.id), label: `${m.phase ? `[${m.phase}] ` : ""}${m.task || m.name}` }))}
+                              />
                             ) : (
                               <input value={r.title} onChange={(e) => setRow(i, { title: e.target.value })} placeholder={t("workorderNew.adhocTaskNamePlaceholder", "ຊື່ວຽກນອກແຜນ")} className={`${inputCls} h-8`} />
                             )}
@@ -341,12 +343,13 @@ export default function WorkOrderPage() {
                       return (
                         <tr key={i} className={l.qty > 0 ? "bg-cyan-50/40" : ""}>
                           <td className={tdCls}>
-                            <select value={l.availIdx} onChange={(e) => pickLine(i, Number(e.target.value))} className={`${inputCls} h-8`}>
-                              <option value={-1}>{t("workorderNew.selectMaterial", "ເລືອກວັດສະດຸ...")}</option>
-                              {avail.map((m, mi) => (
-                                <option key={mi} value={mi}>{m.description}</option>
-                              ))}
-                            </select>
+                            <RSelect
+                              value={l.availIdx >= 0 ? String(l.availIdx) : ""}
+                              onChange={(v) => pickLine(i, v === "" ? -1 : Number(v))}
+                              placeholder={t("workorderNew.selectMaterial", "ເລືອກວັດສະດຸ...")}
+                              isClearable
+                              options={avail.map((m, mi) => ({ value: String(mi), label: String(m.description) }))}
+                            />
                           </td>
                           <td className={`${tdCls} text-[var(--theme-text-soft)]`}>{a?.unit || "-"}</td>
                           <td className={`${tdCls} text-right tabular-nums text-[var(--theme-text-mute)]`}>{a ? money(a.remaining) : "-"}</td>

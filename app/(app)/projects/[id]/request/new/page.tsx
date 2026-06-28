@@ -10,6 +10,7 @@ import { getProjectMaterials } from "@/_actions/boq-v2";
 import { createRequest, updateRequest, getRequestDetail } from "@/_actions/request-v2";
 import { getWarehouses, getLocations, getStockBalancesAtLocation, getInventory } from "@/_actions/lookups";
 import { Page, Card, Btn, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
+import RSelect from "../../../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
 
 type Row = {
@@ -372,21 +373,25 @@ export default function RequestPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("requestNew.warehouse", "ສາງ (Warehouse)")}</label>
-              <select value={whCode} onChange={(e) => setWhCode(e.target.value)} className={inputCls} required disabled={rows.length > 0}>
-                <option value="">{t("requestNew.selectWarehouse", "-- ເລືອກສາງ --")}</option>
-                {warehouses.map((w, i) => (
-                  <option key={i} value={String(w.code)}>{w.code} - {w.name_1}</option>
-                ))}
-              </select>
+              <RSelect
+                value={whCode}
+                onChange={setWhCode}
+                options={warehouses.map((w) => ({ value: String(w.code), label: `${w.code} - ${w.name_1}` }))}
+                placeholder={t("requestNew.selectWarehouse", "-- ເລືອກສາງ --")}
+                disabled={rows.length > 0}
+                isClearable
+              />
             </div>
             <div>
               <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("requestNew.location", "ທີ່ເກັບ (ຊັ້ນວາງ)")}</label>
-              <select value={shelfCode} onChange={(e) => setShelfCode(e.target.value)} className={inputCls} required disabled={!whCode || rows.length > 0}>
-                <option value="">{whCode ? t("requestNew.selectLocation", "-- ເລືອກທີ່ເກັບ --") : t("requestNew.selectWarehouseFirst", "ເລືອກສາງກ່ອນ")}</option>
-                {shelves.map((s, i) => (
-                  <option key={i} value={String(s.code)}>{s.code} - {s.name_1}</option>
-                ))}
-              </select>
+              <RSelect
+                value={shelfCode}
+                onChange={setShelfCode}
+                options={shelves.map((s) => ({ value: String(s.code), label: `${s.code} - ${s.name_1}` }))}
+                placeholder={whCode ? t("requestNew.selectLocation", "-- ເລືອກທີ່ເກັບ --") : t("requestNew.selectWarehouseFirst", "ເລືອກສາງກ່ອນ")}
+                disabled={!whCode || rows.length > 0}
+                isClearable
+              />
             </div>
           </div>
           {rows.length > 0 && <p className="mt-2 text-[10.5px] text-[var(--theme-text-mute)]">{t("requestNew.clearCartBeforeChange", "ລຶບລາຍການອອກຈາກ cart ທັງໝົດ ກ່ອນປ່ຽນສາງ ຫຼື ທີ່ຈັດເກັບ")}</p>}
