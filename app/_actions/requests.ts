@@ -2,6 +2,7 @@
 
 import { query, withTransaction } from "@/_lib/db";
 import { invalidate } from "@/_lib/cache";
+import { requirePermission } from "@/_lib/server-auth";
 import { cleanText, dateOrNull, ensureRequestsSchema, generateRequestDocNo, num } from "@/_lib/schemas/requests";
 
 type Fail = { success: false; message: string };
@@ -257,6 +258,7 @@ export async function updateRequest(docNo: string, body: any): Promise<{ success
 
 export async function deleteRequest(docNo: string): Promise<{ success: true; message: string } | Fail> {
   try {
+    await requirePermission("requests", "delete");
     await ensureRequestsSchema();
     const decoded = decodeURIComponent(docNo);
     const existing = await query(`SELECT doc_success FROM odg_requests WHERE doc_no = $1 LIMIT 1`, [decoded]);

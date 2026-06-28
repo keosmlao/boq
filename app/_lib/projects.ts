@@ -1230,6 +1230,19 @@ export async function createProject(values) {
 export async function deleteProjectCascade(projectId) {
   await withTransaction(async (client) => {
     const projectIdNumber = toNumber(projectId);
+
+    // Delete that tolerates an optional table not existing in this DB (42P01):
+    // a missing child table must not abort the whole project deletion.
+    const tryDelete = async (sql, params) => {
+      await client.query("SAVEPOINT del_sp");
+      try {
+        await client.query(sql, params);
+        await client.query("RELEASE SAVEPOINT del_sp");
+      } catch (err) {
+        await client.query("ROLLBACK TO SAVEPOINT del_sp");
+        if (err?.code !== "42P01") throw err;
+      }
+    };
     const contractResult = await client.query(
       `
         SELECT roworder, contract_no
@@ -1242,9 +1255,18 @@ export async function deleteProjectCascade(projectId) {
     const contractIds = contractResult.rows
       .map((row) => toNumber(row.roworder))
       .filter((id) => id > 0);
-    const contractNos = contractResult.rows
-      .map((row) => cleanText(row.contract_no))
-      .filter(Boolean);
+
+    // v2 contracts live in odg_contract (keyed by project_id). Gather their
+    // contract numbers too so attachments / items / detail keyed by contract_no
+    // are cleaned up, then delete the v2 contracts themselves below.
+    const v2ContractResult = await client.query(
+      `SELECT contract_no FROM odg_contract WHERE project_id = $1`,
+      [String(projectId)],
+    );
+    const contractNos = [
+      ...contractResult.rows.map((row) => cleanText(row.contract_no)),
+      ...v2ContractResult.rows.map((row) => cleanText(row.contract_no)),
+    ].filter(Boolean);
 
     const boqResult = await client.query(
       `
@@ -1311,11 +1333,53 @@ export async function deleteProjectCascade(projectId) {
     }
     await client.query(`DELETE FROM odg_requests WHERE project_id = $1`, [String(projectId)]);
 
+    // v2 material requests (odg_request, JSON) + their SML mirror in ic_trans
+    // (doc_no = request_no, trans_type 3 / flag 122). Keyed by project_id (TEXT).
+    const v2ReqResult = await client.query(
+      `SELECT request_no FROM odg_request WHERE project_id = $1`,
+      [String(projectId)],
+    );
+    const v2ReqNos = v2ReqResult.rows.map((row) => cleanText(row.request_no)).filter(Boolean);
+    if (v2ReqNos.length) {
+      await client.query(
+        `DELETE FROM ic_trans_detail WHERE doc_no = ANY($1::text[]) AND trans_type = 3 AND trans_flag = 122`,
+        [v2ReqNos],
+      );
+      await client.query(
+        `DELETE FROM ic_trans WHERE doc_no = ANY($1::text[]) AND trans_type = 3 AND trans_flag = 122`,
+        [v2ReqNos],
+      );
+    }
+    await client.query(`DELETE FROM odg_request WHERE project_id = $1`, [String(projectId)]);
+
     // Tasks reference work orders (work_order_id) and contracts — delete before both.
     await client.query(`DELETE FROM odg_project_task WHERE project_id = $1`, [String(projectId)]);
+
+    // Work orders + all their child data. Children are keyed by work_order_id
+    // (the work order's id as text), so collect the ids first, then delete the
+    // children (tolerant of optional tables) before the work orders themselves.
+    const woResult = await client.query(`SELECT id FROM odg_work_order WHERE project_id = $1`, [String(projectId)]);
+    const woIds = woResult.rows.map((row) => String(row.id)).filter(Boolean);
+    if (woIds.length) {
+      for (const childTable of [
+        "odg_work_order_checkins",
+        "odg_work_order_logs",
+        "odg_work_order_materials",
+        "odg_work_order_tasks",
+        "odg_work_schedule",
+        "odg_wo_material_request",
+      ]) {
+        await tryDelete(`DELETE FROM ${childTable} WHERE work_order_id = ANY($1::text[])`, [woIds]);
+      }
+    }
+    // wo material requests may also be keyed straight to the project.
+    await tryDelete(`DELETE FROM odg_wo_material_request WHERE project_id = $1`, [String(projectId)]);
     // v2 work orders (odg_work_order) — keyed by project_id; this is what the
     // project page lists. Delete before contracts in case of a contract FK.
     await client.query(`DELETE FROM odg_work_order WHERE project_id = $1`, [String(projectId)]);
+    // Legacy work-order table + project pause log (tolerant — may not exist).
+    await tryDelete(`DELETE FROM odg_work_orders WHERE project_id = $1`, [String(projectId)]);
+    await tryDelete(`DELETE FROM odg_project_pause WHERE project_id = $1`, [String(projectId)]);
 
     // Surveys + quotations (independent, keyed by project_id).
     await client.query(`DELETE FROM odg_survey WHERE project_id = $1`, [String(projectId)]);
@@ -1352,6 +1416,9 @@ export async function deleteProjectCascade(projectId) {
       `,
       [String(projectId)],
     );
+
+    // v2 contracts (odg_contract, keyed by project_id).
+    await client.query(`DELETE FROM odg_contract WHERE project_id = $1`, [String(projectId)]);
 
     await client.query(
       `

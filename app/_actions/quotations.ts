@@ -3,6 +3,7 @@
 import { query } from "@/_lib/db";
 import { logActivity } from "./chatter";
 import { cached, invalidate } from "@/_lib/cache";
+import { requirePermission } from "@/_lib/server-auth";
 import { dateOrNull, ensureQuotationSchema, num } from "@/_lib/schemas/quotations";
 
 type Fail = { success: false; message: string };
@@ -95,6 +96,7 @@ export async function getQuotation(id: string): Promise<Record<string, unknown> 
 
 export async function updateQuotation(id: string, body: any): Promise<{ success: true; data: unknown } | Fail> {
   try {
+    await requirePermission("quotations", "edit");
     await ensureQuotationSchema();
     const result = await query(
       `UPDATE odg_quotation SET
@@ -149,6 +151,7 @@ export async function approveQuotation(id: string, status: string): Promise<{ su
 
 export async function deleteQuotation(id: string): Promise<{ success: true } | Fail> {
   try {
+    await requirePermission("quotations", "delete");
     await ensureQuotationSchema();
     const result = await query(`DELETE FROM odg_quotation WHERE id = $1 RETURNING id`, [id]);
     if (!result.rows.length) return fail("Quotation not found");

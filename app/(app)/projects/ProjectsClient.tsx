@@ -9,17 +9,33 @@
  * still re-pulls via the server action on demand.
  */
 import React, { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Search, FolderOpen, ChevronRight, Plus, RefreshCw } from "lucide-react";
+import { Search, FolderOpen, ChevronRight, Plus, RefreshCw, Map as MapIcon, List } from "lucide-react";
 import { getProjects } from "@/_actions/projects";
 import { getInstallTracking, type InstallRow } from "@/_actions/install-tracking";
 import { Page, thCls, tdCls } from "../_components/ui";
 import { useT } from "@/_lib/i18n";
 
+const ProjectsMap = dynamic(() => import("./ProjectsMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[560px] items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-400">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
+    </div>
+  ),
+});
+
 const fmtD = (v?: string | null) => (v ? new Date(v).toLocaleDateString("en-GB") : "—");
 const daysSince = (v?: string | null) => (v ? Math.max(0, Math.floor((Date.now() - new Date(v).getTime()) / 86_400_000)) : null);
 
-export default function ProjectsClient({ initialRows }: { initialRows: any[] }) {
+export default function ProjectsClient({
+  initialRows,
+  initialView = "table",
+}: {
+  initialRows: any[];
+  initialView?: "table" | "map";
+}) {
   const router = useRouter();
   const t = useT();
   const [rows, setRows] = useState<any[]>(initialRows ?? []);
@@ -27,6 +43,7 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
   const [groupByCustomer, setGroupByCustomer] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "map">(initialView);
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -157,16 +174,39 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
             </div>
           </div>
 
-          <button
-            onClick={() => setGroupByCustomer(!groupByCustomer)}
-            className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold border transition-all cursor-pointer ${
-              groupByCustomer
-                ? "bg-blue-600 border-blue-600 text-white shadow-xs"
-                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            <span>{t("projects.groupByCustomer", "ຈັດກຸ່ມຕາມລູກຄ້າ")}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Table / Map view toggle */}
+            <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5">
+              <button
+                onClick={() => setViewMode("table")}
+                className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all cursor-pointer ${
+                  viewMode === "table" ? "bg-blue-600 text-white shadow-xs" : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <List size={13} /> {t("projects.view.table", "ຕາຕະລາງ")}
+              </button>
+              <button
+                onClick={() => setViewMode("map")}
+                className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all cursor-pointer ${
+                  viewMode === "map" ? "bg-blue-600 text-white shadow-xs" : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <MapIcon size={13} /> {t("projects.view.map", "ແຜນທີ່")}
+              </button>
+            </div>
+
+            <button
+              onClick={() => setGroupByCustomer(!groupByCustomer)}
+              disabled={viewMode === "map"}
+              className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                groupByCustomer
+                  ? "bg-blue-600 border-blue-600 text-white shadow-xs"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <span>{t("projects.groupByCustomer", "ຈັດກຸ່ມຕາມລູກຄ້າ")}</span>
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -179,6 +219,12 @@ export default function ProjectsClient({ initialRows }: { initialRows: any[] }) 
             <FolderOpen className="h-8 w-8 opacity-40" />
             <span className="text-sm font-semibold">{t("projects.notFound", "ບໍ່ພົບໂຄງການ")}</span>
           </div>
+        ) : viewMode === "map" ? (
+          <ProjectsMap
+            rows={filtered}
+            onOpen={(id) => router.push(`/projects/${encodeURIComponent(id)}`)}
+            t={t}
+          />
         ) : groupByCustomer ? (
           /* Grouped by Customer View */
           <div className="space-y-5">

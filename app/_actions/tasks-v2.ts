@@ -2,6 +2,7 @@
 
 import { query, withTransaction } from "@/_lib/db";
 import { cached, invalidate } from "@/_lib/cache";
+import { requirePermission } from "@/_lib/server-auth";
 import { ensureProjectTaskSchema } from "@/_lib/schemas/tasks";
 import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 
@@ -36,6 +37,7 @@ export async function getProjectTasks(opts: { projectId: string }): Promise<{ su
 /** Delete the whole task plan for a project. */
 export async function deleteTaskPlan(projectId: string): Promise<{ success: true } | Fail> {
   try {
+    await requirePermission("schedule", "delete");
     await ensureProjectTaskSchema();
     await query(`DELETE FROM odg_project_task WHERE project_id = $1`, [String(projectId)]);
     invalidate("tasks:");

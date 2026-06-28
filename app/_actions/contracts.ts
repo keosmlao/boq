@@ -2,6 +2,7 @@
 
 import { query, withTransaction } from "@/_lib/db";
 import { invalidate } from "@/_lib/cache";
+import { requirePermission } from "@/_lib/server-auth";
 import { logActivity } from "./chatter";
 import { dateOrNull, ensureContractSchema, generateContractNo, num } from "@/_lib/schemas/contracts";
 import { saveBase64File } from "@/_lib/uploads";
@@ -237,6 +238,7 @@ export async function getContract(id: string): Promise<Record<string, unknown> |
 
 export async function updateContract(id: string, body: any): Promise<{ success: true; data: unknown } | Fail> {
   try {
+    await requirePermission("contracts", "edit");
     await ensureContractSchema();
     const result = await query(
       `UPDATE odg_contract SET
@@ -313,6 +315,7 @@ export async function updateContract(id: string, body: any): Promise<{ success: 
 
 export async function deleteContract(id: string): Promise<{ success: true } | Fail> {
   try {
+    await requirePermission("contracts", "delete");
     await ensureContractSchema();
     const result = await query(`DELETE FROM odg_contract WHERE id = $1 RETURNING id`, [id]);
     if (!result.rows.length) return fail("Contract not found");

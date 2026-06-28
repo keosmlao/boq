@@ -11,7 +11,7 @@
  * The "users" admin area is gated by role (manager+), never by the matrix.
  */
 export type Role = "admin" | "manager" | "head_craftsman" | "staff";
-export type Action = "view" | "create" | "edit" | "delete" | "approve";
+export type Action = "view" | "create" | "edit" | "delete" | "approve" | "approve_next" | "approve_substitute";
 export type Permissions = Record<string, Action[]>;
 
 export type AccessUser = {
@@ -33,7 +33,7 @@ export const MODULES: ModuleDef[] = [
   { key: "projects", label: "ໂຄງການ", href: "/projects", actions: ["view", "create", "edit", "delete"] },
   { key: "quotations", label: "ໃບສະເໜີລາຄາ", href: "/quotations", actions: ["view", "create", "edit", "delete", "approve"] },
   { key: "contracts", label: "ສັນຍາ", href: "/contracts", actions: ["view", "create", "edit", "delete", "approve"] },
-  { key: "boq", label: "BOQ", href: "/boq", actions: ["view", "create", "edit", "delete", "approve"] },
+  { key: "boq", label: "BOQ", href: "/boq", actions: ["view", "create", "edit", "delete", "approve", "approve_next"] },
   { key: "schedule", label: "ກຳນົດໜ້າວຽກ", href: "/schedule", actions: ["view", "create", "edit", "delete"] },
   { key: "work-orders", label: "ໃບງານ", href: "/work-orders", actions: ["view", "create", "edit", "delete", "approve"] },
   { key: "tracking", label: "ຕິດຕາມຊ່າງ", href: "/tracking", actions: ["view"] },
@@ -41,7 +41,7 @@ export const MODULES: ModuleDef[] = [
   { key: "tech-teams", label: "ຈັດການທີມຊ່າງ", href: "/tech-teams", actions: ["view", "create", "edit", "delete"] },
   { key: "tech-summary", label: "ສະຫຼຸບຜົນງານຊ່າງ", href: "/tech-summary", actions: ["view"] },
   { key: "std-tasks", label: "ງານຕິດຕັ້ງມາດຕະຖານ", href: "/std-tasks", actions: ["view", "create", "edit", "delete"] },
-  { key: "requests", label: "ຂໍເບີກ", href: "/requests", actions: ["view", "create", "edit", "delete", "approve"] },
+  { key: "requests", label: "ຂໍເບີກ", href: "/requests", actions: ["view", "create", "edit", "delete", "approve", "approve_substitute"] },
   { key: "finance", label: "ບັນຊີ / ງວດຈ່າຍ", href: "/finance", actions: ["view"] },
   { key: "inventory", label: "ສິນຄ້າ / ສະຕັອກ", href: "/inventory", actions: ["view"] },
   { key: "reports", label: "ລາຍງານ & ສະຖິຕິ", href: "/reports", actions: ["view"] },
@@ -53,6 +53,8 @@ export const ACTION_LABELS: Record<Action, string> = {
   edit: "ແກ້ໄຂ",
   delete: "ລຶບ",
   approve: "ອະນຸມັດ",
+  approve_next: "ອະນຸມັດໃບທີ 2+",
+  approve_substitute: "ອະນຸມັດການປ່ຽນແທນ",
 };
 
 export const ROLE_LABELS: Record<Role, string> = {

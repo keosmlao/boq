@@ -11,11 +11,17 @@ export default function DocActions({
   onDelete,
   afterDelete,
   label,
+  canEdit = true,
+  canDelete = true,
 }: {
   editHref?: string;
   onDelete: () => Promise<any>;
   afterDelete: string;
   label?: string;
+  /** Hide the edit button when false (permission-gated). Defaults to shown. */
+  canEdit?: boolean;
+  /** Hide the delete button when false (permission-gated). Defaults to shown. */
+  canDelete?: boolean;
 }) {
   const t = useT();
   const docLabel = label ?? t("components.docActions.entity", "ເອກະສານ");
@@ -42,7 +48,7 @@ export default function DocActions({
 
   return (
     <div className="flex items-center gap-2">
-      {editHref && (
+      {editHref && canEdit && (
         <button
           onClick={() => router.push(editHref)}
           className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--theme-border-subtle)] bg-white px-3 text-[12px] font-medium text-[var(--theme-text-soft)] hover:bg-[var(--theme-bg-muted)]"
@@ -50,12 +56,14 @@ export default function DocActions({
           <Pencil size={13} /> {t("common.edit", "ແກ້ໄຂ")}
         </button>
       )}
-      <button
-        onClick={() => setConfirm(true)}
-        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-200 bg-white px-3 text-[12px] font-medium text-rose-600 hover:bg-rose-50"
-      >
-        <Trash2 size={13} /> {t("common.delete", "ລົບ")}
-      </button>
+      {canDelete && (
+        <button
+          onClick={() => setConfirm(true)}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-200 bg-white px-3 text-[12px] font-medium text-rose-600 hover:bg-rose-50"
+        >
+          <Trash2 size={13} /> {t("common.delete", "ລົບ")}
+        </button>
+      )}
 
       {confirm && (
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-[20vh]" onClick={() => !deleting && setConfirm(false)}>

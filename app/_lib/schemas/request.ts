@@ -21,6 +21,8 @@ export function ensureRequestSchema(): Promise<void> {
           updated_at  TIMESTAMPTZ DEFAULT now()
         );
         CREATE INDEX IF NOT EXISTS odg_request_project_idx ON odg_request(project_id);
+        ALTER TABLE odg_request ADD COLUMN IF NOT EXISTS substitute_approved BOOLEAN DEFAULT false;
+        ALTER TABLE odg_request ADD COLUMN IF NOT EXISTS substitute_approver TEXT;
         `,
         [],
       );

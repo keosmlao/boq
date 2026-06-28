@@ -1,6 +1,6 @@
 "use server";
 
-import { query } from "@/_lib/db";
+import { query, withTransaction } from "@/_lib/db";
 import { logActivity } from "./chatter";
 import { invalidate } from "@/_lib/cache";
 import { ensureRequestSchema } from "@/_lib/schemas/request";
@@ -25,6 +25,72 @@ const isV2Id = (id: unknown) => /^\d+$/.test(String(id));
 
 /** The only statuses a request may hold (odg_request.status is an unconstrained TEXT column). */
 const REQUEST_STATUSES = new Set(["requested", "withdrawn", "rejected"]);
+
+// Material request (ໃບຂໍເບີກ) — ERP/SML convention, matching the legacy flow so
+// SML picks up v2 requests in ic_trans alongside the old ones.
+const IC_TRANS_REQUEST_TYPE = 3;
+const IC_TRANS_REQUEST_FLAG = 122;
+
+/** Resolve the ERP customer code (sml_code) for a project — used as ic_trans.cust_code. */
+async function projectCustCode(projectId: string): Promise<string> {
+  try {
+    const r = await query(`SELECT sml_code FROM odg_projects WHERE id::text = $1 LIMIT 1`, [String(projectId)]);
+    return String(r.rows[0]?.sml_code || "");
+  } catch {
+    return "";
+  }
+}
+
+/** Remove a request's mirror document from SML (ic_trans + ic_trans_detail). */
+async function removeSmlMirror(client: any, docNo: string) {
+  await client.query(`DELETE FROM ic_trans_detail WHERE doc_no = $1 AND trans_type = $2 AND trans_flag = $3`, [docNo, IC_TRANS_REQUEST_TYPE, IC_TRANS_REQUEST_FLAG]);
+  await client.query(`DELETE FROM ic_trans WHERE doc_no = $1 AND trans_type = $2 AND trans_flag = $3`, [docNo, IC_TRANS_REQUEST_TYPE, IC_TRANS_REQUEST_FLAG]);
+}
+
+/**
+ * Mirror a v2 request into SML (ic_trans + ic_trans_detail) so the warehouse
+ * sees it. Substitutes are issued as the real product (item_code), with the
+ * original BOQ item noted in the line remark.
+ */
+async function mirrorRequestToSml(client: any, opts: {
+  docNo: string;
+  docDate: string;
+  custCode: string;
+  creator?: string | null;
+  remark?: string | null;
+  items: any[];
+}) {
+  const first = opts.items[0] || {};
+  const whFrom = String(first.wh_code || "");
+  const locFrom = String(first.shelf_code || "");
+  await removeSmlMirror(client, opts.docNo);
+  await client.query(
+    `INSERT INTO ic_trans (
+      trans_type, trans_flag, doc_date, doc_no, doc_ref,
+      cust_code, wh_from, location_from,
+      creator_code, user_request, remark, doc_success
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9,$10,0)`,
+    [IC_TRANS_REQUEST_TYPE, IC_TRANS_REQUEST_FLAG, opts.docDate, opts.docNo, "", opts.custCode || "", whFrom, locFrom, opts.creator || "", opts.remark || ""],
+  );
+  let line = 0;
+  for (const it of opts.items) {
+    if (!(num(it.qty) > 0)) continue;
+    line++;
+    const lineRemark = isSubstituteLine(it) ? `ປ່ຽນຈາກ ${it.boq_item_name || it.boq_item_code}` : (it.remark || "");
+    await client.query(
+      `INSERT INTO ic_trans_detail (
+        trans_type, trans_flag, doc_date, doc_no, doc_ref, cust_code,
+        item_code, item_name, unit_code, qty,
+        wh_code, shelf_code, line_number, remark
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      [
+        IC_TRANS_REQUEST_TYPE, IC_TRANS_REQUEST_FLAG, opts.docDate, opts.docNo, "", opts.custCode || "",
+        String(it.item_code || ""), String(it.description || it.item_name || ""), String(it.unit || it.unit_code || ""), num(it.qty),
+        String(it.wh_code || whFrom), String(it.shelf_code || locFrom), line, lineRemark,
+      ],
+    );
+  }
+}
 
 async function validateLocationStock(items: any[]): Promise<string | null> {
   const first = items[0];
@@ -61,13 +127,24 @@ async function validateLocationStock(items: any[]): Promise<string | null> {
   return null;
 }
 
+/** The BOQ line a request item draws down — the original code for substitutes. */
+function boqCodeOf(item: any): string {
+  return String(item?.boq_item_code || item?.item_code || "").trim();
+}
+
+/** A line is a substitute when it issues a different product than its BOQ line. */
+function isSubstituteLine(item: any): boolean {
+  const boq = String(item?.boq_item_code || "").trim();
+  return !!boq && boq !== String(item?.item_code || "").trim();
+}
+
 async function validateBoqAvailability(projectId: string, items: any[], editingId?: string): Promise<string | null> {
   const currentQty = new Map<string, number>();
   if (editingId) {
     if (isV2Id(editingId)) {
       const existing = await query(`SELECT items FROM odg_request WHERE id = $1 LIMIT 1`, [editingId]);
       for (const item of Array.isArray(existing.rows[0]?.items) ? existing.rows[0].items : []) {
-        const code = String(item?.item_code || "").trim();
+        const code = boqCodeOf(item);
         if (code) currentQty.set(code, (currentQty.get(code) || 0) + num(item.qty));
       }
     } else {
@@ -84,9 +161,10 @@ async function validateBoqAvailability(projectId: string, items: any[], editingI
   const available = new Map(
     materials.data.map((item: any) => [String(item.item_code || "").trim(), num(item.remaining)]),
   );
+  // Aggregate the requested qty per BOQ line (substitutes count against their BOQ code).
   const requested = new Map<string, number>();
   for (const item of items) {
-    const code = String(item?.item_code || "").trim();
+    const code = boqCodeOf(item);
     requested.set(code, (requested.get(code) || 0) + num(item.qty));
   }
   for (const [code, qty] of requested) {
@@ -170,6 +248,7 @@ export async function getRequestDetail(id: string): Promise<{ success: true; dat
               ...item,
               withdrawn_qty: isWithdrawn ? num(item.qty) : 0,
               item_status: isWithdrawn ? "withdrawn" : "requested",
+              substituted: isSubstituteLine(item),
             })),
             withdrawals: [],
             src: "v2",
@@ -328,14 +407,26 @@ export async function createRequest(body: any): Promise<{ success: true; data: a
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, "0");
     const reqNo = body.request_no || `RQ-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-    const r = await query(
-      `INSERT INTO odg_request (request_no, project_id, project_name, status, items, notes, requester)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [reqNo, String(body.project_id), body.project_name || null, body.status || "requested", JSON.stringify(items), body.notes || null, body.requester || null],
-    );
+    const hasSub = items.some(isSubstituteLine);
+    const custCode = await projectCustCode(String(body.project_id));
+    const docDate = d.toISOString().slice(0, 10);
+    let created: any = null;
+    await withTransaction(async (client: any) => {
+      const r = await client.query(
+        `INSERT INTO odg_request (request_no, project_id, project_name, status, items, notes, requester)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [reqNo, String(body.project_id), body.project_name || null, body.status || "requested", JSON.stringify(items), body.notes || null, body.requester || null],
+      );
+      created = r.rows[0];
+      // Push to SML now unless it needs substitution approval first.
+      if (!hasSub) {
+        await mirrorRequestToSml(client, { docNo: reqNo, docDate, custCode, creator: body.requester || null, remark: body.notes || null, items });
+      }
+    });
     invalidate("req:");
-    await logActivity("request", String(r.rows[0]?.id ?? ""), "ສ້າງໃບຂໍເບີກ", r.rows[0]?.request_no ?? undefined);
-    return { success: true, data: r.rows[0] };
+    invalidate("ic:");
+    await logActivity("request", String(created?.id ?? ""), "ສ້າງໃບຂໍເບີກ", created?.request_no ?? undefined);
+    return { success: true, data: created };
   } catch (e) {
     return fail((e as Error).message);
   }
@@ -347,10 +438,58 @@ export async function setRequestStatus(id: string, status: string): Promise<{ su
     await requirePermission("requests", "approve");
     if (!REQUEST_STATUSES.has(status)) return fail("ສະຖານະບໍ່ຖືກຕ້ອງ");
     await ensureRequestSchema();
+    // A request with substitute lines may not be withdrawn until the
+    // substitution is approved (requests.approve_substitute).
+    if (status === "withdrawn" && isV2Id(id)) {
+      const cur = await query(`SELECT items, substitute_approved FROM odg_request WHERE id = $1 LIMIT 1`, [id]);
+      const row: any = cur.rows[0];
+      const items = Array.isArray(row?.items) ? row.items : [];
+      if (items.some(isSubstituteLine) && !row?.substitute_approved) {
+        return fail("ໃບເບີກນີ້ມີການປ່ຽນສິນຄ້າ — ຕ້ອງໃຫ້ຜູ້ມີສິດອະນຸມັດການປ່ຽນແທນກ່ອນຈຶ່ງເບີກໄດ້");
+      }
+    }
     const r = await query(`UPDATE odg_request SET status = $2, updated_at = now() WHERE id = $1 RETURNING id`, [id, status]);
     if (!r.rows.length) return fail("Request not found");
     invalidate("req:");
     await logActivity("request", id, "ປ່ຽນສະຖານະ", status);
+    return { success: true };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/** Approve the item substitutions on a request (requests.approve_substitute). */
+export async function approveSubstitute(id: string): Promise<{ success: true } | Fail> {
+  try {
+    const user = await requirePermission("requests", "approve_substitute");
+    await ensureRequestSchema();
+    if (!isV2Id(id)) return fail("ໃບເບີກນີ້ບໍ່ຮອງຮັບການປ່ຽນແທນ");
+    const approver = (user?.name || user?.username || "").toString() || null;
+    let custCode = "";
+    let mirrored: any = null;
+    await withTransaction(async (client: any) => {
+      const r = await client.query(
+        `UPDATE odg_request SET substitute_approved = true, substitute_approver = $2, updated_at = now() WHERE id = $1 RETURNING *`,
+        [id, approver],
+      );
+      mirrored = r.rows[0];
+      if (!mirrored) return;
+      // Now that the substitution is approved, push it to SML.
+      custCode = await projectCustCode(String(mirrored.project_id));
+      const docDate = new Date(mirrored.created_at || Date.now()).toISOString().slice(0, 10);
+      await mirrorRequestToSml(client, {
+        docNo: mirrored.request_no,
+        docDate,
+        custCode,
+        creator: mirrored.requester || null,
+        remark: mirrored.notes || null,
+        items: Array.isArray(mirrored.items) ? mirrored.items : [],
+      });
+    });
+    if (!mirrored) return fail("Request not found");
+    invalidate("req:");
+    invalidate("ic:");
+    await logActivity("request", id, "ອະນຸມັດການປ່ຽນສິນຄ້າ", approver ?? undefined);
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);
@@ -362,9 +501,18 @@ export async function deleteRequest(id: string): Promise<{ success: true } | Fai
     await requirePermission("requests", "delete");
     await ensureRequestSchema();
     if (isV2Id(id)) {
-      const r = await query(`DELETE FROM odg_request WHERE id = $1 RETURNING id`, [id]);
-      if (r.rows.length) {
+      let deleted = false;
+      await withTransaction(async (client: any) => {
+        const r = await client.query(`DELETE FROM odg_request WHERE id = $1 RETURNING request_no`, [id]);
+        if (r.rows.length) {
+          deleted = true;
+          // Pull its mirror document out of SML too.
+          if (r.rows[0].request_no) await removeSmlMirror(client, String(r.rows[0].request_no));
+        }
+      });
+      if (deleted) {
         invalidate("req:");
+        invalidate("ic:");
         return { success: true };
       }
     }
@@ -398,12 +546,30 @@ export async function updateRequest(id: string, body: any): Promise<{ success: t
     if (stockError) return fail(stockError);
 
     if (isV2Id(id)) {
-      const r = await query(
-        `UPDATE odg_request SET items = $2, notes = $3, updated_at = now() WHERE id = $1 RETURNING id`,
-        [id, JSON.stringify(items), body.notes ?? null],
-      );
-      if (r.rows.length) {
+      const hasSub = items.some(isSubstituteLine);
+      const custCode = await projectCustCode(projectId);
+      let ok = false;
+      await withTransaction(async (client: any) => {
+        // Editing the lines invalidates any prior substitution approval.
+        const r = await client.query(
+          `UPDATE odg_request SET items = $2, notes = $3, substitute_approved = false, substitute_approver = NULL, updated_at = now() WHERE id = $1 RETURNING *`,
+          [id, JSON.stringify(items), body.notes ?? null],
+        );
+        const row = r.rows[0];
+        if (!row) return;
+        ok = true;
+        // Re-sync SML: a substituted (now-unapproved) request is pulled until
+        // re-approved; otherwise the mirror is refreshed with the new lines.
+        if (hasSub) {
+          await removeSmlMirror(client, String(row.request_no));
+        } else {
+          const docDate = new Date(row.created_at || Date.now()).toISOString().slice(0, 10);
+          await mirrorRequestToSml(client, { docNo: row.request_no, docDate, custCode, creator: row.requester || null, remark: row.notes || null, items });
+        }
+      });
+      if (ok) {
         invalidate("req:");
+        invalidate("ic:");
         return { success: true };
       }
     }

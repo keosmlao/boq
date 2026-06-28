@@ -4,6 +4,7 @@ import { query } from "@/_lib/db";
 import { logActivity } from "./chatter";
 import { cached, invalidate } from "@/_lib/cache";
 import { cleanText, isTruthyFlag } from "@/_lib/http";
+import { requirePermission } from "@/_lib/server-auth";
 import {
   approveProjectRequest,
   createProject,
@@ -167,6 +168,7 @@ export async function advanceProjectStage(id: string, target: string): Promise<R
 
 export async function deleteProjectAction(id: string): Promise<Result> {
   try {
+    await requirePermission("projects", "delete");
     await deleteProjectCascade(cleanText(id));
     invalidate("projects:");
     return ok({ message: "Deleted" });
@@ -175,6 +177,7 @@ export async function deleteProjectAction(id: string): Promise<Result> {
 
 export async function editProjectAction(id: string, formData: FormData): Promise<Result> {
   try {
+    await requirePermission("projects", "edit");
     const projectId = cleanText(id);
     const projectName = f(formData, "projectName");
     const province = f(formData, "province");
@@ -245,6 +248,7 @@ export async function getProjectStatusHistory(id: string): Promise<Result<unknow
 
 export async function deleteProjectContract(id: string, contractNo: string): Promise<Result> {
   try {
+    await requirePermission("contracts", "delete");
     const result = await deleteProjectContractCascade(cleanText(id), cleanText(decodeURIComponent(contractNo)));
     if (!result) return fail("Contract not found");
     invalidate("projects:");

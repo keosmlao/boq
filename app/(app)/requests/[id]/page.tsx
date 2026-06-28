@@ -5,9 +5,11 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
 import { ArrowLeft, PackageOpen, Truck, FolderKanban, User, CalendarClock, Warehouse, MapPin } from "lucide-react";
-import { getRequestDetail, deleteRequest, setRequestStatus } from "@/_actions/request-v2";
+import { getRequestDetail, deleteRequest, setRequestStatus, approveSubstitute } from "@/_actions/request-v2";
 import { Page, Card, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
+import { getV2User } from "../../../_lib/session";
+import { can } from "@/_lib/permissions";
 import { useT } from "@/_lib/i18n";
 
 const num = (v: unknown) => {
@@ -32,6 +34,7 @@ export default function RequestDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const t = useT();
+  const user = getV2User();
   const [r, setR] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(false);
@@ -74,10 +77,28 @@ export default function RequestDetailPage() {
   // "ເບີກແລ້ວ" from an actual ic_trans withdrawal created in the ERP warehouse.
   const isV2 = r.src !== "erp";
 
+  // Substitution approval — a request with substituted lines can't be withdrawn
+  // until someone with requests.approve_substitute approves it.
+  const hasSubstitute = items.some((it: any) => it.substituted);
+  const substituteApproved = !!r.substitute_approved;
+  const needsSubstApproval = isV2 && hasSubstitute && !substituteApproved;
+  const canApproveSubstitute = can(user, "requests", "approve_substitute");
+
   const toggleWithdrawn = async () => {
     setMarking(true);
     try {
       const res: any = await setRequestStatus(String(id), withdrawn ? "requested" : "withdrawn");
+      if (res?.success) await refresh();
+      else alert(res?.message || t("requests.failed", "ບໍ່ສຳເລັດ"));
+    } finally {
+      setMarking(false);
+    }
+  };
+
+  const approveSubst = async () => {
+    setMarking(true);
+    try {
+      const res: any = await approveSubstitute(String(id));
       if (res?.success) await refresh();
       else alert(res?.message || t("requests.failed", "ບໍ່ສຳເລັດ"));
     } finally {
@@ -100,6 +121,8 @@ export default function RequestDetailPage() {
             onDelete={() => deleteRequest(String(id))}
             afterDelete="/requests"
             label={t("requests.docLabel", "ໃບຂໍເບີກ")}
+            canEdit={can(user, "requests", "edit")}
+            canDelete={can(user, "requests", "delete")}
           />
         )}
       </div>
@@ -163,7 +186,12 @@ export default function RequestDetailPage() {
                       <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                         <td className={`${tdCls} text-center pl-4 font-mono text-xs text-[var(--theme-text-mute)]`}>{i + 1}</td>
                         <td className={`${tdCls} pl-2 font-medium text-[var(--theme-text)]`}>
-                          {it.description || it.item_name || it.item_code || "-"}
+                          <div>{it.description || it.item_name || it.item_code || "-"}</div>
+                          {it.substituted && (
+                            <div className="mt-0.5 inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                              {t("requests.substitutedFrom", "ປ່ຽນຈາກ")}: {it.boq_item_name || it.boq_item_code}
+                            </div>
+                          )}
                         </td>
                         <td className={`${tdCls} text-center`}>
                           <span className="inline-block rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
@@ -284,11 +312,34 @@ export default function RequestDetailPage() {
           {/* Quick Actions Card */}
           <Card className="p-4 shadow-sm bg-slate-50/50">
             <div className="flex flex-col gap-2.5">
+              {/* Substitution approval */}
+              {isV2 && hasSubstitute && (
+                substituteApproved ? (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11.5px] font-semibold text-emerald-700">
+                    ✓ {t("requests.substituteApproved", "ອະນຸມັດການປ່ຽນແທນແລ້ວ")}
+                    {r.substitute_approver ? ` · ${r.substitute_approver}` : ""}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                    <div className="text-[11.5px] font-semibold text-amber-700">{t("requests.substituteNeedsApproval", "ມີການປ່ຽນສິນຄ້າ — ຕ້ອງອະນຸມັດກ່ອນເບີກ")}</div>
+                    {canApproveSubstitute && (
+                      <button
+                        onClick={approveSubst}
+                        disabled={marking}
+                        className="mt-2 flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-amber-600 text-[12px] font-bold text-white hover:bg-amber-700 disabled:opacity-60"
+                      >
+                        {marking ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("requests.approveSubstitute", "ອະນຸມັດການປ່ຽນແທນ")}
+                      </button>
+                    )}
+                  </div>
+                )
+              )}
               {isV2 && (
                 <button
                   onClick={toggleWithdrawn}
-                  disabled={marking}
-                  className={`flex h-9 w-full items-center justify-center gap-2 rounded-lg text-[12.5px] font-bold transition-colors disabled:opacity-60 ${
+                  disabled={marking || (!withdrawn && needsSubstApproval)}
+                  title={!withdrawn && needsSubstApproval ? t("requests.substituteNeedsApproval", "ມີການປ່ຽນສິນຄ້າ — ຕ້ອງອະນຸມັດກ່ອນເບີກ") : undefined}
+                  className={`flex h-9 w-full items-center justify-center gap-2 rounded-lg text-[12.5px] font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                     withdrawn
                       ? "border border-[var(--theme-border-subtle)] bg-white text-slate-600 hover:bg-slate-50"
                       : "bg-blue-600 text-white hover:bg-blue-700"

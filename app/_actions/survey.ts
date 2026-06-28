@@ -1,6 +1,7 @@
 "use server";
 
 import { query } from "@/_lib/db";
+import { requirePermission } from "@/_lib/server-auth";
 import { ensureSurveySchema } from "@/_lib/schemas/survey";
 import { dateOrNull } from "@/_lib/schemas/quotations";
 import { saveWebFile } from "@/_lib/uploads";
@@ -25,6 +26,7 @@ export async function getSurveys(projectId: string): Promise<{ success: true; da
 
 export async function deleteSurvey(id: string): Promise<{ success: true } | Fail> {
   try {
+    await requirePermission("projects", "delete");
     await ensureSurveySchema();
     const r = await query(`DELETE FROM odg_survey WHERE id = $1 RETURNING id`, [id]);
     if (!r.rows.length) return fail("Survey not found");

@@ -43,7 +43,7 @@ import NotificationsBell from "./NotificationsBell";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useT } from "@/_lib/i18n";
 
-type NavItem = { label: string; tKey: string; href: string; icon: React.ReactNode };
+type NavItem = { label: string; tKey: string; href: string; icon: React.ReactNode; permKey?: string };
 type NavSection = { section?: string; sectionKey?: string; items: NavItem[] };
 
 const NAV_SECTIONS: NavSection[] = [
@@ -54,6 +54,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "ລູກຄ້າ", tKey: "nav.customers", href: "/customers", icon: <Users size={16} /> },
       { label: "ໂຄງການ", tKey: "nav.projects", href: "/projects", icon: <FolderKanban size={16} /> },
+      { label: "ແຜນທີ່ໂຄງການ", tKey: "nav.projectsMap", href: "/projects/map", icon: <MapPin size={16} />, permKey: "projects" },
       { label: "ໃບສະເໜີລາຄາ", tKey: "nav.quotations", href: "/quotations", icon: <FileText size={16} /> },
       { label: "ສັນຍາ", tKey: "nav.contracts", href: "/contracts", icon: <FileSignature size={16} /> },
     ],
@@ -110,6 +111,7 @@ const ALL_NAV = NAV_SECTIONS.flatMap((section) => section.items);
 function titleFor(pathname: string): { key: string; fallback: string } {
   if (pathname === "/") return { key: "nav.overview", fallback: "ພາບລວມ" };
   if (pathname.startsWith("/projects/new")) return { key: "title.registerProject", fallback: "ລົງທະບຽນໂຄງການ" };
+  if (pathname === "/projects/map") return { key: "nav.projectsMap", fallback: "ແຜນທີ່ໂຄງການ" };
   if (pathname.startsWith("/projects/")) return { key: "title.projectDetail", fallback: "ລາຍລະອຽດໂຄງການ" };
   if (pathname.startsWith("/profile")) return { key: "title.profile", fallback: "ໂປຣໄຟລ໌ & ການຕັ້ງຄ່າ" };
   const item = ALL_NAV.find((it) => it.href !== "/" && pathname.startsWith(it.href));
@@ -168,7 +170,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         items: section.items.filter((item) => {
           if (item.href === "/") return true;
           if (item.href === "/users" || item.href === "/push-test") return isAdmin(user);
-          return canView(user, item.href.slice(1));
+          return canView(user, item.permKey ?? item.href.slice(1));
         }),
       })).filter((section) => section.items.length > 0),
     [user],

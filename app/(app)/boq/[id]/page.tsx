@@ -31,11 +31,14 @@ export default function BoqDetailPage() {
   const docNo = decodeURIComponent(String(id));
   const user = getV2User();
   const isAdminUser = String(user?.role || "").trim().toLowerCase() === "admin";
+  const acl = user ? { role: user.role, permissions: user.permissions } : null;
   // The first BOQ of a contract: manager (boq.approve) can approve. Subsequent
-  // (2nd+) BOQ of the same contract: only an admin (ຜູ້ດູແລລະບົບ) may approve.
+  // (2nd+) BOQ of the same contract: only an admin OR a user granted the
+  // boq "approve_next" permission may approve.
+  const canApproveNext = isAdminUser || can(acl, "boq", "approve_next");
   const canApprove =
-    can(user ? { role: user.role, permissions: user.permissions } : null, "boq", "approve") &&
-    (b?.is_first !== false || isAdminUser);
+    can(acl, "boq", "approve") &&
+    (b?.is_first !== false || canApproveNext);
 
   const load = React.useCallback(async () => {
     const response = await fetch(`/api/boq/${encodeURIComponent(docNo)}`, { cache: "no-store" });
@@ -169,10 +172,10 @@ export default function BoqDetailPage() {
             {!canApprove &&
               status === "ລໍຖ້າອະນຸມັດ" &&
               b.is_first === false &&
-              !isAdminUser &&
-              can(user ? { role: user.role, permissions: user.permissions } : null, "boq", "approve") && (
+              !canApproveNext &&
+              can(acl, "boq", "approve") && (
                 <span className="rounded-lg bg-white/15 px-3 py-1.5 text-[11px] font-semibold text-white/90">
-                  {t("boq.secondNeedsAdmin", "ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບອະນຸມັດ")}
+                  {t("boq.secondNeedsAdmin", "ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບ ຫຼື ຜູ້ມີສິດອະນຸມັດໃບຕໍ່ໄປ")}
                 </span>
               )}
             <DocActions
@@ -180,6 +183,8 @@ export default function BoqDetailPage() {
               onDelete={() => deleteBoq(b.boq_no)}
               afterDelete="/boq"
               label="BOQ"
+              canEdit={can(user, "boq", "edit")}
+              canDelete={can(user, "boq", "delete")}
             />
           </div>
         </div>

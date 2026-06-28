@@ -40,6 +40,7 @@ export const DICT: Record<string, Entry> = {
   "nav.overview": { lo: "ພາບລວມ", th: "ภาพรวม", en: "Overview" },
   "nav.customers": { lo: "ລູກຄ້າ", th: "ลูกค้า", en: "Customers" },
   "nav.projects": { lo: "ໂຄງການ", th: "โครงการ", en: "Projects" },
+  "nav.projectsMap": { lo: "ແຜນທີ່ໂຄງການ", th: "แผนที่โครงการ", en: "Projects Map" },
   "nav.quotations": { lo: "ໃບສະເໜີລາຄາ", th: "ใบเสนอราคา", en: "Quotations" },
   "nav.contracts": { lo: "ສັນຍາ", th: "สัญญา", en: "Contracts" },
   "nav.boq": { lo: "BOQ", th: "BOQ", en: "BOQ" },

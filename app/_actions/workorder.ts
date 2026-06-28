@@ -4,7 +4,7 @@ import { query, withTransaction } from "@/_lib/db";
 import { invalidate } from "@/_lib/cache";
 import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { ensureProjectTaskSchema } from "@/_lib/schemas/tasks";
-import { requireUser } from "@/_lib/server-auth";
+import { requireUser, requirePermission } from "@/_lib/server-auth";
 import { can } from "@/_lib/permissions";
 import {
   approveWorkOrderAs,
@@ -96,6 +96,7 @@ export async function getWorkOrders(opts: { projectId?: string; projectCode?: st
 /** Delete a work order and un-assign its tasks (so they can be re-issued). */
 export async function deleteWorkOrder(id: string): Promise<{ success: true } | Fail> {
   try {
+    await requirePermission("work-orders", "delete");
     await ensureWorkOrderSchema();
     await ensureProjectTaskSchema();
     await withTransaction(async (client) => {

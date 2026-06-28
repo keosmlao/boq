@@ -145,7 +145,10 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
       for (const r of reqs.rows as any[]) {
         const withdrawn = r.status === "withdrawn";
         for (const it of Array.isArray(r.items) ? r.items : []) {
-          const e = map.get(keyOf(it.item_code, it.description));
+          // Substitutes (Option B): the line is issued as `item_code` (the real
+          // product) but fulfils BOQ line `boq_item_code` — credit the drawdown
+          // to the BOQ item so its remaining still closes out.
+          const e = map.get(keyOf(it.boq_item_code || it.item_code, it.description));
           if (!e) continue;
           if (withdrawn) e.withdraw_qty += num(it.qty);
           else e.request_qty += num(it.qty);

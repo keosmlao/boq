@@ -6,6 +6,8 @@ import { Check, Loader2, Pencil, Phone, Plus, RefreshCw, Search, Trash2, UsersRo
 import { Page, PageHeader, Card, Btn, Field, Pill, Stat, inputCls } from "../_components/ui";
 import { getTechnicians, createTechnician, updateTechnician, deleteTechnician } from "@/_actions/lookups";
 import { getTeamAvailability, type TeamAvailability } from "@/_actions/team-availability";
+import { getV2User } from "../../_lib/session";
+import { can } from "@/_lib/permissions";
 import { useT } from "@/_lib/i18n";
 
 type Tech = {
@@ -62,6 +64,9 @@ function teamState(t: Translator, a?: TeamAvailability): TeamState {
 
 export default function TechTeamsPage() {
   const t = useT();
+  const user = getV2User();
+  const canEdit = can(user, "tech-teams", "edit");
+  const canDelete = can(user, "tech-teams", "delete");
   const [techs, setTechs] = useState<Tech[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -250,12 +255,16 @@ export default function TechTeamsPage() {
                   )}
                 </div>
                 <div className="flex flex-shrink-0 gap-1">
-                  <button onClick={() => openEdit(tech)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-blue-600" title={t("common.edit", "ແກ້ໄຂ")}>
-                    <Pencil size={14} />
-                  </button>
-                  <button onClick={() => remove(tech)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" title={t("common.delete", "ລຶບ")}>
-                    <Trash2 size={14} />
-                  </button>
+                  {canEdit && (
+                    <button onClick={() => openEdit(tech)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-blue-600" title={t("common.edit", "ແກ້ໄຂ")}>
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button onClick={() => remove(tech)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" title={t("common.delete", "ລຶບ")}>
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 

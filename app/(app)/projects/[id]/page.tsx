@@ -44,7 +44,7 @@ import { getProjectSmlFinance } from "@/_actions/sml-finance";
 import { computeStages, StatusBadge, type Stage } from "@/_components/pipeline";
 import { useConfirm } from "../../_components/Confirm";
 import { getV2User, type V2User } from "../../../_lib/session";
-import { isManager, isAdmin } from "@/_lib/permissions";
+import { isManager, isAdmin, can } from "@/_lib/permissions";
 import { useT } from "@/_lib/i18n";
 import {
   getProjectInstall,
@@ -104,6 +104,16 @@ export default function V2PipelinePage() {
   const [install, setInstall] = useState<InstallRow | null>(null);
   const [me, setMe] = useState<V2User | null>(null);
   const [loadError, setLoadError] = useState("");
+  // Permission gates — hide edit/delete controls the user isn't allowed to use.
+  const canEditProject = can(me, "projects", "edit");
+  const canDeleteProject = can(me, "projects", "delete");
+  const canDeleteQuotation = can(me, "quotations", "delete");
+  const canDeleteContract = can(me, "contracts", "delete");
+  const canDeleteBoq = can(me, "boq", "delete");
+  const canDeleteWO = can(me, "work-orders", "delete");
+  const canDeleteSurvey = can(me, "projects", "delete");
+  const canEditTaskPlan = can(me, "schedule", "edit");
+  const canDeleteTaskPlan = can(me, "schedule", "delete");
   const [loading, setLoading] = useState(true);
   const tabParam = useSearchParams().get("tab") as TabKey | null;
   const [tab, setTab] = useState<TabKey>(tabParam || "overview");
@@ -398,20 +408,26 @@ export default function V2PipelinePage() {
                 />
               </div>
 
-              <div className="mt-4 flex gap-2 border-t border-white/10 pt-4">
-                <button
-                  onClick={() => router.push(`/projects/${id}/edit`)}
-                  className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/10 px-3 text-xs font-bold text-white transition hover:bg-white/15 active:scale-[0.98]"
-                >
-                  <Pencil size={13} /> {t("common.edit", "ແກ້ໄຂ")}
-                </button>
-                <button
-                  onClick={() => setConfirmDel(true)}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-white/5 px-3 text-xs font-bold text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200 active:scale-[0.98]"
-                >
-                  <Trash2 size={13} /> {t("common.delete", "ລຶບ")}
-                </button>
-              </div>
+              {(canEditProject || canDeleteProject) && (
+                <div className="mt-4 flex gap-2 border-t border-white/10 pt-4">
+                  {canEditProject && (
+                    <button
+                      onClick={() => router.push(`/projects/${id}/edit`)}
+                      className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/10 px-3 text-xs font-bold text-white transition hover:bg-white/15 active:scale-[0.98]"
+                    >
+                      <Pencil size={13} /> {t("common.edit", "ແກ້ໄຂ")}
+                    </button>
+                  )}
+                  {canDeleteProject && (
+                    <button
+                      onClick={() => setConfirmDel(true)}
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-white/5 px-3 text-xs font-bold text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200 active:scale-[0.98]"
+                    >
+                      <Trash2 size={13} /> {t("common.delete", "ລຶບ")}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -535,7 +551,7 @@ export default function V2PipelinePage() {
                   <Plus size={14} strokeWidth={2.5} /> {t("projectDetail.addSurvey", "ເພີ່ມການສຳຫຼວດ")}
                 </button>
               </div>
-              <SurveyList surveys={surveys} onDelete={delSurvey} />
+              <SurveyList surveys={surveys} onDelete={canDeleteSurvey ? delSurvey : undefined} />
             </div>
           )}
           {tab === "quotations" && (
@@ -550,7 +566,7 @@ export default function V2PipelinePage() {
                   </button>
                 </div>
               )}
-              <QuotationList quotations={quotations} onSetStatus={setQuoStatus} onDelete={delQuotation} />
+              <QuotationList quotations={quotations} onSetStatus={setQuoStatus} onDelete={canDeleteQuotation ? delQuotation : undefined} />
             </div>
           )}
           {tab === "contracts" && (
@@ -565,7 +581,7 @@ export default function V2PipelinePage() {
                   </button>
                 </div>
               )}
-              <ContractList contracts={allContracts} onApprove={setContractStep} onDelete={delContract} />
+              <ContractList contracts={allContracts} onApprove={setContractStep} onDelete={canDeleteContract ? delContract : undefined} />
             </div>
           )}
           {tab === "boq" && (
@@ -586,27 +602,31 @@ export default function V2PipelinePage() {
                   <span>{t("projectDetail.needContractFirst", "ຕ້ອງມີສັນຍາກ່ອນ ຈຶ່ງສ້າງ BOQ ໄດ້.")}</span>
                 </div>
               )}
-              <BoqList boqs={allBoqs} onSetStatus={setBoqStep} onDelete={delBoq} isAdmin={isAdmin(me)} />
+              <BoqList boqs={allBoqs} onSetStatus={setBoqStep} onDelete={canDeleteBoq ? delBoq : undefined} canApproveNext={isAdmin(me) || can(me, "boq", "approve_next")} />
             </div>
           )}
           {tab === "tasks" && (
             <div>
               {/* ໜ້າວຽກມາດຕະຖານຖືກສ້າງອັດຕະໂນມັດເມື່ອ BOQ ອະນຸມັດ — ບໍ່ມີປຸ່ມສ້າງ.
                   ເມື່ອມີແຜນແລ້ວ ຍັງສາມາດແກ້ໄຂ/ລຶບໄດ້. */}
-              {hasAnyContract && tasks.length > 0 && (
+              {hasAnyContract && tasks.length > 0 && (canDeleteTaskPlan || canEditTaskPlan) && (
                 <div className="mb-4 flex justify-end gap-2">
-                  <button
-                    onClick={delTaskPlan}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 text-xs font-bold text-rose-600 hover:bg-rose-50"
-                  >
-                    <Trash2 size={13} /> {t("projectDetail.deleteTaskPlan", "ລຶບແຜນວຽກ")}
-                  </button>
-                  <button
-                    onClick={() => router.push(`/projects/${id}/tasks/new`)}
-                    className={addBtn}
-                  >
-                    <Pencil size={14} strokeWidth={2.5} /> {t("projectDetail.editTaskPlan", "ແກ້ໄຂແຜນວຽກ")}
-                  </button>
+                  {canDeleteTaskPlan && (
+                    <button
+                      onClick={delTaskPlan}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 text-xs font-bold text-rose-600 hover:bg-rose-50"
+                    >
+                      <Trash2 size={13} /> {t("projectDetail.deleteTaskPlan", "ລຶບແຜນວຽກ")}
+                    </button>
+                  )}
+                  {canEditTaskPlan && (
+                    <button
+                      onClick={() => router.push(`/projects/${id}/tasks/new`)}
+                      className={addBtn}
+                    >
+                      <Pencil size={14} strokeWidth={2.5} /> {t("projectDetail.editTaskPlan", "ແກ້ໄຂແຜນວຽກ")}
+                    </button>
+                  )}
                 </div>
               )}
               <TaskList tasks={tasks} />
@@ -622,7 +642,7 @@ export default function V2PipelinePage() {
                   <Plus size={14} strokeWidth={2.5} /> {t("projectDetail.ctaIssueWorkOrder", "ອອກໃບງານ")}
                 </button>
               </div>
-              <WorkOrderList workorders={workorders} onDelete={delWO} />
+              <WorkOrderList workorders={workorders} onDelete={canDeleteWO ? delWO : undefined} />
             </div>
           )}
           {tab === "materials" && <MaterialsSummary rows={materials} />}
@@ -1123,7 +1143,7 @@ function TaskList({ tasks }: { tasks: any[] }) {
   );
 }
 
-function BoqList({ boqs, onSetStatus, onDelete, isAdmin = false }: { boqs: any[]; onSetStatus: (docNo: any, status: string) => void; onDelete?: (b: any) => void; isAdmin?: boolean }) {
+function BoqList({ boqs, onSetStatus, onDelete, canApproveNext = false }: { boqs: any[]; onSetStatus: (docNo: any, status: string) => void; onDelete?: (b: any) => void; canApproveNext?: boolean }) {
   const t = useT();
   const statusLabel = (s: string) =>
     s === "ອະນຸມັດແລ້ວ" ? t("status.approved", "ອະນຸມັດແລ້ວ")
@@ -1172,8 +1192,9 @@ function BoqList({ boqs, onSetStatus, onDelete, isAdmin = false }: { boqs: any[]
             const approved = status === "ອະນຸມັດແລ້ວ";
             const rejected = status === "ປະຕິເສດ";
             const tone = approved ? "green" : rejected ? "red" : "amber";
-            // 2nd+ BOQ of a contract: only an admin may approve/reject/reset.
-            const canApprove = isAdmin || firstDocNos.has(String(docNo));
+            // 2nd+ BOQ of a contract: only an admin OR a user granted the boq
+            // "approve_next" permission may approve/reject/reset.
+            const canApprove = canApproveNext || firstDocNos.has(String(docNo));
             return (
               <tr key={docNo || i} className="group transition-colors hover:bg-slate-50/50">
                 <td className="px-4 py-3 font-mono font-bold">
@@ -1210,7 +1231,7 @@ function BoqList({ boqs, onSetStatus, onDelete, isAdmin = false }: { boqs: any[]
                       </button>
                     )}
                     {!canApprove && !approved && !rejected && (
-                      <span className="text-[10px] font-bold text-amber-600">{t("projectDetail.needAdminApprove", "ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບອະນຸມັດ")}</span>
+                      <span className="text-[10px] font-bold text-amber-600">{t("projectDetail.needAdminApprove", "ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບ ຫຼື ຜູ້ມີສິດອະນຸມັດໃບຕໍ່ໄປ")}</span>
                     )}
                     {onDelete && (
                       <button
@@ -1255,10 +1276,7 @@ function ContractList({
       {contracts.map((c, i) => {
         const isErp = c.src === "erp";
         const sales = isErp ? Number(c.approve_status_1) === 1 : !!c.sales_approved;
-        const acc = isErp
-          ? Math.max(Number(c.approve_status_2) || 0, Number(c.acc_approve) || 0) === 1
-          : !!c.accounting_approved;
-        const full = sales && acc;
+        const full = sales;
         return (
           <div key={c.id ?? c.contract_no ?? i} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs hover:shadow-xs transition-shadow">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -1294,8 +1312,6 @@ function ContractList({
             {isErp ? (
               <div className="mt-3 flex flex-wrap gap-4 text-xs font-bold text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                 <span className="flex items-center gap-1.5">{t("projectDetail.sales", "ຝ່າຍຂາຍ")}: {sales ? <span className="text-emerald-600">{t("common.approve", "ອະນຸມັດ")} ✓</span> : <span className="text-amber-500">{t("projectDetail.waiting", "ລໍຖ້າ")}</span>}</span>
-                <span className="text-slate-200">|</span>
-                <span className="flex items-center gap-1.5">{t("projectDetail.accounting", "ບັນຊີ")}: {acc ? <span className="text-emerald-600">{t("common.approve", "ອະນຸມັດ")} ✓</span> : <span className="text-amber-500">{t("projectDetail.waiting", "ລໍຖ້າ")}</span>}</span>
               </div>
             ) : (
               <div className="mt-3 flex flex-wrap gap-3">
@@ -1304,17 +1320,7 @@ function ContractList({
                   approved={sales}
                   approver={c.sales_approver}
                   onApprove={() => onApprove(c.id, "sales", true)}
-                  // Can't un-approve sales while accounting still depends on it.
-                  onUndo={acc ? undefined : () => onApprove(c.id, "sales", false)}
-                />
-                <ApprovalCell
-                  label={t("projectDetail.accounting", "ບັນຊີ")}
-                  approved={acc}
-                  approver={c.accounting_approver}
-                  locked={!sales}
-                  lockedHint={t("projectDetail.waitSalesFirst", "ລໍຖ້າຝ່າຍຂາຍກ່ອນ")}
-                  onApprove={() => onApprove(c.id, "accounting", true)}
-                  onUndo={() => onApprove(c.id, "accounting", false)}
+                  onUndo={() => onApprove(c.id, "sales", false)}
                 />
               </div>
             )}

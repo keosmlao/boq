@@ -5,8 +5,8 @@ import { invalidate } from "@/_lib/cache";
 import { logActivity } from "./chatter";
 import { cleanText, toNumber } from "@/_lib/http";
 import { approveAccounting } from "@/_lib/projects";
-import { getSessionUser } from "@/_lib/server-auth";
-import { isAdmin } from "@/_lib/permissions";
+import { getSessionUser, requirePermission } from "@/_lib/server-auth";
+import { isAdmin, can } from "@/_lib/permissions";
 import { seedStandardInstallTasks } from "@/_lib/standard-tasks";
 
 type Ok<T = unknown> = { success: true } & T;
@@ -219,6 +219,7 @@ export async function getBoq(docNo: string): Promise<Record<string, unknown> | {
 
 export async function deleteBoq(docNo: string): Promise<Ok | Fail> {
   try {
+    await requirePermission("boq", "delete");
     const decodedDocNo = decodeURIComponent(docNo);
     await withTransaction(async (client) => {
       await client.query(`DELETE FROM odg_projects_boq_detail WHERE doc_no = $1`, [decodedDocNo]);
@@ -416,6 +417,7 @@ export async function updateBoqErp(
   payload: { items?: unknown[] },
 ): Promise<{ success: true; doc_no: string; total_items: number } | Fail> {
   try {
+    await requirePermission("boq", "edit");
     const decodedDocNo = decodeURIComponent(docNo);
     const items = Array.isArray(payload?.items) ? payload.items : [];
     const validItems = items
@@ -465,11 +467,12 @@ export async function approveBoq(docNo: string, payload: { status?: number; user
     const status = toNumber(payload?.status, 0);
     const username = payload?.username ? String(payload.username) : null;
 
-    // Subsequent (2nd+) BOQ of a contract may only be approved/rejected by an admin.
+    // Subsequent (2nd+) BOQ of a contract may only be approved/rejected by an
+    // admin OR a user explicitly granted the boq "approve_next" permission.
     const sessionUser = await getSessionUser();
     const firstBoq = await isFirstBoqForContract(decodedDocNo);
-    if (!firstBoq && !isAdmin(sessionUser)) {
-      return fail("ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບອະນຸມັດເທົ່ານັ້ນ");
+    if (!firstBoq && !isAdmin(sessionUser) && !can(sessionUser, "boq", "approve_next")) {
+      return fail("ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບ ຫຼື ຜູ້ມີສິດອະນຸມັດໃບຕໍ່ໄປເທົ່ານັ້ນ");
     }
 
     await query(

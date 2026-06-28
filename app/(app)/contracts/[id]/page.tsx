@@ -10,6 +10,8 @@ import { deleteProjectContract, approveProjectAction } from "@/_actions/projects
 import { checkAccountingApprove } from "@/_actions/boq";
 import { Page, Card, Btn, Pill, SectionHeader, tblCls, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
+import { getV2User } from "../../../_lib/session";
+import { can } from "@/_lib/permissions";
 import { useConfirm } from "../../_components/Confirm";
 import { useT } from "@/_lib/i18n";
 
@@ -28,6 +30,7 @@ export default function ContractDetailPage() {
   const router = useRouter();
   const confirm = useConfirm();
   const t = useT();
+  const user = getV2User();
   const [c, setC] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -63,7 +66,7 @@ export default function ContractDetailPage() {
   }
 
   const items = Array.isArray(c.items) ? c.items : [];
-  const full = !!c.sales_approved && !!c.accounting_approved;
+  const full = !!c.sales_approved;
   const itemsTotal = items.reduce((s: number, it: any) => s + (it.amount != null ? num(it.amount) : num(it.qty) * num(it.unit_price)), 0);
   const isErp = c.src === "erp";
 
@@ -118,6 +121,7 @@ export default function ContractDetailPage() {
             onDelete={() => deleteProjectContract(String(c.project_id), String(c.contract_no))}
             afterDelete="/contracts"
             label={t("contracts.title", "ສັນຍາ")}
+            canDelete={can(user, "contracts", "delete")}
           />
         ) : (
           <DocActions
@@ -125,6 +129,8 @@ export default function ContractDetailPage() {
             onDelete={() => deleteContract(String(id))}
             afterDelete="/contracts"
             label={t("contracts.title", "ສັນຍາ")}
+            canEdit={can(user, "contracts", "edit")}
+            canDelete={can(user, "contracts", "delete")}
           />
         )}
       </div>
@@ -209,18 +215,7 @@ export default function ContractDetailPage() {
               approved={!!c.sales_approved}
               who={c.sales_approver}
               onApprove={isErp ? () => approveErp("sales") : () => setStep("sales", true)}
-              // Can't un-approve sales while accounting still depends on it.
-              onUndo={isErp || c.accounting_approved ? undefined : () => setStep("sales", false)}
-            />
-            <ApprovalRow
-              label={t("contracts.accounting", "ບັນຊີ")}
-              step={2}
-              approved={!!c.accounting_approved}
-              who={c.accounting_approver}
-              locked={!c.sales_approved}
-              lockedHint={t("contracts.waitSalesFirst", "ລໍຖ້າຝ່າຍຂາຍອະນຸມັດກ່ອນ")}
-              onApprove={isErp ? () => approveErp("accounting") : () => setStep("accounting", true)}
-              onUndo={isErp ? undefined : () => setStep("accounting", false)}
+              onUndo={isErp ? undefined : () => setStep("sales", false)}
             />
           </div>
           {isErp && (

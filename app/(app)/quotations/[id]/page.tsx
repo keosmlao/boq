@@ -107,6 +107,8 @@ export default function QuotationDetailPage() {
             onDelete={() => deleteQuotation(String(id))}
             afterDelete="/quotations"
             label={t("quotations.docLabel", "ໃບສະເໜີ")}
+            canEdit={can(user, "quotations", "edit")}
+            canDelete={can(user, "quotations", "delete")}
           />
         </div>
       </div>

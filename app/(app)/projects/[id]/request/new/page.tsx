@@ -3,12 +3,12 @@
 /** v2 — Material request (ຂໍເບີກ). Request BOQ materials (within remaining). */
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Save, PackageOpen, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, Loader2, Save, PackageOpen, Plus, Search, Trash2, X, Repeat } from "lucide-react";
 import { getProjectBasic } from "@/_actions/projects";
 import { getCustomer } from "@/_actions/customers";
 import { getProjectMaterials } from "@/_actions/boq-v2";
 import { createRequest, updateRequest, getRequestDetail } from "@/_actions/request-v2";
-import { getWarehouses, getLocations, getStockBalancesAtLocation } from "@/_actions/lookups";
+import { getWarehouses, getLocations, getStockBalancesAtLocation, getInventory } from "@/_actions/lookups";
 import { Page, Card, Btn, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
 import { useT } from "@/_lib/i18n";
 
@@ -23,6 +23,10 @@ type Row = {
   boq_remaining: number;
   stock_remaining: number;
   qty: number;
+  /** The BOQ line this row draws down. Differs from item_code when substituted. */
+  boq_item_code: string;
+  /** Original BOQ item name (shown when substituted). */
+  boq_item_name: string;
 };
 
 const num = (v: unknown) => {
@@ -43,6 +47,10 @@ export default function RequestPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
+  const [substIdx, setSubstIdx] = useState<number | null>(null);
+  const [substQuery, setSubstQuery] = useState("");
+  const [substResults, setSubstResults] = useState<any[]>([]);
+  const [substLoading, setSubstLoading] = useState(false);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,8 +62,10 @@ export default function RequestPage() {
   const [stockLoading, setStockLoading] = useState(false);
   const [stockError, setStockError] = useState("");
   const boqItemCodesKey = useMemo(
-    () => boqRows.map((row) => row.item_code).filter(Boolean).join("\u001f"),
-    [boqRows],
+    // Include cart rows' codes too, so substitute products (not in the BOQ list)
+    // still get their stock balance fetched for the selected location.
+    () => [...new Set([...boqRows, ...rows].map((row) => row.item_code).filter(Boolean))].join("\u001f"),
+    [boqRows, rows],
   );
 
   useEffect(() => {
@@ -82,6 +92,8 @@ export default function RequestPage() {
             boq_remaining: num(m.remaining),
             stock_remaining: 0,
             qty: 0,
+            boq_item_code: m.item_code || "",
+            boq_item_name: m.description || "",
           }));
         setBoqRows(availableRows);
 
@@ -97,7 +109,9 @@ export default function RequestPage() {
               const reqItems = Array.isArray(detRes.data?.items) ? detRes.data.items : [];
               setRows(
                 reqItems.map((it: any) => {
-                  const key = String(it.item_code || it.description || "");
+                  // For substituted lines, BOQ figures come from the original BOQ code.
+                  const boqCode = String(it.boq_item_code || it.item_code || "").trim();
+                  const key = boqCode || String(it.description || "");
                   const qty = num(it.qty);
                   const material = materialMap.get(key) || {};
                   return {
@@ -111,6 +125,8 @@ export default function RequestPage() {
                     boq_remaining: (remMap[key] ?? 0) + qty,
                     stock_remaining: 0,
                     qty,
+                    boq_item_code: boqCode || (it.item_code || ""),
+                    boq_item_name: String(it.boq_item_name || material.description || it.description || ""),
                   };
                 }),
               );
@@ -199,6 +215,22 @@ export default function RequestPage() {
     return () => { alive = false; };
   }, [boqItemCodesKey, shelfCode, whCode]);
 
+  // Substitution product search (debounced) — runs while the substitute modal is open.
+  useEffect(() => {
+    if (substIdx === null) return;
+    let alive = true;
+    setSubstLoading(true);
+    const handle = setTimeout(async () => {
+      try {
+        const res: any = await getInventory({ search: substQuery.trim(), limit: 30 });
+        if (alive) setSubstResults(res?.success ? res.data || [] : []);
+      } finally {
+        if (alive) setSubstLoading(false);
+      }
+    }, 300);
+    return () => { alive = false; clearTimeout(handle); };
+  }, [substIdx, substQuery]);
+
   const totalReq = useMemo(() => rows.reduce((s, r) => s + num(r.qty), 0), [rows]);
   const rowKey = (row: Pick<Row, "item_code" | "description">) => String(row.item_code || row.description || "");
   const selectableRows = useMemo(() => {
@@ -206,14 +238,16 @@ export default function RequestPage() {
     const query = pickerQuery.trim().toLowerCase();
     return boqRows.filter((row) => {
       if (selected.has(rowKey(row))) return false;
-      if (row.remaining <= 0) return false;
+      // Show items that still have BOQ remaining even if out of stock — those
+      // can be added and then substituted with an in-stock product.
+      if (row.boq_remaining <= 0) return false;
       if (!query) return true;
       return [row.item_code, row.description, row.unit].some((value) => String(value || "").toLowerCase().includes(query));
     });
   }, [boqRows, pickerQuery, rows]);
   const canSelectMore = useMemo(() => {
     const selected = new Set(rows.map(rowKey));
-    return !!whCode && !!shelfCode && !stockLoading && boqRows.some((row) => row.remaining > 0 && !selected.has(rowKey(row)));
+    return !!whCode && !!shelfCode && !stockLoading && boqRows.some((row) => row.boq_remaining > 0 && !selected.has(rowKey(row)));
   }, [boqRows, rows, shelfCode, stockLoading, whCode]);
   const setRow = (i: number, qty: number) =>
     setRows((a) => a.map((r, idx) => (idx === i ? { ...r, qty: Math.min(Math.max(qty, 0), r.remaining) } : r)));
@@ -223,6 +257,36 @@ export default function RequestPage() {
     setPickerQuery("");
   };
   const removeRow = (i: number) => setRows((current) => current.filter((_, index) => index !== i));
+
+  // Replace the issued product on a cart row, keeping its BOQ linkage so the
+  // BOQ line still draws down. Stock for the new product refetches via effect.
+  const applySubstitute = (i: number, inv: { code: string; name: string; unit: string }) => {
+    setRows((current) =>
+      current.map((r, idx) =>
+        idx === i
+          ? {
+              ...r,
+              item_code: inv.code,
+              description: inv.name,
+              unit: inv.unit || r.unit,
+              stock_remaining: 0,
+              remaining: 0,
+              qty: 0,
+            }
+          : r,
+      ),
+    );
+    setSubstIdx(null);
+    setSubstQuery("");
+  };
+  const clearSubstitute = (i: number) =>
+    setRows((current) =>
+      current.map((r, idx) =>
+        idx === i
+          ? { ...r, item_code: r.boq_item_code, description: r.boq_item_name, stock_remaining: 0, remaining: 0, qty: 0 }
+          : r,
+      ),
+    );
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -238,6 +302,8 @@ export default function RequestPage() {
       description: r.description,
       unit: r.unit || null,
       qty: num(r.qty),
+      boq_item_code: r.boq_item_code || r.item_code || null,
+      boq_item_name: r.boq_item_name || r.description || null,
       wh_code: whCode || null,
       wh_name: wh?.name_1 || null,
       shelf_code: shelfCode || null,
@@ -360,9 +426,20 @@ export default function RequestPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
+                {rows.map((r, i) => {
+                  const substituted = !!r.boq_item_code && r.boq_item_code !== r.item_code;
+                  return (
                   <tr key={i}>
-                    <td className={`${tdCls} font-medium text-[var(--theme-text)]`}>{r.description || r.item_code}</td>
+                    <td className={`${tdCls} font-medium text-[var(--theme-text)]`}>
+                      <div>{r.description || r.item_code}</div>
+                      {substituted ? (
+                        <div className="mt-0.5 inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                          <Repeat size={10} /> {t("requestNew.substitutedFrom", "ປ່ຽນຈາກ")}: {r.boq_item_name || r.boq_item_code}
+                        </div>
+                      ) : r.stock_remaining <= 0 ? (
+                        <div className="mt-0.5 text-[10px] font-semibold text-rose-500">{t("requestNew.outOfStock", "ບໍ່ມີ stock — ກົດ ‘ປ່ຽນ’")}</div>
+                      ) : null}
+                    </td>
                     <td className={tdCls}>{r.unit || "-"}</td>
                     <td className={`${tdCls} text-right tabular-nums text-[var(--theme-text-soft)]`}>{r.boq_qty.toLocaleString("en-US")}</td>
                     <td className={`${tdCls} text-right tabular-nums text-amber-600`}>{r.pending_request_qty.toLocaleString("en-US")}</td>
@@ -373,12 +450,23 @@ export default function RequestPage() {
                       <input type="number" min="0" max={r.remaining} value={r.qty} onChange={(e) => setRow(i, Number(e.target.value))} className={`${inputCls} h-8 text-right`} />
                     </td>
                     <td className={`${tdCls} text-center`}>
-                      <button type="button" onClick={() => removeRow(i)} className="text-rose-500 hover:text-rose-700" aria-label={t("requestNew.removeItem", "ລຶບລາຍການ")}>
-                        <Trash2 size={15} />
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button type="button" onClick={() => { setSubstIdx(i); setSubstQuery(""); }} className={`${substituted ? "text-amber-600" : "text-slate-400"} hover:text-amber-700`} title={t("requestNew.substitute", "ປ່ຽນສິນຄ້າ")}>
+                          <Repeat size={15} />
+                        </button>
+                        {substituted && (
+                          <button type="button" onClick={() => clearSubstitute(i)} className="text-slate-400 hover:text-slate-600" title={t("requestNew.undoSubstitute", "ກັບໄປສິນຄ້າ BOQ")}>
+                            <X size={14} />
+                          </button>
+                        )}
+                        <button type="button" onClick={() => removeRow(i)} className="text-rose-500 hover:text-rose-700" aria-label={t("requestNew.removeItem", "ລຶບລາຍການ")}>
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>}
@@ -423,6 +511,50 @@ export default function RequestPage() {
                     {t("requestNew.canWithdrawMore", "ເບີກເພີ່ມໄດ້")}: <strong className="text-[11.5px] text-[var(--theme-text)]">{row.boq_remaining.toLocaleString("en-US")}</strong>
                     {" · "}
                     Stock: <strong className="text-[11.5px] text-emerald-600">{row.stock_remaining.toLocaleString("en-US")}</strong>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {substIdx !== null && rows[substIdx] && (
+        <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/40 px-3 pt-[8vh]" onClick={() => setSubstIdx(null)}>
+          <div className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-[var(--theme-shadow-lg)]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 text-white">
+              <div className="min-w-0">
+                <h2 className="flex items-center gap-1.5 text-[14px] font-bold"><Repeat size={15} /> {t("requestNew.substituteTitle", "ປ່ຽນສິນຄ້າແທນ")}</h2>
+                <p className="truncate text-[10.5px] text-white/85">{t("requestNew.substituteFor", "ແທນ BOQ")}: {rows[substIdx].boq_item_name || rows[substIdx].boq_item_code}</p>
+              </div>
+              <button type="button" onClick={() => setSubstIdx(null)} className="text-white/80 hover:text-white"><X size={18} /></button>
+            </div>
+            <div className="border-b border-[var(--theme-border-subtle)] p-3">
+              <p className="mb-2 text-[11.5px] text-[var(--theme-text-mute)]">{t("requestNew.substituteHint", "ເລືອກສິນຄ້າມາແທນ — ຍອດ BOQ ເດີມຍັງຖືກຕັດ. ການປ່ຽນຕ້ອງຜ່ານການອະນຸມັດ.")}</p>
+              <div className="flex h-9 items-center gap-2 rounded-md border border-[var(--theme-border-subtle)] px-2.5">
+                <Search size={14} className="text-[var(--theme-text-mute)]" />
+                <input autoFocus value={substQuery} onChange={(e) => setSubstQuery(e.target.value)} placeholder={t("requestNew.searchProduct", "ຄົ້ນຫາສິນຄ້າ (ລະຫັດ/ຊື່)...")} className="min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {substLoading ? (
+                <div className="flex items-center justify-center gap-2 px-4 py-10 text-[12px] text-[var(--theme-text-mute)]"><Loader2 size={15} className="animate-spin" /> {t("common.loading", "ກຳລັງໂຫຼດ...")}</div>
+              ) : substResults.length === 0 ? (
+                <div className="px-4 py-10 text-center text-[12px] text-[var(--theme-text-mute)]">{t("requestNew.noProducts", "ບໍ່ພົບສິນຄ້າ")}</div>
+              ) : substResults.map((it: any, idx: number) => (
+                <button
+                  key={String(it.code || idx)}
+                  type="button"
+                  onClick={() => applySubstitute(substIdx, { code: String(it.code ?? ""), name: String(it.name_1 ?? it.item_name ?? it.code ?? ""), unit: String(it.unit ?? it.unit_code ?? "") })}
+                  className="flex w-full items-center gap-3 border-b border-[var(--theme-border-subtle)] px-4 py-2.5 text-left last:border-0 hover:bg-amber-50/70"
+                >
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-600"><Repeat size={14} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12.5px] font-semibold text-[var(--theme-text)]">{it.name_1 || it.item_name || it.code}</span>
+                    <span className="block truncate text-[10.5px] text-[var(--theme-text-mute)]">{it.code || "-"}{it.unit ? ` · ${it.unit}` : ""}{it.brand_name ? ` · ${it.brand_name}` : ""}</span>
+                  </span>
+                  <span className="flex-shrink-0 text-right text-[10.5px] text-[var(--theme-text-mute)]">
+                    Stock: <strong className={`text-[11.5px] ${num(it.balance_qty) > 0 ? "text-emerald-600" : "text-rose-500"}`}>{num(it.balance_qty).toLocaleString("en-US")}</strong>
                   </span>
                 </button>
               ))}

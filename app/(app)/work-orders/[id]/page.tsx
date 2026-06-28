@@ -8,6 +8,8 @@ import { getWorkOrderById, deleteWorkOrder } from "@/_actions/workorder";
 import { Page, Card, Btn, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
 import WorkOrderJobPanel from "./WorkOrderJobPanel";
+import { getV2User } from "../../../_lib/session";
+import { can } from "@/_lib/permissions";
 import { useT } from "@/_lib/i18n";
 
 const money = (v: unknown) => {
@@ -20,6 +22,7 @@ export default function WorkOrderDetailPage() {
   const t = useT();
   const { id } = useParams();
   const router = useRouter();
+  const user = getV2User();
   const [w, setW] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -65,7 +68,7 @@ export default function WorkOrderDetailPage() {
           <ArrowLeft size={14} /> {t("workorders.backToList", "ກັບໄປລາຍການໃບງານ")}
         </button>
         {w.src !== "erp" && (
-          <DocActions onDelete={() => deleteWorkOrder(String(id))} afterDelete="/work-orders" label={t("workorders.title", "ໃບງານ")} />
+          <DocActions onDelete={() => deleteWorkOrder(String(id))} afterDelete="/work-orders" label={t("workorders.title", "ໃບງານ")} canDelete={can(user, "work-orders", "delete")} />
         )}
       </div>
 

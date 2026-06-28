@@ -3,6 +3,7 @@
 import { query } from "@/_lib/db";
 import { cleanText } from "@/_lib/http";
 import { cached } from "@/_lib/cache";
+import { requirePermission } from "@/_lib/server-auth";
 import {
   listBusinessModels,
   listBusinessTypes,
@@ -169,6 +170,7 @@ export async function createTechnician(payload: Record<string, unknown>): Promis
 
 export async function updateTechnician(id: number | string, payload: Record<string, unknown>): Promise<{ success: true } | Fail> {
   try {
+    await requirePermission("tech-teams", "edit");
     const updates: string[] = [];
     const values: unknown[] = [];
 
@@ -207,6 +209,7 @@ export async function updateTechnician(id: number | string, payload: Record<stri
 
 export async function deleteTechnician(id: number | string): Promise<{ success: true } | Fail> {
   try {
+    await requirePermission("tech-teams", "delete");
     await query(`DELETE FROM odg_technicians WHERE roworder = $1`, [Number(id)]);
     return { success: true };
   } catch (e) { return fail((e as Error).message); }
