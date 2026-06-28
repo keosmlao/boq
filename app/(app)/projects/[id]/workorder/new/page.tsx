@@ -44,6 +44,7 @@ export default function WorkOrderPage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [techCode, setTechCode] = useState("");
   const [workDate, setWorkDate] = useState("");
+  const [shift, setShift] = useState("");
   const [endDate, setEndDate] = useState("");
   const [ratePerHour, setRatePerHour] = useState(0);
   const [notes, setNotes] = useState("");
@@ -150,6 +151,7 @@ export default function WorkOrderPage() {
         technician_code: techCode,
         technician_name: tech ? String(tech.name_1 || "") : "",
         work_date: workDate || null,
+        shift: shift || null,
         end_date: endDate || null,
         rate_per_hour: num(ratePerHour),
         notes: notes || null,
@@ -239,6 +241,19 @@ export default function WorkOrderPage() {
             </Field>
             <Field label={t("workorderNew.startDate", "ວັນເລີ່ມ")}>
               <input type="date" value={workDate} onChange={(e) => setWorkDate(e.target.value)} className={inputCls} />
+            </Field>
+            <Field label={t("workorderNew.shift", "ຮอบ")}>
+              <RSelect
+                value={shift}
+                onChange={setShift}
+                isSearchable={false}
+                isClearable
+                placeholder={t("workorderNew.selectShift", "ເລືອกรอบ")}
+                options={[
+                  { value: "morning", label: t("workorderNew.shiftMorning", "ຮอบเช้า") },
+                  { value: "afternoon", label: t("workorderNew.shiftAfternoon", "ຮอบบ่าย") },
+                ]}
+              />
             </Field>
             <Field label={t("workorderNew.endDate", "ວັນຈົບ")}>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />

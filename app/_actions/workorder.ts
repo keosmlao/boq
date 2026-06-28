@@ -271,8 +271,8 @@ export async function createWorkOrder(body: any): Promise<{ success: true; data:
       const wo = await client.query(
         `INSERT INTO odg_work_order
           (work_no, project_id, contract_id, work_date, end_date, technician_code, technician_name,
-           rate_per_hour, total_hours, labor_cost, status, notes, tasks, materials, assigned_username)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+           rate_per_hour, total_hours, labor_cost, status, notes, tasks, materials, assigned_username, shift)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
         [
           workNo,
           String(body.project_id),
@@ -289,6 +289,7 @@ export async function createWorkOrder(body: any): Promise<{ success: true; data:
           JSON.stringify(tasks),
           JSON.stringify(materials),
           body.technician_code || null, // bind the assigned craftsman (employee_code)
+          body.shift || null,
         ],
       );
       const woId = String(wo.rows[0].id);

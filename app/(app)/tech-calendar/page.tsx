@@ -40,6 +40,12 @@ export default function TechCalendarPage() {
   useEffect(() => { load(); }, [from, to]);
 
   // Aggregate work orders per date.
+  const isDone = (r: TechCalRow) => String(r.status || "").toLowerCase() === "closed" || !!r.checkout_at;
+  const shiftKey = (r: TechCalRow): "morning" | "afternoon" => {
+    if (r.shift === "morning" || r.shift === "afternoon") return r.shift;
+    return (r.checkin_at ? new Date(r.checkin_at).getHours() : 8) < 12 ? "morning" : "afternoon";
+  };
+
   const byDate = useMemo(() => {
     const m = new Map<string, DayAgg>();
     for (const r of rows) {
@@ -48,9 +54,8 @@ export default function TechCalendarPage() {
       e.assigned += 1;
       const s = String(r.status || "").toLowerCase();
       if (s === "closed" || r.checkout_at) e.done += 1;
-      // Shift from check-in hour (default to morning when not checked in yet).
-      const h = r.checkin_at ? new Date(r.checkin_at).getHours() : 8;
-      if (h < 12) e.morning += 1; else e.afternoon += 1;
+      // Shift from the work order's shift field (fallback: check-in hour).
+      if (shiftKey(r) === "morning") e.morning += 1; else e.afternoon += 1;
       m.set(r.work_date, e);
     }
     return m;
@@ -69,8 +74,6 @@ export default function TechCalendarPage() {
 
   const dows = [t("techCal.sun", "ອາທິດ"), t("techCal.mon", "ຈັນ"), t("techCal.tue", "ອັງຄານ"), t("techCal.wed", "ພຸດ"), t("techCal.thu", "ພະຫັດ"), t("techCal.fri", "ສຸກ"), t("techCal.sat", "ເສົາ")];
 
-  const isDone = (r: TechCalRow) => String(r.status || "").toLowerCase() === "closed" || !!r.checkout_at;
-  const shiftKey = (r: TechCalRow) => ((r.checkin_at ? new Date(r.checkin_at).getHours() : 8) < 12 ? "morning" : "afternoon");
   const hhmm = (v: string | null) => (v ? `${pad(new Date(v).getHours())}:${pad(new Date(v).getMinutes())}` : "");
   const statusText = (r: TechCalRow) => {
     if (isDone(r)) return t("techCal.done", "ສຳເລັດ");

@@ -21,6 +21,7 @@ export type TechCalRow = {
   checkin_at: string | null;
   checkout_at: string | null;
   total_hours: number | null;
+  shift: string | null;
 };
 
 export async function getTechCalendar(fromISO: string, toISO: string): Promise<{ success: true; data: TechCalRow[] } | { success: false; message: string }> {
@@ -40,7 +41,8 @@ export async function getTechCalendar(fromISO: string, toISO: string): Promise<{
         p.project_name,
         w.checkin_at,
         w.checkout_at,
-        w.total_hours
+        w.total_hours,
+        w.shift
       FROM odg_technicians t
       LEFT JOIN odg_work_order w
         ON w.technician_code = t.code
