@@ -19,9 +19,21 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     }
 
     // BOQ materials for the project (BOQ-only requisition; show remaining).
+    // The WO may store the project as its sml_code/project_code, but the BOQ is
+    // keyed by odg_projects.id — resolve to the canonical id first (same as web).
     let items: any[] = [];
-    if (wo.project_id) {
-      const mat = await getProjectMaterials(String(wo.project_id));
+    let projectId = wo.project_id ? String(wo.project_id) : "";
+    if (projectId) {
+      try {
+        const pr = await query(
+          `SELECT id::text AS id FROM odg_projects WHERE id::text = $1 OR sml_code = $1 LIMIT 1`,
+          [projectId],
+        );
+        if (pr.rows[0]?.id) projectId = String(pr.rows[0].id);
+      } catch {/* fall back to the raw project_id */}
+    }
+    if (projectId) {
+      const mat = await getProjectMaterials(projectId);
       if (mat.success) {
         items = mat.data
           .map((m: any) => ({
