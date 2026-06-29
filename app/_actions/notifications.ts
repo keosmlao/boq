@@ -107,6 +107,27 @@ export async function notifyUser(
 }
 
 /**
+ * ERP login users (odg_project_manager_user) aren't in odg_app_user but ARE
+ * real web admins — without this they'd never get a bell. Insert for each ERP
+ * user not already covered by the odg_app_user audience. Best-effort.
+ * params = [entity_type, entity_id, kind, actor_username, actor_name, body]
+ */
+async function notifyErpAdmins(params: unknown[]): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO public.odg_notifications (recipient_username, entity_type, entity_id, kind, actor_username, actor_name, body)
+       SELECT e.username, $1, $2, $3, $4, $5, $6
+         FROM odg_project_manager_user e
+        WHERE e.username <> $4
+          AND e.username NOT IN (SELECT username FROM public.odg_app_user)`,
+      params,
+    );
+  } catch (e) {
+    console.error("notifyErpAdmins:", (e as Error).message);
+  }
+}
+
+/**
  * Notify ALL parties (ທຸກຝ່າຍ) of a material requisition raised in the app:
  * every active admin/manager, anyone with notifications.receive, AND anyone who
  * can view requests (requests.view) — warehouse / procurement / PM, etc. The
@@ -143,6 +164,7 @@ export async function notifyRequestParties(
     } catch (e) {
       console.error("notifyRequestParties (audience):", (e as Error).message);
     }
+    await notifyErpAdmins(params); // ERP login users (admins) get it too
     if (params[3]) {
       try {
         await query(
@@ -202,6 +224,7 @@ export async function notifyManagers(
     } catch (e) {
       console.error("notifyManagers (audience):", (e as Error).message);
     }
+    await notifyErpAdmins(params); // ERP login users (admins) get it too
 
     // 2) The actor always gets it too — so whoever performs the action sees the
     //    movement in their own bell (works even for ERP-only / non-app users).
