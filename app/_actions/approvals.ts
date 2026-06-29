@@ -12,7 +12,7 @@ import { getSessionUser } from "@/_lib/server-auth";
 import { can, isAdmin } from "@/_lib/permissions";
 
 export type ApprovalItem = {
-  type: "quotation" | "contract" | "boq" | "substitute";
+  type: "quotation" | "contract" | "boq" | "substitute" | "app_request";
   id: string;
   title: string;
   subtitle?: string;
@@ -25,12 +25,13 @@ export type ApprovalSummary = {
   contracts: ApprovalItem[];
   boq: ApprovalItem[];
   substitutes: ApprovalItem[];
+  appRequests: ApprovalItem[];
 };
 
 export async function getApprovalSummary(): Promise<{ success: true; data: ApprovalSummary } | { success: false; message: string }> {
-  const data: ApprovalSummary = { total: 0, quotations: [], contracts: [], boq: [], substitutes: [] };
+  const data: ApprovalSummary = { total: 0, quotations: [], contracts: [], boq: [], substitutes: [], appRequests: [] };
 
-  // Only surface the categories this user is actually allowed to approve.
+  // Only surface the categories this user is actually allowed to act on.
   const u = await getSessionUser();
   const admin = isAdmin(u);
   const allow = {
@@ -38,6 +39,7 @@ export async function getApprovalSummary(): Promise<{ success: true; data: Appro
     contracts: admin || can(u, "contracts", "approve"),
     boq: admin || can(u, "boq", "approve") || can(u, "boq", "approve_next"),
     substitutes: admin || can(u, "requests", "approve_substitute"),
+    appRequests: admin || can(u, "requests", "create") || can(u, "requests", "approve"),
   };
 
   // Quotations waiting for approval (status still the default "ລໍຖ້າອະນຸມັດ").
@@ -114,7 +116,28 @@ export async function getApprovalSummary(): Promise<{ success: true; data: Appro
     console.error("getApprovalSummary substitutes:", (e as Error).message);
   }
 
-  data.total = data.quotations.length + data.contracts.length + data.boq.length + data.substitutes.length;
+  // App material requests (templates) awaiting pull into a real requisition.
+  if (allow.appRequests) try {
+    const r = await query(
+      `SELECT m.id, m.items,
+              (SELECT project_name FROM odg_projects p WHERE p.id::text = m.project_id OR p.sml_code = m.project_id LIMIT 1) AS project_name
+         FROM odg_wo_material_request m
+        WHERE COALESCE(m.status, 'pending') = 'pending'
+        ORDER BY m.created_at DESC LIMIT 200`,
+    );
+    data.appRequests = r.rows.map((x: any) => ({
+      type: "app_request" as const,
+      id: `app-${x.id}`,
+      title: `APP-${x.id}`,
+      subtitle: x.project_name || undefined,
+      href: `/requests/app-${x.id}`,
+    }));
+  } catch (e) {
+    console.error("getApprovalSummary appRequests:", (e as Error).message);
+  }
+
+  data.total =
+    data.quotations.length + data.contracts.length + data.boq.length + data.substitutes.length + data.appRequests.length;
   return { success: true, data };
 }
 

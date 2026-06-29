@@ -3,7 +3,7 @@
 /** Cross-module approval inbox — every document waiting for approval, grouped. */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, FileSignature, ListChecks, Repeat, CheckCircle2, RefreshCw, ChevronRight } from "lucide-react";
+import { FileText, FileSignature, ListChecks, Repeat, PackageOpen, CheckCircle2, RefreshCw, ChevronRight } from "lucide-react";
 import { getApprovalSummary, type ApprovalSummary, type ApprovalItem } from "@/_actions/approvals";
 import { Page } from "../_components/ui";
 import { useT } from "@/_lib/i18n";
@@ -30,6 +30,7 @@ export default function ApprovalsPage() {
     { key: "contracts", label: t("approvals.contracts", "ສັນຍາ"), icon: <FileSignature size={15} />, tone: "text-violet-600 bg-violet-50" },
     { key: "boq", label: "BOQ", icon: <ListChecks size={15} />, tone: "text-cyan-600 bg-cyan-50" },
     { key: "substitutes", label: t("approvals.substitutes", "ການປ່ຽນສິນຄ້າ (ໃບເບີກ)"), icon: <Repeat size={15} />, tone: "text-amber-600 bg-amber-50" },
+    { key: "appRequests", label: t("approvals.appRequests", "ລໍຖ້າອອກໃບຂໍເບີກ"), icon: <PackageOpen size={15} />, tone: "text-pink-600 bg-pink-50" },
   ];
 
   const total = data?.total ?? 0;
