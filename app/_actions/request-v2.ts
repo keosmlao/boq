@@ -244,7 +244,7 @@ export async function getRequests(opts: { projectId?: string } = {}): Promise<{ 
           request_no: `APP-${r.id}`,
           project_id: r.project_id != null ? String(r.project_id) : "",
           project_name: r.project_name || null,
-          status: st === "issued" ? "withdrawn" : st === "rejected" ? "rejected" : "requested",
+          status: st === "issued" || st === "converted" ? "withdrawn" : st === "rejected" ? "rejected" : "requested",
           items: Array.isArray(r.items) ? r.items : [],
           requester: r.requested_by || null,
           used_by_name: r.used_by_name || null,
@@ -312,7 +312,7 @@ export async function getRequestDetail(id: string): Promise<{ success: true; dat
           request_no: `APP-${x.id}`,
           project_id: x.project_id != null ? String(x.project_id) : "",
           project_name: projectName,
-          status: issued ? "withdrawn" : String(x.status) === "rejected" ? "rejected" : "requested",
+          status: issued || String(x.status) === "converted" ? "withdrawn" : String(x.status) === "rejected" ? "rejected" : "requested",
           app_status: String(x.status || "pending"),
           notes: x.note || null,
           requester: x.requested_by || null,
@@ -519,6 +519,17 @@ export async function createRequest(body: any): Promise<{ success: true; data: a
       // Push to SML now unless it needs substitution approval first.
       if (!hasSub) {
         await mirrorRequestToSml(client, { docNo: reqNo, docDate, custCode, creator: body.requester || null, remark: body.notes || null, items });
+      }
+      // Pulled from an app request → mark it converted so it leaves the pending
+      // queue and stops drawing down BOQ (this new RQ now counts instead).
+      if (body.from_app_id) {
+        const realAppId = String(body.from_app_id).startsWith("app-") ? String(body.from_app_id).slice(4) : String(body.from_app_id);
+        try {
+          await client.query(
+            `UPDATE odg_wo_material_request SET status = 'converted', approver = $2, status_at = now(), status_note = $3 WHERE id = $1`,
+            [realAppId, body.requester || null, `ດຶງເປັນ ${reqNo}`],
+          );
+        } catch {/* app request table/row issue — RQ still created */}
       }
     });
     invalidate("req:");

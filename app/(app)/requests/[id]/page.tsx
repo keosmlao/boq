@@ -346,8 +346,17 @@ export default function RequestDetailPage() {
                   </div>
                 )
               )}
+              {/* Pull an app request into a real requisition (RQ-, picks warehouse → SML). */}
+              {isApp && appStatus !== "rejected" && appStatus !== "converted" && can(user, "requests", "create") && r.project_id && (
+                <button
+                  onClick={() => router.push(`/projects/${r.project_id}/request/new?fromApp=${encodeURIComponent(String(id))}`)}
+                  className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-pink-600 text-[12.5px] font-bold text-white hover:bg-pink-700"
+                >
+                  <PackageOpen size={15} /> {t("requests.pullToRequisition", "ດຶງມາອອກໃບຂໍເບີກ")}
+                </button>
+              )}
               {/* App request (ໃບເບີກຈากແອັບ) — back office can approve / issue / reject here. */}
-              {isApp && canApproveReq && appStatus !== "issued" && appStatus !== "rejected" && (
+              {isApp && canApproveReq && appStatus !== "issued" && appStatus !== "rejected" && appStatus !== "converted" && (
                 <div className="flex flex-col gap-2">
                   {appStatus === "pending" && (
                     <button onClick={() => setApp("approved")} disabled={marking}

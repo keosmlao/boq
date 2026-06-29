@@ -41,7 +41,10 @@ export default function RequestPage() {
   const router = useRouter();
   const sp = useSearchParams();
   const editId = sp.get("edit");
+  const fromApp = sp.get("fromApp"); // pull an app request (app-<id>) into a new requisition
+  const seedId = editId || fromApp;
 
+  const [fromAppId, setFromAppId] = useState("");
   const [project, setProject] = useState<any>(null);
   const [custName, setCustName] = useState("");
   const [boqRows, setBoqRows] = useState<Row[]>([]);
@@ -101,14 +104,15 @@ export default function RequestPage() {
           }));
         setBoqRows(availableRows);
 
-        if (editId) {
-          // Edit mode: prefill from the existing request's items (qty editable, max = remaining + current qty).
+        if (seedId) {
+          // Prefill from an existing request (edit) OR from an app request (pull).
+          // qty editable, max = remaining + the seed's own qty (added back below).
           const remMap: Record<string, number> = {};
           const materialMap = new Map<string, any>();
           for (const m of mats) remMap[String(m.item_code || m.description || "")] = num(m.remaining);
           for (const m of mats) materialMap.set(String(m.item_code || m.description || ""), m);
           try {
-            const detRes: any = await getRequestDetail(String(editId));
+            const detRes: any = await getRequestDetail(String(seedId));
             if (alive && detRes?.success) {
               const reqItems = Array.isArray(detRes.data?.items) ? detRes.data.items : [];
               setRows(
@@ -153,6 +157,8 @@ export default function RequestPage() {
               if (firstItem?.shelf_code) setShelfCode(String(firstItem.shelf_code));
               setNotes(detRes.data?.notes || "");
               if (detRes.data?.used_by_code) setUsedByCode(String(detRes.data.used_by_code));
+              // Pulling an app request → create NEW (not edit); remember the source.
+              if (fromApp && !editId) setFromAppId(String(fromApp));
             }
           } catch {
             /* ignore */
@@ -326,7 +332,7 @@ export default function RequestPage() {
       const usedBy = { used_by_code: usedByCode || null, used_by_name: usedTech?.name_1 || null };
       const res: any = editId
         ? await updateRequest(String(editId), { items, notes: notes || null, ...usedBy })
-        : await createRequest({ project_id: String(id), project_name: project?.project_name || null, items, notes: notes || null, requester, ...usedBy });
+        : await createRequest({ project_id: String(id), project_name: project?.project_name || null, items, notes: notes || null, requester, ...usedBy, from_app_id: fromAppId || null });
       if (res?.success) router.push(editId ? `/requests/${encodeURIComponent(String(editId))}` : `/projects/${id}?tab=requests`);
       else setError(res?.message || t("requestNew.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
     } catch (err: any) {
@@ -374,6 +380,12 @@ export default function RequestPage() {
         </div>
 
         {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</div>}
+
+        {fromAppId && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[12.5px] font-semibold text-blue-700">
+            {t("requestNew.pulledFromApp", "ດຶງມาจากใบขอเบิกจากแอป")}: {fromAppId.replace(/^app-/, "APP-")} — {t("requestNew.pulledFromAppHint", "ເລືອກສາງ ແລ້ວ ສົ່ງ ເພื่อออกใบเบิกจริง")}
+          </div>
+        )}
 
         <Card className="mb-4 border-t-2 border-t-pink-400 p-4">
           <div className="mb-3">

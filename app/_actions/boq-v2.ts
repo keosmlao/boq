@@ -240,7 +240,8 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
       } catch {/* ignore */}
       const mreqs = await query(
         `SELECT status, items FROM odg_wo_material_request
-           WHERE (project_id = $1 OR ($2 <> '' AND project_id = $2)) AND COALESCE(status,'') <> 'rejected'`,
+           WHERE (project_id = $1 OR ($2 <> '' AND project_id = $2))
+             AND COALESCE(status,'') NOT IN ('rejected', 'converted')`,
         [String(projectId), smlCode],
       );
       for (const r of mreqs.rows as any[]) {
