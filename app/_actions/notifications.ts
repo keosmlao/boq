@@ -107,6 +107,59 @@ export async function notifyUser(
 }
 
 /**
+ * Notify ALL parties (ທຸກຝ່າຍ) of a material requisition raised in the app:
+ * every active admin/manager, anyone with notifications.receive, AND anyone who
+ * can view requests (requests.view) — warehouse / procurement / PM, etc. The
+ * actor is included too. Best-effort; never throws.
+ */
+export async function notifyRequestParties(
+  entityType: string,
+  entityId: string,
+  kind: string,
+  body: string,
+  actorUsername: string,
+  actorName?: string,
+): Promise<void> {
+  try {
+    await ensureTable();
+    const type = cleanText(entityType);
+    const id = cleanText(entityId);
+    if (!type || !id) return;
+    const params = [type, id, cleanText(kind), cleanText(actorUsername), cleanText(actorName) || null, cleanText(body) || null];
+    try {
+      await query(
+        `INSERT INTO public.odg_notifications (recipient_username, entity_type, entity_id, kind, actor_username, actor_name, body)
+         SELECT u.username, $1, $2, $3, $4, $5, $6
+           FROM public.odg_app_user u
+          WHERE COALESCE(u.active, true) = true
+            AND u.username <> $4
+            AND (
+              lower(COALESCE(u.role, '')) IN ('admin', 'manager')
+              OR COALESCE(u.permissions -> 'notifications', '[]'::jsonb) ? 'receive'
+              OR COALESCE(u.permissions -> 'requests', '[]'::jsonb) ? 'view'
+            )`,
+        params,
+      );
+    } catch (e) {
+      console.error("notifyRequestParties (audience):", (e as Error).message);
+    }
+    if (params[3]) {
+      try {
+        await query(
+          `INSERT INTO public.odg_notifications (recipient_username, entity_type, entity_id, kind, actor_username, actor_name, body)
+           VALUES ($4, $1, $2, $3, $4, $5, $6)`,
+          params,
+        );
+      } catch (e) {
+        console.error("notifyRequestParties (actor):", (e as Error).message);
+      }
+    }
+  } catch {
+    /* non-critical */
+  }
+}
+
+/**
  * Notify the notification audience — every active admin/manager, plus anyone
  * explicitly granted the "notifications: receive" permission. Includes the
  * actor too, so the back office sees a complete movement log in their bell.

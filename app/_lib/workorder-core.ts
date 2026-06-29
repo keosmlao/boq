@@ -11,7 +11,7 @@ import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { saveBase64File } from "@/_lib/uploads";
 import { can, isManager, type Permissions } from "@/_lib/permissions";
 import { notifyCraftsman, notifyManagers } from "@/_lib/push";
-import { notifyManagers as notifyManagersInApp } from "@/_actions/notifications";
+import { notifyManagers as notifyManagersInApp, notifyRequestParties } from "@/_actions/notifications";
 
 export type ActingUser = {
   username: string;
@@ -389,9 +389,10 @@ export async function createMaterialRequestAs(
         opts?.usedByName || null,
       ],
     );
-    // Notify the back office (bell + push) that a craftsman requested materials.
+    // Notify ALL parties (ທຸກຝ່າຍ) on the web — managers + notifications.receive +
+    // anyone who can view requests (warehouse / procurement / PM) — plus push.
     const summary = `${actorName(user)} ຂໍເບີກວັດສະດຸ ${clean.length} ລາຍການ`;
-    await notifyManagersInApp("work_order", String(id), "material_request", summary, user.username, actorName(user));
+    await notifyRequestParties("work_order", String(id), "material_request", summary, user.username, actorName(user));
     await notifyManagers("ມີຄຳຂໍເບີກວັດສະດຸໃໝ່", summary, { entity_type: "work_order", entity_id: String(id) });
     return { success: true, data: r.rows[0] };
   } catch (e) {
