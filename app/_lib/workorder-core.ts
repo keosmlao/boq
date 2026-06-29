@@ -342,7 +342,9 @@ export async function createMaterialRequestAs(
     const wo = await loadWoRow(String(id));
     if (!wo) return fail("ບໍ່ພົບໃບງານ");
     if (!(await canWorkOnWo(user, wo))) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
-    if (wo.closed_at) return fail("ໃບງານປິດແລ້ວ ບໍ່ສາມາດເບີກວັດສະດຸໄດ້");
+    // Once the craftsman has checked out (work done → awaiting review), no more
+    // material requests — covers closed jobs too (close happens after check-out).
+    if (wo.checkout_at) return fail("ໃບງານ check-out ແລ້ວ ບໍ່ສາມາດເບີກວັດສະດຸໄດ້");
     const clean = (Array.isArray(items) ? items : [])
       .map((m) => ({ name: String(m?.name || "").trim(), unit: String(m?.unit || "").trim(), qty: Number(m?.qty) || 0 }))
       .filter((m) => m.name && m.qty > 0);
