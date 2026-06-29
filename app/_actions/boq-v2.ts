@@ -228,6 +228,34 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
       console.error("getProjectMaterials: v2 request read failed:", e);
     }
 
+    // Mobile app requests (odg_wo_material_request) — drawn down against BOQ too,
+    // so "remaining" stays honest when a craftsman requests from the app.
+    // pending/approved → request_qty; issued → withdraw_qty. The row's project_id
+    // may be the canonical id OR the project's sml_code, so match both.
+    try {
+      let smlCode = "";
+      try {
+        const pr = await query(`SELECT sml_code FROM odg_projects WHERE id::text = $1 LIMIT 1`, [String(projectId)]);
+        smlCode = String(pr.rows[0]?.sml_code || "");
+      } catch {/* ignore */}
+      const mreqs = await query(
+        `SELECT status, items FROM odg_wo_material_request
+           WHERE (project_id = $1 OR ($2 <> '' AND project_id = $2)) AND COALESCE(status,'') <> 'rejected'`,
+        [String(projectId), smlCode],
+      );
+      for (const r of mreqs.rows as any[]) {
+        const issued = r.status === "issued";
+        for (const it of Array.isArray(r.items) ? r.items : []) {
+          const e = map.get(keyOf(it.item_code, it.description || it.name));
+          if (!e) continue;
+          if (issued) e.withdraw_qty += num(it.qty);
+          else e.request_qty += num(it.qty);
+        }
+      }
+    } catch (e) {
+      console.error("getProjectMaterials: mobile request read failed:", e);
+    }
+
     const data = Array.from(map.values()).map((e) => {
       const boqQty = num(e.boq_qty);
       const pendingRequestQty = num(e.request_qty);
