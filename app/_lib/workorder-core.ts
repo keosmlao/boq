@@ -11,7 +11,6 @@ import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { saveBase64File } from "@/_lib/uploads";
 import { can, isManager, type Permissions } from "@/_lib/permissions";
 import { notifyCraftsman, notifyManagers } from "@/_lib/push";
-import { notifyManagers as notifyManagersInApp, notifyRequestParties } from "@/_actions/notifications";
 
 export type ActingUser = {
   username: string;
@@ -198,7 +197,7 @@ export async function respondWorkOrderAs(
       `${actorName(user)} ${opts.accept ? "ຮັບ" : "ປະຕິເສດ"} ${wo.work_no || "ໃບງານ"}`,
       { workOrderId: String(id), type: opts.accept ? "wo_accepted" : "wo_rejected" },
     );
-    await notifyManagersInApp(
+    await notifyWebParties(
       "work_order",
       String(id),
       opts.accept ? "wo_accepted" : "wo_rejected",
@@ -247,7 +246,7 @@ export async function checkInWorkOrderAs(
     );
     invalidate("wo:");
     await notifyManagers("ຊ່າງ check-in ໜ້າງານ", `${actorName(user)} check-in ${wo.work_no || "ໃບງານ"}`, { workOrderId: String(id), type: "wo_checkin" });
-    await notifyManagersInApp("work_order", String(id), "wo_checkin", `${actorName(user)} check-in ${wo.work_no || "ໃບງານ"}`, user.username, actorName(user));
+    await notifyWebParties("work_order", String(id), "wo_checkin", `${actorName(user)} check-in ${wo.work_no || "ໃບງານ"}`, user.username, actorName(user));
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);
@@ -294,7 +293,7 @@ export async function checkOutWorkOrderAs(
     );
     invalidate("wo:");
     await notifyManagers("ຊ່າງ check-out — ລໍຖ້າກວດສອບ", `${actorName(user)} ສຳເລັດ ${wo.work_no || "ໃບງານ"} — ກະລຸນາກວດສອບ & ປິດງານ`, { workOrderId: String(id), type: "wo_checkout" });
-    await notifyManagersInApp("work_order", String(id), "wo_checkout", `${actorName(user)} ສຳເລັດ ${wo.work_no || "ໃບງານ"} — ລໍຖ້າກວດສອບ`, user.username, actorName(user));
+    await notifyWebParties("work_order", String(id), "wo_checkout", `${actorName(user)} ສຳເລັດ ${wo.work_no || "ໃບງານ"} — ລໍຖ້າກວດສອບ`, user.username, actorName(user));
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);
@@ -350,6 +349,61 @@ export async function setTaskDoneAs(user: ActingUser, id: string, index: number,
   }
 }
 
+/**
+ * Insert in-app web notifications DIRECTLY (not via the "use server" actions in
+ * notifications.ts). createMaterialRequestAs runs inside the MOBILE route handler;
+ * calling a cross-module server action from there can silently no-op in prod, so
+ * the bell never updated. Doing the INSERTs here (same query() that just saved the
+ * request) guarantees the back office is notified. Audience = admin/manager +
+ * notifications.receive + requests.view (odg_app_user) + ERP admins, plus the actor.
+ */
+async function notifyWebParties(
+  entityType: string,
+  entityId: string,
+  kind: string,
+  body: string,
+  actorUsername: string,
+  actorName?: string,
+): Promise<void> {
+  const params = [entityType, entityId, kind, actorUsername || "", actorName || null, body || null];
+  try {
+    await query(
+      `INSERT INTO public.odg_notifications (recipient_username, entity_type, entity_id, kind, actor_username, actor_name, body)
+       SELECT u.username, $1, $2, $3, $4, $5, $6
+         FROM public.odg_app_user u
+        WHERE COALESCE(u.active, true) = true AND u.username <> $4
+          AND (
+            lower(COALESCE(u.role, '')) IN ('admin', 'manager')
+            OR COALESCE(u.permissions -> 'notifications', '[]'::jsonb) ? 'receive'
+            OR COALESCE(u.permissions -> 'requests', '[]'::jsonb) ? 'view'
+          )`,
+      params,
+    );
+  } catch (e) {
+    console.error("notifyWebParties (app_user):", (e as Error).message);
+  }
+  try {
+    await query(
+      `INSERT INTO public.odg_notifications (recipient_username, entity_type, entity_id, kind, actor_username, actor_name, body)
+       SELECT e.username, $1, $2, $3, $4, $5, $6
+         FROM odg_project_manager_user e
+        WHERE e.username <> $4 AND e.username NOT IN (SELECT username FROM public.odg_app_user)`,
+      params,
+    );
+  } catch (e) {
+    console.error("notifyWebParties (erp):", (e as Error).message);
+  }
+  if (actorUsername) {
+    try {
+      await query(
+        `INSERT INTO public.odg_notifications (recipient_username, entity_type, entity_id, kind, actor_username, actor_name, body)
+         VALUES ($4, $1, $2, $3, $4, $5, $6)`,
+        params,
+      );
+    } catch {/* actor row optional */}
+  }
+}
+
 /* ── Material request (ໃບຂໍເບີກ) raised by the craftsman from the app ── */
 export async function createMaterialRequestAs(
   user: ActingUser,
@@ -389,10 +443,10 @@ export async function createMaterialRequestAs(
         opts?.usedByName || null,
       ],
     );
-    // Notify ALL parties (ທຸກຝ່າຍ) on the web — managers + notifications.receive +
-    // anyone who can view requests (warehouse / procurement / PM) — plus push.
+    // Notify ALL parties (ທຸກຝ່າຍ) on the web bell — direct insert (see
+    // notifyWebParties) so the mobile route reliably reaches the back office — plus push.
     const summary = `${actorName(user)} ຂໍເບີກວັດສະດຸ ${clean.length} ລາຍການ`;
-    await notifyRequestParties("work_order", String(id), "material_request", summary, user.username, actorName(user));
+    await notifyWebParties("work_order", String(id), "material_request", summary, user.username, actorName(user));
     await notifyManagers("ມີຄຳຂໍເບີກວັດສະດຸໃໝ່", summary, { entity_type: "work_order", entity_id: String(id) });
     return { success: true, data: r.rows[0] };
   } catch (e) {
@@ -488,7 +542,7 @@ export async function setMaterialRequestStatusAs(
       { workOrderId: String(req.work_order_id), type: "material_status" },
     );
     if (req.work_order_id) {
-      await notifyManagersInApp("work_order", String(req.work_order_id), `material_${status}`, `${actorName(user)} ${label} ໃບຂໍເບີກ`, user.username, actorName(user));
+      await notifyWebParties("work_order", String(req.work_order_id), `material_${status}`, `${actorName(user)} ${label} ໃບຂໍເບີກ`, user.username, actorName(user));
     }
     return { success: true, data: r.rows[0] };
   } catch (e) {

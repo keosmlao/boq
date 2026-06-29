@@ -51,7 +51,17 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
           { header: t("requests.project", "ໂຄງການ"), cell: (r) => <span className="font-medium">{r.project_name || "-"}</span> },
           { header: t("common.date", "ວັນທີ"), cell: (r) => d10(r.created_at) },
           { header: t("requests.items", "ລາຍການ"), align: "right", cell: (r) => (Array.isArray(r.items) ? r.items.length : 0) },
-          { header: t("common.status", "ສະຖານະ"), cell: (r) => <span className="text-slate-600">{stLabel(String(r.status || "requested"))}</span> },
+          {
+            header: t("common.status", "ສະຖານະ"),
+            cell: (r) => {
+              const s = String(r.status || "requested");
+              // App requests pending a pull stand out so staff convert them to a real requisition.
+              if (r.src === "app" && s !== "withdrawn" && s !== "rejected") {
+                return <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700">📱 {t("requests.awaitingPull", "ລໍດຶງ (ຈากແອັບ)")}</span>;
+              }
+              return <span className="text-slate-600">{stLabel(s)}</span>;
+            },
+          },
         ]}
       />
       <ProjectPickerModal
