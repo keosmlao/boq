@@ -219,6 +219,43 @@ export async function getRequests(opts: { projectId?: string } = {}): Promise<{ 
     } catch {
       /* legacy requests table/cols differ — v2 still returned */
     }
+
+    // Mobile app requests (odg_wo_material_request) — raised by craftsmen in the
+    // app. Surface them in the same list so the back office sees them here too.
+    // status: issued → withdrawn(ເບີກແລ້ວ), rejected → rejected, else requested.
+    try {
+      const app = opts.projectId
+        ? await query(
+            `SELECT m.*, (SELECT project_name FROM odg_projects p WHERE p.id::text = m.project_id OR p.sml_code = m.project_id LIMIT 1) AS project_name
+               FROM odg_wo_material_request m
+              WHERE m.project_id = $1 OR m.project_id = (SELECT sml_code FROM odg_projects WHERE id::text = $1 LIMIT 1)
+              ORDER BY m.created_at DESC`,
+            [String(opts.projectId)],
+          )
+        : await query(
+            `SELECT m.*, (SELECT project_name FROM odg_projects p WHERE p.id::text = m.project_id OR p.sml_code = m.project_id LIMIT 1) AS project_name
+               FROM odg_wo_material_request m ORDER BY m.created_at DESC LIMIT 500`,
+          );
+      for (const r of app.rows as any[]) {
+        const st = String(r.status || "pending");
+        rows.push({
+          id: `app-${r.id}`,
+          request_no: `APP-${r.id}`,
+          project_id: r.project_id != null ? String(r.project_id) : "",
+          project_name: r.project_name || null,
+          status: st === "issued" ? "withdrawn" : st === "rejected" ? "rejected" : "requested",
+          items: Array.isArray(r.items) ? r.items : [],
+          requester: r.requested_by || null,
+          used_by_name: r.used_by_name || null,
+          created_at: r.created_at,
+          src: "app",
+        });
+      }
+    } catch {
+      /* odg_wo_material_request unreachable — other sources still returned */
+    }
+
+    rows.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
     return { success: true, data: rows };
   } catch (e) {
     return fail((e as Error).message);
@@ -233,6 +270,45 @@ export async function getRequestDetail(id: string): Promise<{ success: true; dat
   try {
     await ensureRequestSchema();
     const sid = String(id);
+
+    // Mobile app request (odg_wo_material_request) — read-only view on web.
+    if (sid.startsWith("app-")) {
+      const realId = sid.slice(4);
+      const r = await query(`SELECT * FROM odg_wo_material_request WHERE id = $1 LIMIT 1`, [realId]);
+      if (!r.rows.length) return fail("Request not found");
+      const x: any = r.rows[0];
+      const issued = String(x.status) === "issued";
+      let projectName = "";
+      try {
+        const p = await query(`SELECT project_name FROM odg_projects WHERE id::text = $1 OR sml_code = $1 LIMIT 1`, [String(x.project_id || "")]);
+        projectName = p.rows[0]?.project_name || "";
+      } catch {/* ignore */}
+      return {
+        success: true,
+        data: {
+          id: sid,
+          request_no: `APP-${x.id}`,
+          project_id: x.project_id != null ? String(x.project_id) : "",
+          project_name: projectName,
+          status: issued ? "withdrawn" : String(x.status) === "rejected" ? "rejected" : "requested",
+          app_status: String(x.status || "pending"),
+          notes: x.note || null,
+          requester: x.requested_by || null,
+          used_by_name: x.used_by_name || null,
+          created_at: x.created_at,
+          items: (Array.isArray(x.items) ? x.items : []).map((it: any) => ({
+            item_code: it.item_code || "",
+            description: it.name || it.description || "",
+            unit: it.unit || "",
+            qty: num(it.qty),
+            withdrawn_qty: issued ? num(it.qty) : 0,
+            item_status: issued ? "withdrawn" : "requested",
+          })),
+          withdrawals: [],
+          src: "app",
+        },
+      };
+    }
 
     // v2 request (numeric id)
     if (/^\d+$/.test(sid)) {

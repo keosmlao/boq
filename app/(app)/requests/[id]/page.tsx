@@ -103,7 +103,7 @@ export default function RequestDetailPage() {
         >
           <ArrowLeft size={14} /> {t("requests.backToList", "ກັບໄປລາຍການຂໍເບີກ")}
         </button>
-        {!withdrawn && (
+        {!withdrawn && r.src !== "app" && (
           <DocActions
             editHref={r.project_id ? `/projects/${r.project_id}/request/new?edit=${encodeURIComponent(String(id))}` : undefined}
             onDelete={() => deleteRequest(String(id))}
