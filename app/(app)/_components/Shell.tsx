@@ -227,38 +227,37 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const roleLabel = ROLE_LABELS[(user?.role as Role) || "staff"] || "ຜູ້ໃຊ້ງານ";
 
   const sidebar = (
-    <nav className="flex h-full flex-col overflow-hidden bg-[#0c0f1d] text-slate-300 border-r border-slate-800/40 relative shadow-2xl">
-      <div className="flex h-[72px] items-center gap-3 border-b border-white/5 px-5">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-500/25 transition-transform duration-300 hover:scale-105">
+    <nav className="flex h-full flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)]">
+      <div className="flex h-[72px] items-center gap-3 border-b border-[var(--border-soft)] px-5">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/20">
           <FolderKanban size={18} strokeWidth={2.5} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="font-display block truncate text-[14.5px] font-extrabold tracking-tight text-white">ODG Projects</span>
-          <span className="mt-0.5 block truncate text-[8px] font-black uppercase tracking-[0.25em] text-blue-400/80">{t("app.subtitle")}</span>
+          <span className="font-display block truncate text-[14.5px] font-extrabold tracking-tight text-[var(--text)]">ODG Projects</span>
+          <span className="mt-0.5 block truncate text-[8px] font-black uppercase tracking-[0.25em] text-[var(--text-mute)]">{t("app.subtitle")}</span>
         </span>
-        <button onClick={() => setMobileOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white md:hidden" aria-label={t("shell.closeMenu")}>
+        <button onClick={() => setMobileOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-mute)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] md:hidden" aria-label={t("shell.closeMenu")}>
           <X size={17} />
         </button>
       </div>
 
       {can(user, "projects", "create") && (
-        <div className="px-4 pb-2 pt-4">
+        <div className="px-4 pb-1 pt-4">
           <Link
             href="/projects/new"
             onClick={() => setMobileOpen(false)}
-            className="relative flex h-10 items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-[12px] font-bold text-white shadow-md shadow-blue-950/50 transition-all duration-300 hover:from-blue-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98] group"
+            className="group flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-[12px] font-bold text-white shadow-sm shadow-blue-500/25 transition-all duration-200 hover:shadow-md hover:shadow-blue-500/30 active:scale-[0.98]"
           >
-            <span className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <Plus size={15} strokeWidth={3} className="transition-transform group-hover:rotate-90 duration-300 relative z-10" />
-            <span className="relative z-10">{t("shell.registerProject")}</span>
+            <Plus size={15} strokeWidth={3} className="transition-transform duration-300 group-hover:rotate-90" />
+            <span>{t("shell.registerProject")}</span>
           </Link>
         </div>
       )}
 
-      <div className="theme-scrollbar flex-1 space-y-5 overflow-y-auto px-3 py-3">
+      <div className="theme-scrollbar flex-1 space-y-4 overflow-y-auto px-3 py-3">
         {visibleSections.map((section, index) => (
           <div key={section.section || index}>
-            {section.section && <p className="mb-1.5 px-3 text-[8.5px] font-black uppercase tracking-[0.2em] text-slate-600">{t(section.sectionKey || "", section.section)}</p>}
+            {section.section && <p className="mb-1 px-3 text-[8.5px] font-black uppercase tracking-[0.18em] text-[var(--text-mute)]">{t(section.sectionKey || "", section.section)}</p>}
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const active = activeHref === item.href;
@@ -268,20 +267,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     onClick={() => setMobileOpen(false)}
-                    className={`group relative flex h-10 items-center gap-3 rounded-xl px-3 text-[12px] font-semibold transition-all duration-200 ${
+                    className={`group relative flex h-10 items-center gap-3 rounded-xl px-3 text-[12px] font-semibold transition-all duration-150 ${
                       active
-                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-950/35"
-                        : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
+                        ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                        : "text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)]"
                     }`}
                   >
-                    {active && (
-                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-cyan-400" />
-                    )}
+                    {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-blue-600 dark:bg-blue-400" />}
                     <span
-                      className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-200 ${
-                        active
-                          ? "bg-white/12 text-white"
-                          : "bg-white/[0.02] border border-white/5 text-slate-500 group-hover:bg-white/[0.06] group-hover:text-blue-400 group-hover:border-blue-500/20"
+                      className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors duration-150 ${
+                        active ? "text-blue-600 dark:text-blue-300" : "text-[var(--text-mute)] group-hover:text-blue-600 dark:group-hover:text-blue-400"
                       }`}
                     >
                       {item.icon}
@@ -292,8 +287,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     )}
                     <ChevronRight
                       size={13}
-                      className={`transition-all duration-200 ${
-                        active ? "text-blue-200" : "text-slate-700 opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100"
+                      className={`transition-all duration-150 ${
+                        active ? "text-blue-400" : "text-[var(--text-mute)] opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100"
                       } ${item.href === "/approvals" && approvalCount > 0 ? "hidden" : ""}`}
                     />
                   </Link>
@@ -304,14 +299,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      <div className="border-t border-white/5 p-3">
-        <Link href="/profile" onClick={() => setMobileOpen(false)} className="group flex items-center gap-3 rounded-xl p-2.5 transition-all duration-200 border border-transparent hover:border-white/5 hover:bg-white/[0.03]">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-[11px] font-black text-white shadow-md shadow-blue-500/10 ring-1 ring-white/10">{initial}</span>
+      <div className="border-t border-[var(--border-soft)] p-3">
+        <Link href="/profile" onClick={() => setMobileOpen(false)} className="group flex items-center gap-3 rounded-xl border border-transparent p-2.5 transition-all duration-150 hover:border-[var(--border)] hover:bg-[var(--surface-soft)]">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-[11px] font-black text-white shadow-sm shadow-blue-500/20">{initial}</span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[11.5px] font-bold text-white group-hover:text-blue-300 transition-colors">{user?.name || user?.username}</span>
-            <span className="mt-0.5 block truncate text-[9.5px] font-semibold text-slate-500 uppercase tracking-wider">{roleLabel}</span>
+            <span className="block truncate text-[11.5px] font-bold text-[var(--text)] transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-300">{user?.name || user?.username}</span>
+            <span className="mt-0.5 block truncate text-[9.5px] font-semibold uppercase tracking-wider text-[var(--text-mute)]">{roleLabel}</span>
           </span>
-          <UserCog size={14} className="text-slate-600 group-hover:text-blue-400 transition-colors" />
+          <UserCog size={14} className="text-[var(--text-mute)] transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400" />
         </Link>
       </div>
     </nav>
