@@ -406,7 +406,7 @@ export default function RequestPage() {
                 onChange={setWhCode}
                 options={warehouses.map((w) => ({ value: String(w.code), label: `${w.code} - ${w.name_1}` }))}
                 placeholder={t("requestNew.selectWarehouse", "-- ເລືອກສາງ --")}
-                disabled={rows.length > 0}
+                disabled={rows.length > 0 && !fromAppId}
                 isClearable
               />
             </div>
@@ -417,12 +417,13 @@ export default function RequestPage() {
                 onChange={setShelfCode}
                 options={shelves.map((s) => ({ value: String(s.code), label: `${s.code} - ${s.name_1}` }))}
                 placeholder={whCode ? t("requestNew.selectLocation", "-- ເລືອກທີ່ເກັບ --") : t("requestNew.selectWarehouseFirst", "ເລືອກສາງກ່ອນ")}
-                disabled={!whCode || rows.length > 0}
+                disabled={!whCode || (rows.length > 0 && !fromAppId)}
                 isClearable
               />
             </div>
           </div>
-          {rows.length > 0 && <p className="mt-2 text-[10.5px] text-[var(--theme-text-mute)]">{t("requestNew.clearCartBeforeChange", "ລຶບລາຍການອອກຈາກ cart ທັງໝົດ ກ່ອນປ່ຽນສາງ ຫຼື ທີ່ຈັດເກັບ")}</p>}
+          {rows.length > 0 && !fromAppId && <p className="mt-2 text-[10.5px] text-[var(--theme-text-mute)]">{t("requestNew.clearCartBeforeChange", "ລຶບລາຍການອອກຈາກ cart ທັງໝົດ ກ່ອນປ່ຽນສາງ ຫຼື ທີ່ຈັດເກັບ")}</p>}
+          {fromAppId && <p className="mt-2 text-[10.5px] text-[var(--theme-text-mute)]">{t("requestNew.pickWarehouseForPulled", "ເລືອກສາງ ແລະ ທີ່ຈັດເກັບ ເພື່ອກວດ stock ຂອງລາຍການທີ່ດຶງມາ")}</p>}
           {stockError && <p className="mt-2 text-[11px] text-rose-600">{stockError}</p>}
         </Card>
 
