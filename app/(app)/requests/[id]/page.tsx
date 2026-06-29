@@ -346,13 +346,26 @@ export default function RequestDetailPage() {
                   </div>
                 )
               )}
-              {/* Template waiting for the head craftsman to approve — not yet pullable. */}
-              {isApp && appStatus === "pending" && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11.5px] font-semibold text-amber-700">
-                  ⏳ {t("requests.awaitingHeadApproval", "ລໍຖ້າຫົວໜ້າຊ່າງອະນຸມັດ ກ່ອນຈຶ່ງດຶງໄດ້")}
+              {/* Step 2: ຫົວໜ້າຊ່າງ / supervisor (requests.approve) approves the template. */}
+              {isApp && appStatus === "pending" && canApproveReq && (
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => setApp("approved")} disabled={marking}
+                    className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 text-[12.5px] font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                    {marking ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("requests.approve", "ອະນຸມັດ (ຫົວໜ້າຊ່າງ)")}
+                  </button>
+                  <button onClick={() => setApp("rejected", true)} disabled={marking}
+                    className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-rose-300 text-[12.5px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-60">
+                    {t("status.rejected", "ປະຕິເສດ")}
+                  </button>
                 </div>
               )}
-              {/* Approved by the head craftsman → admin pulls it into a real requisition (RQ- → SML). */}
+              {/* Waiting for the supervisor (viewer can't approve). */}
+              {isApp && appStatus === "pending" && !canApproveReq && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11.5px] font-semibold text-amber-700">
+                  ⏳ {t("requests.awaitingHeadApproval", "ລໍຖ້າຫົວໜ້າຊ່າງ (supervisor) ອະນຸມັດ")}
+                </div>
+              )}
+              {/* Step 3: approved → admin (requests.create) pulls it into a real requisition (RQ- → SML). */}
               {isApp && appStatus === "approved" && can(user, "requests", "create") && r.project_id && (
                 <button
                   onClick={() => router.push(`/projects/${r.project_id}/request/new?fromApp=${encodeURIComponent(String(id))}`)}
@@ -361,9 +374,8 @@ export default function RequestDetailPage() {
                   <PackageOpen size={15} /> {t("requests.pullToRequisition", "ດຶງມາອອກໃບຂໍເບີກ")}
                 </button>
               )}
-              {/* App request = a template. The only real action is "pull" (above);
-                  staff may dismiss it (reject) — no approve/issue on the template itself. */}
-              {isApp && canApproveReq && appStatus !== "rejected" && appStatus !== "converted" && (
+              {/* Approved templates can still be rejected before being pulled. */}
+              {isApp && canApproveReq && appStatus === "approved" && (
                 <button onClick={() => setApp("rejected", true)} disabled={marking}
                   className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-rose-300 text-[12.5px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-60">
                   {t("requests.dismissTemplate", "ປະຕິເສດ (ບໍ່ດຶງ)")}

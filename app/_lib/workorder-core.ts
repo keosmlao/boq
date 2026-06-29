@@ -524,17 +524,10 @@ export async function setMaterialRequestStatusAs(
     const cur = await query(`SELECT * FROM odg_wo_material_request WHERE id = $1 LIMIT 1`, [String(reqId)]);
     const req = cur.rows[0];
     if (!req) return fail("ບໍ່ພົບໃບຂໍເບີກ");
-    // Who may act: a manager/approver, OR the HEAD craftsman (ຫົວໜ້າຊ່າງ) of the job
-    // — the WO's technician_code / assigned_username. The head approves/rejects their
-    // team's requests; issuing stays manager-only.
-    const isApprover = can(user, "work-orders", "approve");
-    let isHead = false;
-    if (!isApprover && req.work_order_id) {
-      const wo = await loadWoRow(String(req.work_order_id));
-      isHead = !!wo && (String(wo.technician_code || "") === user.username || String(wo.assigned_username || "") === user.username);
-    }
-    if (!isApprover && !isHead) return fail("ສະເພาະຫົວໜ້າຊ່າງ ຫຼື ຜູ້ຈັດການ ອະນຸມັດໄດ້");
-    if (status === "issued" && !isApprover) return fail("ການເບີກ ສະເພາະຜູ້ຈັດການ");
+    // Who may act: the ຫົວໜ້າຊ່າງ / supervisor (requests.approve) or a manager/admin.
+    // The team lead (ຫົວໜ້າທີມ) does NOT approve — that's a different person.
+    const isApprover = can(user, "requests", "approve") || can(user, "work-orders", "approve");
+    if (!isApprover) return fail("ສະເພາະຫົວໜ້າຊ່າງ (supervisor) ຫຼື ຜູ້ຈັດການ ອະນຸມັດໄດ້");
     // Forward-only flow: ຂໍເບີກ(pending) → ອະນຸມັດ(approved) → ເບີກແລ້ວ(issued).
     if (status === "issued" && req.status !== "approved") return fail("ຕ້ອງອະນຸມັດກ່ອນຈຶ່ງເບີກໄດ້");
     if (status === "approved" && req.status !== "pending") return fail("ໃບນີ້ດຳເນີນການໄປແລ້ວ");
