@@ -17,6 +17,7 @@ export async function GET(req: Request) {
         t.code,
         t.name_1                                                          AS name,
         lower(coalesce(t.role, ''))                                       AS role,
+        t.helpers                                                         AS helpers,
         COUNT(w.id) FILTER (WHERE w.status NOT IN ('closed','rejected'))::int        AS active,
         COUNT(w.id) FILTER (WHERE w.status = 'in_progress')::int                     AS working,
         COUNT(w.id) FILTER (WHERE w.created_at::date = now()::date)::int             AS today,
@@ -24,8 +25,8 @@ export async function GET(req: Request) {
         (array_agg(w.status  ORDER BY w.created_at DESC) FILTER (WHERE w.status NOT IN ('closed','rejected')))[1] AS current_status
       FROM odg_technicians t
       LEFT JOIN odg_work_order w ON w.technician_code = t.code
-      WHERE lower(coalesce(t.role, '')) IN ('technician','assistant','lead')
-      GROUP BY t.code, t.name_1, t.role
+      WHERE lower(coalesce(t.role, '')) IN ('technician','assistant','lead','helper')
+      GROUP BY t.code, t.name_1, t.role, t.helpers
       ORDER BY active DESC, t.name_1 ASC
     `);
     return NextResponse.json({ data: r.rows });
