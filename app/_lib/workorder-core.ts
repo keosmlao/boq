@@ -32,7 +32,23 @@ const numOrNull = (v: unknown) => {
 const actorName = (u: ActingUser) => u.name || u.username;
 
 async function loadWoRow(id: string): Promise<any | null> {
-  const r = await query(`SELECT * FROM odg_work_order WHERE id = $1 LIMIT 1`, [id]);
+  const sid = String(id);
+  // Legacy ERP work orders use ids like "erp-202" → load from odg_work_orders
+  // (plural). The v2 table's id is BIGSERIAL, so a bare "erp-202" would crash the
+  // integer cast — normalise here and expose the fields the lifecycle code needs.
+  if (sid.startsWith("erp-")) {
+    const realId = sid.slice(4);
+    if (!/^\d+$/.test(realId)) return null;
+    const r = await query(
+      `SELECT id, code AS work_no, project_code AS project_id, technician_id AS technician_code,
+              NULL::text AS assigned_username, NULL::timestamptz AS checkout_at, NULL::timestamptz AS closed_at
+         FROM odg_work_orders WHERE id = $1 LIMIT 1`,
+      [realId],
+    );
+    return r.rows[0] || null;
+  }
+  if (!/^\d+$/.test(sid)) return null; // v2 ids are numeric (BIGSERIAL)
+  const r = await query(`SELECT * FROM odg_work_order WHERE id = $1 LIMIT 1`, [sid]);
   return r.rows[0] || null;
 }
 
