@@ -256,7 +256,14 @@ export async function getRequests(opts: { projectId?: string } = {}): Promise<{ 
       /* odg_wo_material_request unreachable — other sources still returned */
     }
 
-    rows.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    // Pending app requests (awaiting pull) float to the very top so the back
+    // office sees them first; everything else by newest date.
+    const awaitingPull = (r: any) => (r.src === "app" && r.status !== "withdrawn" && r.status !== "rejected" ? 0 : 1);
+    rows.sort((a, b) => {
+      const ap = awaitingPull(a), bp = awaitingPull(b);
+      if (ap !== bp) return ap - bp;
+      return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+    });
     return { success: true, data: rows };
   } catch (e) {
     return fail((e as Error).message);
