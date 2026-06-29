@@ -399,6 +399,62 @@ export async function createMaterialRequestAs(
   }
 }
 
+/** The requester (by name) or a manager/approver may manage a pending request. */
+function canManageMatReq(user: ActingUser, req: any): boolean {
+  if (can(user, "work-orders", "approve")) return true;
+  return String(req?.requested_by || "") === actorName(user);
+}
+
+/** Delete a material request — only while still pending (not approved/issued). */
+export async function deleteMaterialRequestAs(user: ActingUser, reqId: string): Promise<Ok | Fail> {
+  try {
+    await ensureWorkOrderSchema();
+    const cur = await query(`SELECT * FROM odg_wo_material_request WHERE id = $1 LIMIT 1`, [String(reqId)]);
+    const req = cur.rows[0];
+    if (!req) return fail("ບໍ່ພົບໃບຂໍເບີກ");
+    if (String(req.status || "pending") !== "pending") return fail("ໃບນີ້ດຳເນີນການໄປແລ້ວ ລົບບໍ່ໄດ້");
+    if (!canManageMatReq(user, req)) return fail("ບໍ່ມີສິດລົບໃບນີ້");
+    await query(`DELETE FROM odg_wo_material_request WHERE id = $1`, [String(reqId)]);
+    return { success: true, data: { id: String(reqId) } };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/** Edit a material request's items/note — only while still pending. */
+export async function updateMaterialRequestAs(
+  user: ActingUser,
+  reqId: string,
+  items: Array<{ name?: string; unit?: string; qty?: number; item_code?: string; boq_qty?: number }>,
+  note?: string,
+): Promise<Ok | Fail> {
+  try {
+    await ensureWorkOrderSchema();
+    const cur = await query(`SELECT * FROM odg_wo_material_request WHERE id = $1 LIMIT 1`, [String(reqId)]);
+    const req = cur.rows[0];
+    if (!req) return fail("ບໍ່ພົບໃບຂໍເບີກ");
+    if (String(req.status || "pending") !== "pending") return fail("ໃບນີ້ດຳເນີນການໄປແລ້ວ ແກ້ໄຂບໍ່ໄດ້");
+    if (!canManageMatReq(user, req)) return fail("ບໍ່ມີສິດແກ້ໄຂໃບນີ້");
+    const clean = (Array.isArray(items) ? items : [])
+      .map((m) => ({
+        item_code: String(m?.item_code || "").trim(),
+        name: String(m?.name || "").trim(),
+        unit: String(m?.unit || "").trim(),
+        qty: Number(m?.qty) || 0,
+        boq_qty: Number(m?.boq_qty) || 0,
+      }))
+      .filter((m) => m.name && m.qty > 0);
+    if (!clean.length) return fail("ກະລຸນາໃສ່ລາຍການວັດສະດຸ");
+    const r = await query(
+      `UPDATE odg_wo_material_request SET items = $2::jsonb, note = $3 WHERE id = $1 RETURNING *`,
+      [String(reqId), JSON.stringify(clean), note || null],
+    );
+    return { success: true, data: r.rows[0] };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
 /** Manager/approver advances a material request: pending → approved → issued, or → rejected. */
 export async function setMaterialRequestStatusAs(
   user: ActingUser,
