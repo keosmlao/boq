@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { bearerUser } from "@/_lib/api-bearer";
 import { isManager } from "@/_lib/permissions";
 import { getWorkOrders } from "@/_actions/workorder";
+import { leadCodesForHelper } from "@/_lib/workorder-core";
 
 export async function GET(req: Request) {
   const user = await bearerUser(req);
@@ -17,8 +18,13 @@ export async function GET(req: Request) {
   let data = res.data;
   if (!isManager(user)) {
     const me = String(user.username || "");
+    // A ຜູ້ຊ່ວຍ also sees the jobs of the lead technician(s) they help.
+    const leadCodes = new Set(await leadCodesForHelper(me));
     data = data.filter(
-      (w: any) => String(w.technician_code || "") === me || String(w.assigned_username || "") === me,
+      (w: any) =>
+        String(w.technician_code || "") === me ||
+        String(w.assigned_username || "") === me ||
+        leadCodes.has(String(w.technician_code || "")),
     );
   }
   return NextResponse.json({ data });

@@ -47,6 +47,45 @@ function canActAsCraftsman(user: ActingUser, wo: any): boolean {
   return true; // unassigned → any holder may act
 }
 
+/**
+ * Lead technician codes whose `helpers` list includes this user — i.e. the jobs a
+ * ຜູ້ຊ່ວຍຊ່າງ (assistant) may help on. Helpers live on the lead technician row
+ * (odg_technicians.helpers), as codes or {code} objects. See resolveHelpers() in
+ * app/_actions/workorder.ts for the same shape.
+ */
+export async function leadCodesForHelper(username: string): Promise<string[]> {
+  if (!username) return [];
+  try {
+    const r = await query(`SELECT code, helpers FROM odg_technicians WHERE helpers IS NOT NULL`);
+    const leads: string[] = [];
+    for (const row of r.rows as any[]) {
+      const codes = (Array.isArray(row.helpers) ? row.helpers : [])
+        .map((h: any) => (h && typeof h === "object" ? (h.code ?? h.name_1 ?? h.name) : h))
+        .map(String);
+      if (codes.includes(String(username))) leads.push(String(row.code));
+    }
+    return leads;
+  } catch {
+    return [];
+  }
+}
+
+/** May this user act as a ຜູ້ຊ່ວຍ on this job (helper of the job's lead technician)? */
+async function canAssistOnWo(user: ActingUser, wo: any): Promise<boolean> {
+  const tech = wo?.technician_code ? String(wo.technician_code) : "";
+  if (!tech) return false;
+  const leads = await leadCodesForHelper(user.username);
+  return leads.includes(tech);
+}
+
+/**
+ * May this user work the job (check-in/out, tasks, materials)? The assigned head
+ * craftsman OR one of their assistants. Accept/reject stays head-craftsman only.
+ */
+async function canWorkOnWo(user: ActingUser, wo: any): Promise<boolean> {
+  return canActAsCraftsman(user, wo) || (await canAssistOnWo(user, wo));
+}
+
 /** Save 1+ base64 photos → public URLs (drops empties). */
 async function savePhotos(list: string[], prefix: string): Promise<string[]> {
   const urls: string[] = [];
@@ -138,6 +177,14 @@ export async function respondWorkOrderAs(
       `${actorName(user)} ${opts.accept ? "ຮັບ" : "ປະຕິເສດ"} ${wo.work_no || "ໃບງານ"}`,
       { workOrderId: String(id), type: opts.accept ? "wo_accepted" : "wo_rejected" },
     );
+    await notifyManagersInApp(
+      "work_order",
+      String(id),
+      opts.accept ? "wo_accepted" : "wo_rejected",
+      `${actorName(user)} ${opts.accept ? "ຮັບງານ" : "ປະຕິເສດງານ"} ${wo.work_no || "ໃບງານ"}`,
+      user.username,
+      actorName(user),
+    );
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);
@@ -156,7 +203,7 @@ export async function checkInWorkOrderAs(
     await ensureWorkOrderSchema();
     const wo = await loadWoRow(String(id));
     if (!wo) return fail("ບໍ່ພົບໃບງານ");
-    if (!canActAsCraftsman(user, wo)) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
+    if (!(await canWorkOnWo(user, wo))) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
     if (wo.accept_status !== "accepted") return fail("ກະລຸນາກົດຮັບງານກ່ອນ");
     if (wo.checkin_at) return fail("ໄດ້ check-in ໄປແລ້ວ");
 
@@ -179,6 +226,7 @@ export async function checkInWorkOrderAs(
     );
     invalidate("wo:");
     await notifyManagers("ຊ່າງ check-in ໜ້າງານ", `${actorName(user)} check-in ${wo.work_no || "ໃບງານ"}`, { workOrderId: String(id), type: "wo_checkin" });
+    await notifyManagersInApp("work_order", String(id), "wo_checkin", `${actorName(user)} check-in ${wo.work_no || "ໃບງານ"}`, user.username, actorName(user));
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);
@@ -197,7 +245,7 @@ export async function checkOutWorkOrderAs(
     await ensureWorkOrderSchema();
     const wo = await loadWoRow(String(id));
     if (!wo) return fail("ບໍ່ພົບໃບງານ");
-    if (!canActAsCraftsman(user, wo)) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
+    if (!(await canWorkOnWo(user, wo))) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
     if (!wo.checkin_at) return fail("ກະລຸນາ check-in ກ່ອນ");
     if (wo.checkout_at) return fail("ໄດ້ check-out ໄປແລ້ວ");
 
@@ -225,6 +273,7 @@ export async function checkOutWorkOrderAs(
     );
     invalidate("wo:");
     await notifyManagers("ຊ່າງ check-out — ລໍຖ້າກວດສອບ", `${actorName(user)} ສຳເລັດ ${wo.work_no || "ໃບງານ"} — ກະລຸນາກວດສອບ & ປິດງານ`, { workOrderId: String(id), type: "wo_checkout" });
+    await notifyManagersInApp("work_order", String(id), "wo_checkout", `${actorName(user)} ສຳເລັດ ${wo.work_no || "ໃບງານ"} — ລໍຖ້າກວດສອບ`, user.username, actorName(user));
     return { success: true, data: r.rows[0] };
   } catch (e) {
     return fail((e as Error).message);
@@ -268,7 +317,7 @@ export async function setTaskDoneAs(user: ActingUser, id: string, index: number,
     await ensureWorkOrderSchema();
     const wo = await loadWoRow(String(id));
     if (!wo) return fail("ບໍ່ພົບໃບງານ");
-    if (!canActAsCraftsman(user, wo)) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
+    if (!(await canWorkOnWo(user, wo))) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
     const tasks = Array.isArray(wo.tasks) ? wo.tasks : [];
     if (index < 0 || index >= tasks.length) return fail("ບໍ່ພົບໜ້າວຽກ");
     tasks[index] = { ...tasks[index], done: !!done };
@@ -292,7 +341,8 @@ export async function createMaterialRequestAs(
     await ensureWorkOrderSchema();
     const wo = await loadWoRow(String(id));
     if (!wo) return fail("ບໍ່ພົບໃບງານ");
-    if (!canActAsCraftsman(user, wo)) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
+    if (!(await canWorkOnWo(user, wo))) return fail("ໃບງານນີ້ບໍ່ໄດ້ມອບໝາຍໃຫ້ທ່ານ");
+    if (wo.closed_at) return fail("ໃບງານປິດແລ້ວ ບໍ່ສາມາດເບີກວັດສະດຸໄດ້");
     const clean = (Array.isArray(items) ? items : [])
       .map((m) => ({ name: String(m?.name || "").trim(), unit: String(m?.unit || "").trim(), qty: Number(m?.qty) || 0 }))
       .filter((m) => m.name && m.qty > 0);
