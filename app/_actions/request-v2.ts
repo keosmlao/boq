@@ -313,6 +313,27 @@ export async function getRequestDetail(id: string): Promise<{ success: true; dat
         const p = await query(`SELECT project_name FROM odg_projects WHERE id::text = $1 OR sml_code = $1 LIMIT 1`, [String(x.project_id || "")]);
         projectName = p.rows[0]?.project_name || "";
       } catch {/* ignore */}
+      // ຜູ້ໃຊ້ວັດສະດຸ defaults to the job's team/craftsman (the WO technician), so a
+      // pulled requisition is locked to who actually requested it.
+      let usedByCode = String(x.used_by_code || "");
+      let usedByName = String(x.used_by_name || "");
+      try {
+        const wid = String(x.work_order_id || "");
+        if (!usedByCode && wid) {
+          if (wid.startsWith("erp-") && /^\d+$/.test(wid.slice(4))) {
+            const w = await query(`SELECT technician_id FROM odg_work_orders WHERE id = $1 LIMIT 1`, [wid.slice(4)]);
+            usedByCode = String(w.rows[0]?.technician_id || "");
+          } else if (/^\d+$/.test(wid)) {
+            const w = await query(`SELECT technician_code, technician_name FROM odg_work_order WHERE id = $1 LIMIT 1`, [wid]);
+            usedByCode = String(w.rows[0]?.technician_code || "");
+            usedByName = usedByName || String(w.rows[0]?.technician_name || "");
+          }
+        }
+        if (usedByCode && !usedByName) {
+          const tn = await query(`SELECT name_1 FROM odg_technicians WHERE code = $1 LIMIT 1`, [usedByCode]);
+          usedByName = String(tn.rows[0]?.name_1 || usedByCode);
+        }
+      } catch {/* ignore */}
       return {
         success: true,
         data: {
@@ -324,7 +345,8 @@ export async function getRequestDetail(id: string): Promise<{ success: true; dat
           app_status: String(x.status || "pending"),
           notes: x.note || null,
           requester: x.requested_by || null,
-          used_by_name: x.used_by_name || null,
+          used_by_code: usedByCode || null,
+          used_by_name: usedByName || null,
           created_at: x.created_at,
           items: (Array.isArray(x.items) ? x.items : []).map((it: any) => ({
             item_code: it.item_code || "",

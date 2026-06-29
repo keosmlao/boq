@@ -62,6 +62,7 @@ export default function RequestPage() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [usedByCode, setUsedByCode] = useState("");
+  const [usedByName, setUsedByName] = useState("");
   const [shelves, setShelves] = useState<any[]>([]);
   const [whCode, setWhCode] = useState("");
   const [shelfCode, setShelfCode] = useState("");
@@ -157,6 +158,7 @@ export default function RequestPage() {
               if (firstItem?.shelf_code) setShelfCode(String(firstItem.shelf_code));
               setNotes(detRes.data?.notes || "");
               if (detRes.data?.used_by_code) setUsedByCode(String(detRes.data.used_by_code));
+              if (detRes.data?.used_by_name) setUsedByName(String(detRes.data.used_by_name));
               // Pulling an app request → create NEW (not edit); remember the source.
               if (fromApp && !editId) setFromAppId(String(fromApp));
             }
@@ -329,7 +331,7 @@ export default function RequestPage() {
       let requester = "";
       try { requester = JSON.parse(localStorage.getItem("v2_user") || "{}").name || ""; } catch { /* Ignore malformed local user data. */ }
       const usedTech = technicians.find((tch) => String(tch.code) === usedByCode);
-      const usedBy = { used_by_code: usedByCode || null, used_by_name: usedTech?.name_1 || null };
+      const usedBy = { used_by_code: usedByCode || null, used_by_name: (usedTech?.name_1 || usedByName) || null };
       const res: any = editId
         ? await updateRequest(String(editId), { items, notes: notes || null, ...usedBy })
         : await createRequest({ project_id: String(id), project_name: project?.project_name || null, items, notes: notes || null, requester, ...usedBy, from_app_id: fromAppId || null });
@@ -390,13 +392,21 @@ export default function RequestPage() {
         <Card className="mb-4 border-t-2 border-t-pink-400 p-4">
           <div className="mb-3">
             <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("requestNew.usedBy", "ຜູ້ໃຊ້ວັດສະດຸ (ທີມ/ຊ່າງ)")}</label>
-            <RSelect
-              value={usedByCode}
-              onChange={setUsedByCode}
-              options={technicians.map((tch) => ({ value: String(tch.code), label: `${tch.name_1 || tch.code}${tch.code ? ` (${tch.code})` : ""}` }))}
-              placeholder={t("requestNew.selectTech", "-- ເລືອກທີມ/ຊ່າງ --")}
-              isClearable
-            />
+            {fromAppId ? (
+              // Pulled from an app request → locked to who requested it (read-only).
+              <div className="flex h-9 items-center gap-2 rounded-md border border-[var(--theme-border-subtle)] bg-[var(--theme-surface-soft,#f5f9ff)] px-3 text-[13px] text-[var(--theme-text)]">
+                <span className="truncate">{usedByName || usedByCode || t("requestNew.fromRequest", "ຕາມໃບຂໍ")}</span>
+                <span className="ml-auto text-[10px] font-semibold text-[var(--theme-text-mute)]">{t("common.readonly", "ອ່ານຢ່າງດຽວ")}</span>
+              </div>
+            ) : (
+              <RSelect
+                value={usedByCode}
+                onChange={setUsedByCode}
+                options={technicians.map((tch) => ({ value: String(tch.code), label: `${tch.name_1 || tch.code}${tch.code ? ` (${tch.code})` : ""}` }))}
+                placeholder={t("requestNew.selectTech", "-- ເລືອກທີມ/ຊ່າງ --")}
+                isClearable
+              />
+            )}
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
