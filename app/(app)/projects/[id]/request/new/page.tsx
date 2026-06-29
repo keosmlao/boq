@@ -8,7 +8,7 @@ import { getProjectBasic } from "@/_actions/projects";
 import { getCustomer } from "@/_actions/customers";
 import { getProjectMaterials } from "@/_actions/boq-v2";
 import { createRequest, updateRequest, getRequestDetail } from "@/_actions/request-v2";
-import { getWarehouses, getLocations, getStockBalancesAtLocation, getInventory } from "@/_actions/lookups";
+import { getWarehouses, getLocations, getStockBalancesAtLocation, getInventory, getTechnicians } from "@/_actions/lookups";
 import { Page, Card, Btn, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
 import RSelect from "../../../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
@@ -57,6 +57,8 @@ export default function RequestPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [usedByCode, setUsedByCode] = useState("");
   const [shelves, setShelves] = useState<any[]>([]);
   const [whCode, setWhCode] = useState("");
   const [shelfCode, setShelfCode] = useState("");
@@ -73,11 +75,12 @@ export default function RequestPage() {
     let alive = true;
     (async () => {
       try {
-        const [pRes, mRes, whRes]: any = await Promise.all([getProjectBasic(String(id)), getProjectMaterials(String(id)), getWarehouses()]);
+        const [pRes, mRes, whRes, techRes]: any = await Promise.all([getProjectBasic(String(id)), getProjectMaterials(String(id)), getWarehouses(), getTechnicians()]);
         if (!alive) return;
         const p = pRes?.success ? pRes.data : null;
         setProject(p);
         setWarehouses(whRes?.success ? whRes.data || [] : []);
+        setTechnicians(techRes?.success ? techRes.data || [] : []);
 
         const mats = mRes?.success ? mRes.data || [] : [];
         const availableRows = mats
@@ -149,6 +152,7 @@ export default function RequestPage() {
               if (firstItem?.wh_code) setWhCode(String(firstItem.wh_code));
               if (firstItem?.shelf_code) setShelfCode(String(firstItem.shelf_code));
               setNotes(detRes.data?.notes || "");
+              if (detRes.data?.used_by_code) setUsedByCode(String(detRes.data.used_by_code));
             }
           } catch {
             /* ignore */
@@ -318,9 +322,11 @@ export default function RequestPage() {
     try {
       let requester = "";
       try { requester = JSON.parse(localStorage.getItem("v2_user") || "{}").name || ""; } catch { /* Ignore malformed local user data. */ }
+      const usedTech = technicians.find((tch) => String(tch.code) === usedByCode);
+      const usedBy = { used_by_code: usedByCode || null, used_by_name: usedTech?.name_1 || null };
       const res: any = editId
-        ? await updateRequest(String(editId), { items, notes: notes || null })
-        : await createRequest({ project_id: String(id), project_name: project?.project_name || null, items, notes: notes || null, requester });
+        ? await updateRequest(String(editId), { items, notes: notes || null, ...usedBy })
+        : await createRequest({ project_id: String(id), project_name: project?.project_name || null, items, notes: notes || null, requester, ...usedBy });
       if (res?.success) router.push(editId ? `/requests/${encodeURIComponent(String(editId))}` : `/projects/${id}?tab=requests`);
       else setError(res?.message || t("requestNew.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
     } catch (err: any) {
@@ -370,6 +376,16 @@ export default function RequestPage() {
         {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</div>}
 
         <Card className="mb-4 border-t-2 border-t-pink-400 p-4">
+          <div className="mb-3">
+            <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("requestNew.usedBy", "ຜູ້ໃຊ້ວັດສະດຸ (ທີມ/ຊ່າງ)")}</label>
+            <RSelect
+              value={usedByCode}
+              onChange={setUsedByCode}
+              options={technicians.map((tch) => ({ value: String(tch.code), label: `${tch.name_1 || tch.code}${tch.code ? ` (${tch.code})` : ""}` }))}
+              placeholder={t("requestNew.selectTech", "-- ເລືອກທີມ/ຊ່າງ --")}
+              isClearable
+            />
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("requestNew.warehouse", "ສາງ (Warehouse)")}</label>

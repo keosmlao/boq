@@ -23,6 +23,9 @@ export function ensureRequestSchema(): Promise<void> {
         CREATE INDEX IF NOT EXISTS odg_request_project_idx ON odg_request(project_id);
         ALTER TABLE odg_request ADD COLUMN IF NOT EXISTS substitute_approved BOOLEAN DEFAULT false;
         ALTER TABLE odg_request ADD COLUMN IF NOT EXISTS substitute_approver TEXT;
+        -- ຜູ້ໃຊ້ວັດສະດຸ (ທີມ/ຊ່າງ) — selected when staff create the request.
+        ALTER TABLE odg_request ADD COLUMN IF NOT EXISTS used_by_code TEXT;
+        ALTER TABLE odg_request ADD COLUMN IF NOT EXISTS used_by_name TEXT;
         `,
         [],
       );

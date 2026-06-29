@@ -283,6 +283,9 @@ export default function RequestDetailPage() {
             <div className="space-y-3.5">
               <SidebarInfo icon={<FolderKanban size={15} className="text-slate-400" />} label={t("requests.projectLabel", "ໂຄງການ / ໂປຣເຈັກ")} value={r.project_name} />
               <SidebarInfo icon={<User size={15} className="text-slate-400" />} label={t("requests.requester", "ຜູ້ຮ້ອງຂໍເບີກ")} value={r.requester} />
+              {r.used_by_name && (
+                <SidebarInfo icon={<User size={15} className="text-slate-400" />} label={t("requests.usedBy", "ຜູ້ໃຊ້ວັດສະດຸ (ທີມ/ຊ່າງ)")} value={r.used_by_name} />
+              )}
               <SidebarInfo icon={<CalendarClock size={15} className="text-slate-400" />} label={t("requests.requestDateTime", "ວັນທີ/ເວລາ ຮ້ອງຂໍ")} value={fmt(r.created_at, true)} />
               <SidebarInfo icon={<PackageOpen size={15} className="text-slate-400" />} label={t("requests.totalItems", "ຈຳນວນລາຍການທັງໝົດ")} value={`${num(totalQty)} ${t("requests.unitRollsPieces", "ມ້ວນ/ຊິ້ນ")}`} />
             </div>

@@ -413,9 +413,9 @@ export async function createRequest(body: any): Promise<{ success: true; data: a
     let created: any = null;
     await withTransaction(async (client: any) => {
       const r = await client.query(
-        `INSERT INTO odg_request (request_no, project_id, project_name, status, items, notes, requester)
-         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-        [reqNo, String(body.project_id), body.project_name || null, body.status || "requested", JSON.stringify(items), body.notes || null, body.requester || null],
+        `INSERT INTO odg_request (request_no, project_id, project_name, status, items, notes, requester, used_by_code, used_by_name)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        [reqNo, String(body.project_id), body.project_name || null, body.status || "requested", JSON.stringify(items), body.notes || null, body.requester || null, body.used_by_code || null, body.used_by_name || null],
       );
       created = r.rows[0];
       // Push to SML now unless it needs substitution approval first.
@@ -553,8 +553,8 @@ export async function updateRequest(id: string, body: any): Promise<{ success: t
       await withTransaction(async (client: any) => {
         // Editing the lines invalidates any prior substitution approval.
         const r = await client.query(
-          `UPDATE odg_request SET items = $2, notes = $3, substitute_approved = false, substitute_approver = NULL, updated_at = now() WHERE id = $1 RETURNING *`,
-          [id, JSON.stringify(items), body.notes ?? null],
+          `UPDATE odg_request SET items = $2, notes = $3, used_by_code = $4, used_by_name = $5, substitute_approved = false, substitute_approver = NULL, updated_at = now() WHERE id = $1 RETURNING *`,
+          [id, JSON.stringify(items), body.notes ?? null, body.used_by_code ?? null, body.used_by_name ?? null],
         );
         const row = r.rows[0];
         if (!row) return;
