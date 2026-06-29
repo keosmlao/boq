@@ -36,6 +36,11 @@ async function loadWoRow(id: string): Promise<any | null> {
   return r.rows[0] || null;
 }
 
+/** Exported loader for routes that need the raw work-order row (e.g. /boq). */
+export async function loadWoRowPublic(id: string): Promise<any | null> {
+  return loadWoRow(id);
+}
+
 /** May this user act on this work order as the assigned craftsman? */
 function canActAsCraftsman(user: ActingUser, wo: any): boolean {
   // The assigned head craftsman: matched by assigned_username, or by the work
@@ -82,7 +87,7 @@ async function canAssistOnWo(user: ActingUser, wo: any): Promise<boolean> {
  * May this user work the job (check-in/out, tasks, materials)? The assigned head
  * craftsman OR one of their assistants. Accept/reject stays head-craftsman only.
  */
-async function canWorkOnWo(user: ActingUser, wo: any): Promise<boolean> {
+export async function canWorkOnWo(user: ActingUser, wo: any): Promise<boolean> {
   return canActAsCraftsman(user, wo) || (await canAssistOnWo(user, wo));
 }
 
@@ -333,9 +338,9 @@ export async function setTaskDoneAs(user: ActingUser, id: string, index: number,
 export async function createMaterialRequestAs(
   user: ActingUser,
   id: string,
-  items: Array<{ name?: string; unit?: string; qty?: number }>,
+  items: Array<{ name?: string; unit?: string; qty?: number; item_code?: string; boq_qty?: number }>,
   note?: string,
-  wh?: { wh_code?: string; wh_name?: string; shelf_code?: string; shelf_name?: string },
+  opts?: { usedByCode?: string; usedByName?: string },
 ): Promise<Ok | Fail> {
   try {
     await ensureWorkOrderSchema();
@@ -346,22 +351,26 @@ export async function createMaterialRequestAs(
     // material requests — covers closed jobs too (close happens after check-out).
     if (wo.checkout_at) return fail("ໃບງານ check-out ແລ້ວ ບໍ່ສາມາດເບີກວັດສະດຸໄດ້");
     const clean = (Array.isArray(items) ? items : [])
-      .map((m) => ({ name: String(m?.name || "").trim(), unit: String(m?.unit || "").trim(), qty: Number(m?.qty) || 0 }))
+      .map((m) => ({
+        item_code: String(m?.item_code || "").trim(),
+        name: String(m?.name || "").trim(),
+        unit: String(m?.unit || "").trim(),
+        qty: Number(m?.qty) || 0,
+        boq_qty: Number(m?.boq_qty) || 0,
+      }))
       .filter((m) => m.name && m.qty > 0);
     if (!clean.length) return fail("ກະລຸນາໃສ່ລາຍການວັດສະດຸ");
     const r = await query(
-      `INSERT INTO odg_wo_material_request (work_order_id, project_id, requested_by, items, note, wh_code, wh_name, shelf_code, shelf_name)
-       VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9) RETURNING *`,
+      `INSERT INTO odg_wo_material_request (work_order_id, project_id, requested_by, items, note, used_by_code, used_by_name, status)
+       VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,'pending') RETURNING *`,
       [
         String(id),
         wo.project_id ? String(wo.project_id) : null,
         actorName(user),
         JSON.stringify(clean),
         note || null,
-        wh?.wh_code || null,
-        wh?.wh_name || null,
-        wh?.shelf_code || null,
-        wh?.shelf_name || null,
+        opts?.usedByCode || null,
+        opts?.usedByName || null,
       ],
     );
     // Notify the back office (bell + push) that a craftsman requested materials.
@@ -374,11 +383,52 @@ export async function createMaterialRequestAs(
   }
 }
 
+/** Manager/approver advances a material request: pending → approved → issued, or → rejected. */
+export async function setMaterialRequestStatusAs(
+  user: ActingUser,
+  reqId: string,
+  status: string,
+  note?: string,
+): Promise<Ok | Fail> {
+  try {
+    if (!can(user, "work-orders", "approve")) return fail("ບໍ່ມີສິດອະນຸມັດ/ເບີກວັດສະດຸ");
+    const allowed = ["approved", "issued", "rejected"];
+    if (!allowed.includes(status)) return fail("ສະຖານະບໍ່ຖືກຕ້ອງ");
+    await ensureWorkOrderSchema();
+    const cur = await query(`SELECT * FROM odg_wo_material_request WHERE id = $1 LIMIT 1`, [String(reqId)]);
+    const req = cur.rows[0];
+    if (!req) return fail("ບໍ່ພົບໃບຂໍເບີກ");
+    // Forward-only flow: ຂໍເບີກ(pending) → ອະນຸມັດ(approved) → ເບີກແລ້ວ(issued).
+    if (status === "issued" && req.status !== "approved") return fail("ຕ້ອງອະນຸມັດກ່ອນຈຶ່ງເບີກໄດ້");
+    if (status === "approved" && req.status !== "pending") return fail("ໃບນີ້ດຳເນີນການໄປແລ້ວ");
+    const r = await query(
+      `UPDATE odg_wo_material_request
+          SET status = $2, approver = $3, status_at = now(), status_note = COALESCE($4, status_note)
+        WHERE id = $1 RETURNING *`,
+      [String(reqId), status, actorName(user), note || null],
+    );
+    const label = status === "approved" ? "ອະນຸມັດແລ້ວ" : status === "issued" ? "ເບີກວັດສະດຸແລ້ວ" : "ຖືກປະຕິເສດ";
+    await notifyCraftsman(
+      req.requested_by,
+      `ໃບຂໍເບີກວັດສະດຸ ${label}`,
+      `${actorName(user)} ${label}`,
+      { workOrderId: String(req.work_order_id), type: "material_status" },
+    );
+    if (req.work_order_id) {
+      await notifyManagersInApp("work_order", String(req.work_order_id), `material_${status}`, `${actorName(user)} ${label} ໃບຂໍເບີກ`, user.username, actorName(user));
+    }
+    return { success: true, data: r.rows[0] };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
 export async function listMaterialRequests(id: string): Promise<{ success: true; data: any[] } | Fail> {
   try {
     await ensureWorkOrderSchema();
     const r = await query(
-      `SELECT id::text, work_order_id, project_id, requested_by, items, note, status, wh_code, wh_name, shelf_code, shelf_name, created_at
+      `SELECT id::text, work_order_id, project_id, requested_by, items, note, status,
+              used_by_code, used_by_name, approver, status_at, status_note, created_at
          FROM odg_wo_material_request WHERE work_order_id = $1 ORDER BY created_at DESC`,
       [String(id)],
     );

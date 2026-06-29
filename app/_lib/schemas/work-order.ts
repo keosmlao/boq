@@ -87,6 +87,12 @@ export function ensureWorkOrderSchema(): Promise<void> {
         ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS wh_name TEXT;
         ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS shelf_code TEXT;
         ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS shelf_name TEXT;
+        -- ຜູ້ໃຊ້ວັດສະດຸ (ທີມ/ຊ່າງ) + status tracking (ຂໍເບີກ→ອະນຸມັດ→ເບີກແລ້ວ)
+        ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS used_by_code TEXT;
+        ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS used_by_name TEXT;
+        ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS approver TEXT;
+        ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS status_at TIMESTAMPTZ;
+        ALTER TABLE odg_wo_material_request ADD COLUMN IF NOT EXISTS status_note TEXT;
         CREATE INDEX IF NOT EXISTS odg_wo_matreq_wo_idx ON odg_wo_material_request(work_order_id);
         -- Inspection close (after ລໍຖ້າກວດສອບ → ປິດງານແລ້ວ), by a manager/inspector
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;

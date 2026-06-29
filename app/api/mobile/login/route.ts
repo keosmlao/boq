@@ -18,7 +18,11 @@ async function appAccess(username: string, role: string): Promise<{ allowed: boo
       [username],
     );
     const craftRole = (r.rows[0]?.role as string | undefined) || null;
-    return { allowed: craftRole === "technician" || craftRole === "assistant", craftRole };
+    // Craftsmen who may use the app: head craftsman (lead), ຊ່າງ (technician),
+    // and ຜູ້ຊ່ວຍ (assistant). lead was missing → head craftsmen like 21009 were
+    // locked out even though they hold the work orders.
+    const allowedRoles = ["lead", "technician", "assistant"];
+    return { allowed: craftRole != null && allowedRoles.includes(craftRole), craftRole };
   } catch {
     return { allowed: false, craftRole: null };
   }

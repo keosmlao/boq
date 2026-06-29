@@ -23,10 +23,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     Array.isArray(body?.items) ? body.items : [],
     body?.note ? String(body.note) : undefined,
     {
-      wh_code: body?.wh_code ? String(body.wh_code) : undefined,
-      wh_name: body?.wh_name ? String(body.wh_name) : undefined,
-      shelf_code: body?.shelf_code ? String(body.shelf_code) : undefined,
-      shelf_name: body?.shelf_name ? String(body.shelf_name) : undefined,
+      usedByCode: body?.used_by_code ? String(body.used_by_code) : undefined,
+      usedByName: body?.used_by_name ? String(body.used_by_name) : undefined,
     },
   );
   return NextResponse.json(res, { status: res.success ? 200 : 400 });
