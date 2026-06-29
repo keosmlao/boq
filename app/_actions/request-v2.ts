@@ -6,6 +6,7 @@ import { invalidate } from "@/_lib/cache";
 import { ensureRequestSchema } from "@/_lib/schemas/request";
 import { requirePermission } from "@/_lib/server-auth";
 import { getProjectMaterials } from "@/_actions/boq-v2";
+import { setMaterialRequestStatusAs } from "@/_lib/workorder-core";
 import {
   getRequests as getLegacyRequests,
   deleteRequest as deleteLegacyRequest,
@@ -266,6 +267,27 @@ export async function getRequests(opts: { projectId?: string } = {}): Promise<{ 
  * Full request detail. For a legacy request (doc_no like REQ-...), also returns
  * the linked withdrawal slips from ic_trans/ic_trans_detail (doc_ref = doc_no).
  */
+/** Web: advance an app material request (id like "app-123") — approved/issued/rejected. */
+export async function setAppRequestStatus(appId: string, status: string, note?: string): Promise<{ success: true; data: any } | Fail> {
+  try {
+    const user = await requirePermission("requests", "approve");
+    const realId = String(appId).startsWith("app-") ? String(appId).slice(4) : String(appId);
+    const res = await setMaterialRequestStatusAs(
+      { username: user?.username || "", name: user?.name, role: user?.role, permissions: user?.permissions as any },
+      realId,
+      status,
+      note,
+    );
+    if (res.success) {
+      invalidate("req:");
+      await logActivity("request", appId, "ປ່ຽນສະຖານະໃບຂໍເບີກ", status);
+    }
+    return res as { success: true; data: any } | Fail;
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
 export async function getRequestDetail(id: string): Promise<{ success: true; data: any } | Fail> {
   try {
     await ensureRequestSchema();

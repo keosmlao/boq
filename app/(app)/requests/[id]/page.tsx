@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
 import { ArrowLeft, PackageOpen, Truck, FolderKanban, User, CalendarClock, Warehouse, MapPin } from "lucide-react";
-import { getRequestDetail, deleteRequest, approveSubstitute } from "@/_actions/request-v2";
+import { getRequestDetail, deleteRequest, approveSubstitute, setAppRequestStatus } from "@/_actions/request-v2";
 import { Page, Card, thCls, tdCls } from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
 import { getV2User } from "../../../_lib/session";
@@ -87,6 +87,27 @@ export default function RequestDetailPage() {
     setMarking(true);
     try {
       const res: any = await approveSubstitute(String(id));
+      if (res?.success) await refresh();
+      else alert(res?.message || t("requests.failed", "ບໍ່ສຳເລັດ"));
+    } finally {
+      setMarking(false);
+    }
+  };
+
+  // App requests (odg_wo_material_request) — advance pending → approved → issued, or reject.
+  const isApp = r.src === "app";
+  const appStatus = String(r.app_status || "pending");
+  const canApproveReq = can(user, "requests", "approve");
+  const setApp = async (status: string, withReason = false) => {
+    let note: string | undefined;
+    if (withReason) {
+      const reason = window.prompt(t("requests.rejectReason", "ເຫດຜົນທີ່ປະຕິເສດ"));
+      if (reason === null) return;
+      note = reason;
+    }
+    setMarking(true);
+    try {
+      const res: any = await setAppRequestStatus(String(id), status, note);
       if (res?.success) await refresh();
       else alert(res?.message || t("requests.failed", "ບໍ່ສຳເລັດ"));
     } finally {
@@ -324,6 +345,27 @@ export default function RequestDetailPage() {
                     )}
                   </div>
                 )
+              )}
+              {/* App request (ໃບເບີກຈากແອັບ) — back office can approve / issue / reject here. */}
+              {isApp && canApproveReq && appStatus !== "issued" && appStatus !== "rejected" && (
+                <div className="flex flex-col gap-2">
+                  {appStatus === "pending" && (
+                    <button onClick={() => setApp("approved")} disabled={marking}
+                      className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 text-[12.5px] font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                      {marking ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("requests.approve", "ອະນຸມັດ")}
+                    </button>
+                  )}
+                  {appStatus === "approved" && (
+                    <button onClick={() => setApp("issued")} disabled={marking}
+                      className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 text-[12.5px] font-bold text-white hover:bg-emerald-700 disabled:opacity-60">
+                      {marking ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("requests.markIssued", "ເບີກແລ້ວ")}
+                    </button>
+                  )}
+                  <button onClick={() => setApp("rejected", true)} disabled={marking}
+                    className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-rose-300 text-[12.5px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-60">
+                    {t("status.rejected", "ປະຕິເສດ")}
+                  </button>
+                </div>
               )}
               {/* The actual withdrawal (ໃບເບີກ) is created in SML by the warehouse;
                   the app no longer marks requests withdrawn manually. */}
