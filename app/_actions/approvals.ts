@@ -116,13 +116,14 @@ export async function getApprovalSummary(): Promise<{ success: true; data: Appro
     console.error("getApprovalSummary substitutes:", (e as Error).message);
   }
 
-  // App material requests (templates) awaiting pull into a real requisition.
+  // App requests the head craftsman has APPROVED — ready for admin to pull into a
+  // real requisition. (pending ones are still waiting for the head craftsman.)
   if (allow.appRequests) try {
     const r = await query(
       `SELECT m.id, m.items,
               (SELECT project_name FROM odg_projects p WHERE p.id::text = m.project_id OR p.sml_code = m.project_id LIMIT 1) AS project_name
          FROM odg_wo_material_request m
-        WHERE COALESCE(m.status, 'pending') = 'pending'
+        WHERE m.status = 'approved'
         ORDER BY m.created_at DESC LIMIT 200`,
     );
     data.appRequests = r.rows.map((x: any) => ({

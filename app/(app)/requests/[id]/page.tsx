@@ -346,8 +346,14 @@ export default function RequestDetailPage() {
                   </div>
                 )
               )}
-              {/* Pull an app request into a real requisition (RQ-, picks warehouse → SML). */}
-              {isApp && appStatus !== "rejected" && appStatus !== "converted" && can(user, "requests", "create") && r.project_id && (
+              {/* Template waiting for the head craftsman to approve — not yet pullable. */}
+              {isApp && appStatus === "pending" && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11.5px] font-semibold text-amber-700">
+                  ⏳ {t("requests.awaitingHeadApproval", "ລໍຖ້າຫົວໜ້າຊ່າງອະນຸມັດ ກ່ອນຈຶ່ງດຶງໄດ້")}
+                </div>
+              )}
+              {/* Approved by the head craftsman → admin pulls it into a real requisition (RQ- → SML). */}
+              {isApp && appStatus === "approved" && can(user, "requests", "create") && r.project_id && (
                 <button
                   onClick={() => router.push(`/projects/${r.project_id}/request/new?fromApp=${encodeURIComponent(String(id))}`)}
                   className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-pink-600 text-[12.5px] font-bold text-white hover:bg-pink-700"

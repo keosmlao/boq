@@ -40,9 +40,11 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
         searchPlaceholder={t("requests.searchPlaceholder", "ຄົ້ນຫາ ເລກທີ່, ໂຄງການ...")}
         empty={t("requests.empty", "ຍັງບໍ່ມີການຂໍເບີກ")}
         groupBy={(r) =>
-          r.src === "app" && r.status !== "withdrawn" && r.status !== "rejected"
-            ? t("requests.fromAppGroup", "📱 ໃບຂໍຈາກຊ່າງ (ລໍດຶງ)")
-            : r.project_name || t("requests.noProject", "(ບໍ່ລະບຸໂຄງການ)")
+          r.src === "app" && r.app_status === "approved"
+            ? t("requests.fromAppApproved", "📱 ລໍຖ້າອອກໃບຂໍເບີກ (ຫົວໜ້າຊ່າງອະນຸມັດແລ້ວ)")
+            : r.src === "app" && r.app_status === "pending"
+              ? t("requests.fromAppPending", "⏳ ໃບຂໍຈາກຊ່າງ (ລໍຫົວໜ້າຊ່າງອະນຸມັດ)")
+              : r.project_name || t("requests.noProject", "(ບໍ່ລະບຸໂຄງການ)")
         }
         groupLabel={t("requests.groupByProject", "ຈັດກຸ່ມຕາມໂຄງການ")}
         headerActions={
@@ -59,9 +61,11 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
             header: t("common.status", "ສະຖານະ"),
             cell: (r) => {
               const s = String(r.status || "requested");
-              // App requests pending a pull stand out so staff convert them to a real requisition.
-              if (r.src === "app" && s !== "withdrawn" && s !== "rejected") {
-                return <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700">📱 {t("requests.awaitingPull", "ລໍດຶງ (ຈากແອັບ)")}</span>;
+              if (r.src === "app" && r.app_status === "approved") {
+                return <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-bold text-pink-700">📱 {t("requests.awaitingPull", "ລໍຖ້າອອກໃບຂໍເບີກ")}</span>;
+              }
+              if (r.src === "app" && r.app_status === "pending") {
+                return <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">⏳ {t("requests.awaitingHead", "ລໍຫົວໜ້າຊ່າງ")}</span>;
               }
               return <span className="text-slate-600">{stLabel(s)}</span>;
             },

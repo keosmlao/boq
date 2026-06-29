@@ -245,6 +245,7 @@ export async function getRequests(opts: { projectId?: string } = {}): Promise<{ 
           project_id: r.project_id != null ? String(r.project_id) : "",
           project_name: r.project_name || null,
           status: st === "issued" || st === "converted" ? "withdrawn" : st === "rejected" ? "rejected" : "requested",
+          app_status: st, // raw: pending (ລໍຫົວໜ້າຊ່າງ) / approved (ລໍດຶງ) / converted / rejected
           items: Array.isArray(r.items) ? r.items : [],
           requester: r.requested_by || null,
           used_by_name: r.used_by_name || null,
@@ -256,9 +257,9 @@ export async function getRequests(opts: { projectId?: string } = {}): Promise<{ 
       /* odg_wo_material_request unreachable — other sources still returned */
     }
 
-    // Pending app requests (awaiting pull) float to the very top so the back
-    // office sees them first; everything else by newest date.
-    const awaitingPull = (r: any) => (r.src === "app" && r.status !== "withdrawn" && r.status !== "rejected" ? 0 : 1);
+    // App requests the head craftsman has APPROVED (awaiting pull) float to the
+    // very top so admin sees what to issue; everything else by newest date.
+    const awaitingPull = (r: any) => (r.src === "app" && r.app_status === "approved" ? 0 : 1);
     rows.sort((a, b) => {
       const ap = awaitingPull(a), bp = awaitingPull(b);
       if (ap !== bp) return ap - bp;
