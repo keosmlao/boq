@@ -18,7 +18,6 @@ import {
   LogOut,
   Menu,
   PackageOpen,
-  Plus,
   ShieldCheck,
   Sun,
   Moon,
@@ -33,7 +32,7 @@ import {
   Inbox,
   X,
 } from "lucide-react";
-import { can, canView, isAdmin, ROLE_LABELS, type Role } from "@/_lib/permissions";
+import { canView, isAdmin, ROLE_LABELS, type Role } from "@/_lib/permissions";
 import { getApprovalCount } from "@/_actions/approvals";
 import { clearV2User, getV2User, type V2User } from "../../_lib/session";
 import { useTheme } from "@/_components/theme/ThemeProvider";
@@ -241,20 +240,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </button>
       </div>
 
-      {can(user, "projects", "create") && (
-        <div className="px-4 pb-1 pt-4">
-          <Link
-            href="/projects/new"
-            onClick={() => setMobileOpen(false)}
-            className="group flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-[12px] font-bold text-white shadow-sm shadow-blue-500/25 transition-all duration-200 hover:shadow-md hover:shadow-blue-500/30 active:scale-[0.98]"
-          >
-            <Plus size={15} strokeWidth={3} className="transition-transform duration-300 group-hover:rotate-90" />
-            <span>{t("shell.registerProject")}</span>
-          </Link>
-        </div>
-      )}
-
-      <div className="theme-scrollbar flex-1 space-y-4 overflow-y-auto px-3 py-3">
+      <div className="theme-scrollbar flex-1 space-y-4 overflow-y-auto px-3 pb-3 pt-4">
         {visibleSections.map((section, index) => (
           <div key={section.section || index}>
             {section.section && <p className="mb-1 px-3 text-[8.5px] font-black uppercase tracking-[0.18em] text-[var(--text-mute)]">{t(section.sectionKey || "", section.section)}</p>}
