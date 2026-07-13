@@ -3,7 +3,7 @@
 /** Standard installation checklist — editable master list (add / edit / delete / reorder). */
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Check, ClipboardCheck, FolderSync, Info, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
-import { Page, PageHeader, Card, Btn, inputCls } from "../_components/ui";
+import { Page, PageHeader, Card, Btn, SectionHeader, inputCls } from "../_components/ui";
 import { can } from "@/_lib/permissions";
 import { getV2User, type V2User } from "../../_lib/session";
 import { useT } from "@/_lib/i18n";
@@ -130,18 +130,26 @@ export default function StandardTasksPage() {
         }
       />
 
-      {notice && <p className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-700">{notice}</p>}
+      {notice && (
+        <p className="mb-3 rounded-xl border border-[var(--success-soft)] bg-[var(--success-soft)] px-3 py-2 text-[12px] font-semibold text-[var(--success)]">
+          {notice}
+        </p>
+      )}
 
-      <Card className="mb-4 flex items-start gap-3 border-blue-200 bg-blue-50/60 p-4">
-        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+      <Card className="mb-4 flex items-start gap-3 p-4">
+        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--info-soft)] text-[var(--info)]">
           <Info size={16} />
         </span>
-        <p className="text-[12.5px] font-semibold leading-relaxed text-blue-800">
-          {t("stdTasks.infoBefore", "ການແກ້ໄຂລາຍການນີ້ມີຜົນກັບໂຄງການທີ່ຈະອະນຸມັດ BOQ")} <b>{t("stdTasks.infoNext", "ຕໍ່ໄປ")}</b>. {t("stdTasks.infoAfter", "ໂຄງການທີ່ສ້າງງານໄປແລ້ວຈະບໍ່ປ່ຽນ.")}
+        <p className="text-[12.5px] font-semibold leading-relaxed text-[var(--text-soft)]">
+          {t("stdTasks.infoBefore", "ການແກ້ໄຂລາຍການນີ້ມີຜົນກັບໂຄງການທີ່ຈະອະນຸມັດ BOQ")} <b className="text-[var(--text)]">{t("stdTasks.infoNext", "ຕໍ່ໄປ")}</b>. {t("stdTasks.infoAfter", "ໂຄງການທີ່ສ້າງງານໄປແລ້ວຈະບໍ່ປ່ຽນ.")}
         </p>
       </Card>
 
-      {error && <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-semibold text-rose-600">{error}</p>}
+      {error && (
+        <p className="mb-3 rounded-xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12px] font-semibold text-[var(--danger)]">
+          {error}
+        </p>
+      )}
 
       {canCreate && (
         <Card className="mb-4 p-3">
@@ -153,7 +161,7 @@ export default function StandardTasksPage() {
               placeholder={t("stdTasks.addPlaceholder", "ເພີ່ມງານຕິດຕັ້ງມາດຕະຖານໃໝ່...")}
               className={inputCls}
             />
-            <Btn onClick={add} disabled={adding || !newTitle.trim()}>
+            <Btn variant="go" onClick={add} disabled={adding || !newTitle.trim()}>
               {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={15} />} {t("common.add", "ເພີ່ມ")}
             </Btn>
           </div>
@@ -161,17 +169,23 @@ export default function StandardTasksPage() {
       )}
 
       <Card className="overflow-hidden p-0">
+        <div className="border-b border-[var(--border-soft)] px-4 pt-4">
+          <SectionHeader icon={<ClipboardCheck size={15} />} title={t("stdTasks.title", "ງານຕິດຕັ້ງມາດຕະຖານ")} tone="brand" />
+        </div>
         {loading ? (
-          <p className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400">
+          <p className="flex items-center justify-center gap-2 py-12 text-sm text-[var(--text-mute)]">
             <Loader2 size={16} className="animate-spin" /> {t("common.loading", "ກຳລັງໂຫຼດ...")}
           </p>
         ) : tasks.length === 0 ? (
-          <p className="py-12 text-center text-sm text-slate-400">{t("stdTasks.noData", "ຍັງບໍ່ມີລາຍການ")}</p>
+          <p className="py-12 text-center text-sm text-[var(--text-mute)]">{t("stdTasks.noData", "ຍັງບໍ່ມີລາຍການ")}</p>
         ) : (
-          <ol className="divide-y divide-slate-100">
+          <ol>
             {tasks.map((task, i) => (
-              <li key={task.id} className="flex items-center gap-3 px-4 py-2.5">
-                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[12px] font-black text-slate-600">
+              <li
+                key={task.id}
+                className="flex items-center gap-3 border-b border-[var(--border-soft)] px-4 py-2.5 transition-colors last:border-b-0 hover:bg-[var(--brand-tint)]"
+              >
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[12px] font-black text-[var(--text-soft)]">
                   {i + 1}
                 </span>
 
@@ -187,37 +201,37 @@ export default function StandardTasksPage() {
                       autoFocus
                       className={`${inputCls} flex-1`}
                     />
-                    <button onClick={saveEdit} disabled={busyId === task.id} className="flex h-8 w-8 items-center justify-center rounded-lg text-emerald-600 hover:bg-emerald-50" title={t("common.save", "ບັນທຶກ")}>
+                    <button onClick={saveEdit} disabled={busyId === task.id} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--success)] hover:bg-[var(--success-soft)]" title={t("common.save", "ບັນທຶກ")}>
                       {busyId === task.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={16} />}
                     </button>
-                    <button onClick={() => setEditingId(null)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100" title={t("common.cancel", "ຍົກເລີກ")}>
+                    <button onClick={() => setEditingId(null)} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-mute)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]" title={t("common.cancel", "ຍົກເລີກ")}>
                       <X size={16} />
                     </button>
                   </>
                 ) : (
                   <>
-                    <span className="flex-1 text-[13.5px] font-semibold text-slate-800">{task.title}</span>
+                    <span className="flex-1 text-[13.5px] font-semibold text-[var(--text)]">{task.title}</span>
                     {canEdit && (
                       <span className="flex">
-                        <button onClick={() => move(i, -1)} disabled={i === 0} className="flex h-8 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30" title={t("stdTasks.moveUp", "ເລື່ອນຂຶ້ນ")}>
+                        <button onClick={() => move(i, -1)} disabled={i === 0} className="flex h-8 w-7 items-center justify-center rounded-lg text-[var(--text-mute)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)] disabled:opacity-30" title={t("stdTasks.moveUp", "ເລື່ອນຂຶ້ນ")}>
                           <ArrowUp size={14} />
                         </button>
-                        <button onClick={() => move(i, 1)} disabled={i === tasks.length - 1} className="flex h-8 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30" title={t("stdTasks.moveDown", "ເລື່ອນລົງ")}>
+                        <button onClick={() => move(i, 1)} disabled={i === tasks.length - 1} className="flex h-8 w-7 items-center justify-center rounded-lg text-[var(--text-mute)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)] disabled:opacity-30" title={t("stdTasks.moveDown", "ເລື່ອນລົງ")}>
                           <ArrowDown size={14} />
                         </button>
                       </span>
                     )}
                     {canEdit && (
-                      <button onClick={() => { setEditingId(task.id); setEditValue(task.title); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-blue-600" title={t("common.edit", "ແກ້ໄຂ")}>
+                      <button onClick={() => { setEditingId(task.id); setEditValue(task.title); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-mute)] hover:bg-[var(--surface-sunken)] hover:text-[var(--brand)]" title={t("common.edit", "ແກ້ໄຂ")}>
                         <Pencil size={14} />
                       </button>
                     )}
                     {canDelete && (
-                      <button onClick={() => remove(task)} disabled={busyId === task.id} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" title={t("common.delete", "ລຶບ")}>
+                      <button onClick={() => remove(task)} disabled={busyId === task.id} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-mute)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]" title={t("common.delete", "ລຶບ")}>
                         {busyId === task.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                       </button>
                     )}
-                    {!canEdit && !canDelete && <ClipboardCheck size={15} className="text-slate-300" />}
+                    {!canEdit && !canDelete && <ClipboardCheck size={15} className="text-[var(--text-mute)]" />}
                   </>
                 )}
               </li>

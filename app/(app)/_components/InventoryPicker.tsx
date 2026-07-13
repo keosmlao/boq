@@ -82,17 +82,20 @@ export default function InventoryPicker({
       <button
         type="button"
         onClick={openModal}
-        className="flex h-8 w-full items-center gap-1.5 rounded-md border border-[var(--theme-border-subtle)] px-2 text-left hover:border-[var(--theme-primary)] focus:border-[var(--theme-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-tint)]"
+        className="flex h-8 w-full items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-left transition-colors hover:border-[var(--border-strong)] focus:border-[var(--brand)] focus:outline-none focus:ring-3 focus:ring-[var(--brand-ring)]"
       >
-        <Search size={13} className="flex-shrink-0 text-[var(--theme-text-mute)]" />
-        <span className={`truncate text-[12.5px] ${value ? "text-[var(--theme-text)]" : "text-[var(--theme-text-mute)]"}`}>{value || ph}</span>
+        <Search size={13} className="flex-shrink-0 text-[var(--text-mute)]" />
+        <span className={`truncate text-[12.5px] ${value ? "text-[var(--text)]" : "text-[var(--text-mute)]"}`}>{value || ph}</span>
       </button>
 
       {open && mounted && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/40 px-3 pt-[10vh]" onClick={() => setOpen(false)}>
-          <div className="flex max-h-[78vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-[var(--theme-shadow-lg)]" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2 border-b border-[var(--theme-border-subtle)] px-3 py-2.5">
-              <Search size={15} className="text-[var(--theme-text-mute)]" />
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/40 px-3 pt-[10vh] backdrop-blur-[2px]" onClick={() => setOpen(false)}>
+          <div
+            className="flex max-h-[78vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 border-b border-[var(--border-soft)] px-3 py-2.5">
+              <Search size={15} className="text-[var(--text-mute)]" />
               <input
                 autoFocus
                 value={q}
@@ -101,45 +104,51 @@ export default function InventoryPicker({
                   onText(e.target.value);
                 }}
                 placeholder={ph}
-                className="min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+                className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
               />
-              <button type="button" onClick={() => setOpen(false)} className="text-[var(--theme-text-mute)] hover:text-[var(--theme-text)]"><X size={17} /></button>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-mute)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]"
+              >
+                <X size={17} />
+              </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">
               {q.trim() && (
                 <button
                   type="button"
                   onClick={useFreeText}
-                  className="flex w-full items-center gap-2 border-b border-[var(--theme-border-subtle)] px-3 py-2 text-left hover:bg-[var(--theme-bg-muted)]"
+                  className="flex w-full items-center gap-2 border-b border-[var(--border-soft)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-sunken)]"
                 >
-                  <Package size={14} className="flex-shrink-0 text-[var(--theme-text-mute)]" />
-                  <span className="text-[12px] text-[var(--theme-text-soft)]">{t("components.inventoryPicker.useText", "ໃຊ້ຂໍ້ຄວາມນີ້")}: <strong className="text-[var(--theme-text)]">{q.trim()}</strong></span>
+                  <Package size={14} className="flex-shrink-0 text-[var(--text-mute)]" />
+                  <span className="text-[12px] text-[var(--text-soft)]">{t("components.inventoryPicker.useText", "ໃຊ້ຂໍ້ຄວາມນີ້")}: <strong className="text-[var(--text)]">{q.trim()}</strong></span>
                 </button>
               )}
               {loading ? (
-                <div className="px-3 py-10 text-center text-[12px] text-[var(--theme-text-mute)]">{t("components.picker.searching", "ກຳລັງຄົ້ນຫາ...")}</div>
+                <div className="px-3 py-10 text-center text-[12px] text-[var(--text-mute)]">{t("components.picker.searching", "ກຳລັງຄົ້ນຫາ...")}</div>
               ) : results.length === 0 ? (
-                <div className="px-3 py-10 text-center text-[12px] text-[var(--theme-text-mute)]">{t("components.inventoryPicker.notFound", "ບໍ່ພົບສິນຄ້າ")}</div>
+                <div className="px-3 py-10 text-center text-[12px] text-[var(--text-mute)]">{t("components.inventoryPicker.notFound", "ບໍ່ພົບສິນຄ້າ")}</div>
               ) : (
                 results.map((it, i) => (
                   <button
                     key={`${it.code}-${i}`}
                     type="button"
                     onClick={() => pick(it)}
-                    className="block w-full border-b border-[var(--theme-border-subtle)] px-3 py-2 text-left last:border-0 hover:bg-[var(--theme-bg-muted)]"
+                    className="block w-full border-b border-[var(--border-soft)] px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-[var(--brand-tint)]"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-[11.5px] font-semibold text-[var(--theme-primary)]">{it.code}</span>
-                      <span className="text-[11.5px] tabular-nums text-[var(--theme-text-soft)]">{num(it.sale_price ?? it.unit_cost).toLocaleString("en-US")}</span>
+                      <span className="font-mono text-[11.5px] font-bold text-[var(--brand-strong)]">{it.code}</span>
+                      <span className="text-[11.5px] tabular-nums text-[var(--text-soft)]">{num(it.sale_price ?? it.unit_cost).toLocaleString("en-US")}</span>
                     </div>
-                    <div className="truncate text-[12.5px] text-[var(--theme-text)]">{it.name_1 ?? it.item_name ?? "-"}</div>
+                    <div className="truncate text-[12.5px] text-[var(--text)]">{it.name_1 ?? it.item_name ?? "-"}</div>
                     {(it.category_name || it.brand_name) && (
                       <div className="mt-0.5 flex flex-wrap gap-1">
                         {it.category_name && (
-                          <span className="rounded bg-[var(--theme-bg-muted)] px-1.5 py-0.5 text-[10px] text-[var(--theme-text-mute)]">{t("components.inventoryPicker.category", "ປະເພດ")}: {it.category_name}</span>
+                          <span className="rounded bg-[var(--surface-sunken)] px-1.5 py-0.5 text-[10px] text-[var(--text-mute)]">{t("components.inventoryPicker.category", "ປະເພດ")}: {it.category_name}</span>
                         )}
                         {it.brand_name && (
-                          <span className="rounded bg-[var(--theme-bg-muted)] px-1.5 py-0.5 text-[10px] text-[var(--theme-text-mute)]">{t("components.inventoryPicker.brand", "ຫຍີ່ຫໍ້")}: {it.brand_name}</span>
+                          <span className="rounded bg-[var(--surface-sunken)] px-1.5 py-0.5 text-[10px] text-[var(--text-mute)]">{t("components.inventoryPicker.brand", "ຫຍີ່ຫໍ້")}: {it.brand_name}</span>
                         )}
                       </div>
                     )}

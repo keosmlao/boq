@@ -3,20 +3,43 @@
 /** v2 — BOQ detail (ERP odg_projects_boq): materials/labour/consumables as line items. */
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ListChecks, FolderKanban, User, UserCheck, CalendarClock, Boxes } from "lucide-react";
+import {
+  ArrowLeft,
+  ListChecks,
+  FolderKanban,
+  User,
+  UserCheck,
+  CalendarClock,
+  Boxes,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { deleteBoq, approveBoq } from "@/_actions/boq";
-import { Page, Card, Pill, Btn } from "../../_components/ui";
+import { advanceProjectStage } from "@/_actions/projects";
+import {
+  Page,
+  PageHeader,
+  Card,
+  Pill,
+  Btn,
+  SectionHeader,
+  tblCls,
+  thCls,
+  tdCls,
+  trHover,
+  TwoLine,
+  type PillTone,
+} from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
 import { getV2User } from "../../../_lib/session";
 import { can } from "@/_lib/permissions";
-import { CheckCircle2, XCircle } from "lucide-react";
 import { useT } from "@/_lib/i18n";
 
 const money = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n.toLocaleString("en-US") : "-";
 };
-const tone = (s: string) => (s === "ອະນຸມັດແລ້ວ" ? "green" : s === "ປະຕິເສດ" ? "red" : "amber");
+const tone = (s: string): PillTone => (s === "ອະນຸມັດແລ້ວ" ? "green" : s === "ປະຕິເສດ" ? "red" : "amber");
 const fmtDate = (v: unknown) => (v ? String(v).slice(0, 10) : "-");
 
 export default function BoqDetailPage() {
@@ -85,6 +108,10 @@ export default function BoqDetailPage() {
     try {
       const res: any = await approveBoq(docNo, { status, username: user?.username });
       if (res?.success === false) alert(res.message || t("common.actionFailed", "ດຳເນີນການບໍ່ສຳເລັດ"));
+      // Stage follows the APPROVAL, wherever it happens (idempotent server-side).
+      else if (status === 1 && b?.project_id) {
+        await advanceProjectStage(String(b.project_id), "BOQ").catch(() => {});
+      }
       await load();
     } catch (e) {
       alert((e as Error).message);
@@ -95,89 +122,39 @@ export default function BoqDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
+      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--text-mute)]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--brand)]" />
         <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
   if (!b) {
-    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">{t("boq.notFound", "ບໍ່ພົບ BOQ")}</div>;
+    return <div className="px-4 py-10 text-center text-[var(--text-mute)]">{t("boq.notFound", "ບໍ່ພົບ BOQ")}</div>;
   }
 
   const items = Array.isArray(b.items) ? b.items : [];
   const status = String(b.status || "ລໍຖ້າອະນຸມັດ");
   const totalQty = items.reduce((s: number, it: any) => s + (Number(it.qty) || 0), 0);
+  const pending = status === "ລໍຖ້າອະນຸມັດ";
 
   return (
-    <Page max="max-w-none">
-      {/* Back button */}
-      <div className="mb-5 flex items-center justify-between gap-2">
-        <button
-          onClick={() => router.push("/boq")}
-          className="group inline-flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors hover:text-blue-600"
-        >
-          <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" />
-          <span>{t("boq.backToList", "ກັບໄປລາຍການ BOQ")}</span>
-        </button>
-      </div>
-
-      {/* Premium header banner — blue brand gradient */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 via-blue-600 to-blue-500 p-5 text-white shadow-[var(--theme-shadow-lg)] mb-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/15 blur-3xl" />
-        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
-              <ListChecks size={22} strokeWidth={2.5} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-display font-black text-xl md:text-2xl tracking-tight text-white leading-none">
-                  {b.boq_no || "-"}
-                </h1>
-                <Pill tone={tone(status) as any}>
-                  <span className="flex items-center gap-1.5">
-                    {status === "ອະນຸມັດແລ້ວ" && (
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      </span>
-                    )}
-                    {status === "ປະຕິເສດ" && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                    )}
-                    {status !== "ອະນຸມັດແລ້ວ" && status !== "ປະຕິເສດ" && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                    )}
-                    {status}
-                  </span>
-                </Pill>
-              </div>
-              <p className="mt-2 text-xs font-semibold text-white/80 leading-relaxed max-w-xl">
-                {b.project_name || ""}{b.customer_name ? ` · ${b.customer_name}` : ""}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 self-end sm:self-center">
-            {canApprove && status === "ລໍຖ້າອະນຸມັດ" && (
+    <Page max="max-w-[1100px]">
+      <PageHeader
+        title={b.boq_no || "-"}
+        subtitle={`${b.project_name || ""}${b.customer_name ? ` · ${b.customer_name}` : ""}`}
+        badge={<Pill tone={tone(status)}>{status}</Pill>}
+        actions={
+          <>
+            {canApprove && pending && (
               <>
-                <Btn variant="primary" disabled={busy} onClick={() => setConfirmStatus(1)}>
-                  <CheckCircle2 size={15} /> {t("common.approve", "ອະນຸມັດ")}
+                <Btn variant="go" disabled={busy} onClick={() => setConfirmStatus(1)}>
+                  <CheckCircle2 size={14} /> {t("common.approve", "ອະນຸມັດ")}
                 </Btn>
-                <Btn variant="danger" disabled={busy} onClick={() => setConfirmStatus(2)}>
-                  <XCircle size={15} /> {t("common.reject", "ປະຕິເສດ")}
+                <Btn variant="danger-outline" disabled={busy} onClick={() => setConfirmStatus(2)}>
+                  <XCircle size={14} /> {t("common.reject", "ປະຕິເສດ")}
                 </Btn>
               </>
             )}
-            {!canApprove &&
-              status === "ລໍຖ້າອະນຸມັດ" &&
-              b.is_first === false &&
-              !canApproveNext &&
-              can(acl, "boq", "approve") && (
-                <span className="rounded-lg bg-white/15 px-3 py-1.5 text-[11px] font-semibold text-white/90">
-                  {t("boq.secondNeedsAdmin", "ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບ ຫຼື ຜູ້ມີສິດອະນຸມັດໃບຕໍ່ໄປ")}
-                </span>
-              )}
             <DocActions
               editHref={b.project_id ? `/projects/${b.project_id}/boq/new?edit=${encodeURIComponent(b.boq_no)}` : undefined}
               onDelete={() => deleteBoq(b.boq_no)}
@@ -186,69 +163,61 @@ export default function BoqDetailPage() {
               canEdit={can(user, "boq", "edit")}
               canDelete={can(user, "boq", "delete")}
             />
-          </div>
-        </div>
-      </div>
+            <Btn variant="outline" onClick={() => router.push("/boq")}>
+              <ArrowLeft size={14} /> {t("boq.backToList", "ກັບໄປລາຍການ BOQ")}
+            </Btn>
+          </>
+        }
+      />
 
-      {/* Main Grid Content */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        {/* Left Card: Items Table */}
-        <Card className="overflow-hidden border-t-2 border-t-blue-500 lg:col-span-2 shadow-sm hover:shadow-md transition-all duration-200">
-          <div className="border-b border-slate-100 px-4 py-3.5 flex items-center justify-between bg-slate-50/50">
-            <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
-                <ListChecks size={13} strokeWidth={2.5} />
-              </span>
-              <h2 className="text-[13px] font-black uppercase tracking-wider text-slate-800">{t("boq.itemsTitle", "ລາຍການ BOQ (ຈຳນວນ)")}</h2>
-            </div>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10.5px] font-black text-slate-600">
+      {!canApprove && pending && b.is_first === false && !canApproveNext && can(acl, "boq", "approve") && (
+        <div className="mb-4 rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-4 py-2.5 text-[11.5px] font-bold text-[var(--warning)]">
+          {t("boq.secondNeedsAdmin", "ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບ ຫຼື ຜູ້ມີສິດອະນຸມັດໃບຕໍ່ໄປ")}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Items table */}
+        <Card className="overflow-hidden lg:col-span-2">
+          <div className="flex items-center justify-between px-4 pt-4">
+            <SectionHeader
+              icon={<ListChecks size={14} />}
+              title={t("boq.itemsTitle", "ລາຍການ BOQ (ຈຳນວນ)")}
+              tone="brand"
+              className="mb-0"
+            />
+            <Pill tone="neutral">
               {items.length} {t("boq.itemUnit", "ລາຍການ")}
-            </span>
+            </Pill>
           </div>
 
           {items.length === 0 ? (
-            <div className="px-4 py-10 text-center text-[12.5px] text-slate-400">{t("boq.noItems", "ບໍ່ມີລາຍການ")}</div>
+            <div className="px-4 py-12 text-center text-[12.5px] text-[var(--text-mute)]">{t("boq.noItems", "ບໍ່ມີລາຍການ")}</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
+            <div className="mt-4 overflow-x-auto">
+              <table className={tblCls}>
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/40 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                    <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left w-12">#</th>
-                    <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left">{t("boq.item", "ລາຍການ")}</th>
-                    <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-center w-24">{t("common.unit", "ໜ່ວຍ")}</th>
-                    <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-right w-24">{t("common.qty", "ຈຳນວນ")}</th>
+                  <tr>
+                    <th className={`${thCls} w-12`}>#</th>
+                    <th className={thCls}>{t("boq.item", "ລາຍການ")}</th>
+                    <th className={`${thCls} w-24 text-center`}>{t("common.unit", "ໜ່ວຍ")}</th>
+                    <th className={`${thCls} w-28 text-right`}>{t("common.qty", "ຈຳນວນ")}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {items.map((it: any, i: number) => (
-                    <tr key={i} className="group transition-colors duration-150 hover:bg-blue-50/30">
-                      <td className="px-4 py-3.5 align-middle">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors">
-                          {i + 1}
-                        </span>
+                    <tr key={i} className={trHover}>
+                      <td className={`${tdCls} text-[var(--text-mute)] tabular-nums`}>{i + 1}</td>
+                      <td className={tdCls}>
+                        <TwoLine
+                          primary={it.description || "-"}
+                          secondary={it.item_code ? <span className="font-mono">{it.item_code}</span> : undefined}
+                        />
                       </td>
-                      <td className="px-4 py-3.5 align-middle">
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <span className="font-semibold text-slate-800 break-words leading-relaxed">
-                            {it.description || "-"}
-                          </span>
-                          {it.item_code && (
-                            <div className="flex items-center">
-                              <span className="rounded bg-slate-100 group-hover:bg-white border border-slate-200/60 px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-slate-500 transition-colors">
-                                {it.item_code}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                      <td className={`${tdCls} text-center`}>
+                        <Pill tone="neutral">{it.unit || "-"}</Pill>
                       </td>
-                      <td className="px-4 py-3.5 align-middle text-center">
-                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-700 transition-colors">
-                          {it.unit || "-"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 align-middle text-right font-mono font-bold text-slate-900 tabular-nums text-[13px]">
-                        {money(it.qty)}
-                      </td>
+                      <td className={`${tdCls} text-right font-semibold tabular-nums text-[var(--text)]`}>{money(it.qty)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -257,61 +226,64 @@ export default function BoqDetailPage() {
           )}
         </Card>
 
-        {/* Right Column: Metadata Sidebar */}
+        {/* Metadata */}
         <div className="space-y-4">
-          <Card className="border-t-2 border-t-slate-400 p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <span className="h-4 w-1 rounded bg-blue-600" />
-              <h2 className="text-[13px] font-black uppercase tracking-wider text-slate-800">{t("boq.infoTitle", "ຂໍ້ມູນ BOQ")}</h2>
+          <Card className="p-4">
+            <SectionHeader icon={<ListChecks size={14} />} title={t("boq.infoTitle", "ຂໍ້ມູນ BOQ")} tone="slate" />
+            <div className="space-y-2">
+              <InfoRow icon={<User size={13} />} label={t("boq.requesterCreator", "ຜູ້ຂໍ / ຜູ້ສ້າງ")} value={b.requester} />
+              <InfoRow icon={<UserCheck size={13} />} label={t("common.approver", "ຜູ້ອະນຸມັດ")} value={b.approver} />
+              <InfoRow icon={<CalendarClock size={13} />} label={t("common.date", "ວັນທີ")} value={fmtDate(b.created_at)} />
+              <InfoRow
+                icon={<Boxes size={13} />}
+                label={t("boq.itemCount", "ຈຳນວນລາຍການ")}
+                value={`${items.length} ${t("boq.itemUnit", "ລາຍການ")} · ${money(totalQty)} ${t("boq.unitWord", "ໜ່ວຍ")}`}
+              />
             </div>
-            <div className="space-y-3">
-              <InfoRow icon={<User size={14} />} tone="cyan" label={t("boq.requesterCreator", "ຜູ້ຂໍ / ຜູ້ສ້າງ")} value={b.requester} />
-              <InfoRow icon={<UserCheck size={14} />} tone="emerald" label={t("common.approver", "ຜູ້ອະນຸມັດ")} value={b.approver} />
-              <InfoRow icon={<CalendarClock size={14} />} tone="indigo" label={t("common.date", "ວັນທີ")} value={fmtDate(b.created_at)} />
-              <InfoRow icon={<Boxes size={14} />} tone="amber" label={t("boq.itemCount", "ຈຳນວນລາຍການ")} value={`${items.length} ${t("boq.itemUnit", "ລາຍການ")} · ${money(totalQty)} ${t("boq.unitWord", "ໜ່ວຍ")}`} />
-            </div>
+            {b.project_id && (
+              <Btn variant="outline" className="mt-4 w-full" onClick={() => router.push(`/projects/${b.project_id}`)}>
+                <FolderKanban size={14} /> {t("boq.goToProject", "ໄປໜ້າໂຄງການ")}
+              </Btn>
+            )}
           </Card>
         </div>
       </div>
 
-      {/* Footer Navigation */}
-      {b.project_id && (
-        <div className="mt-6 flex justify-start">
-          <button
-            onClick={() => router.push(`/projects/${b.project_id}`)}
-            className="group inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-xs font-bold text-slate-700 shadow-sm transition-all duration-150 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 active:scale-[0.98]"
-          >
-            <FolderKanban size={14} className="text-slate-500 group-hover:text-blue-600 transition-colors" />
-            <span>{t("boq.goToProject", "ໄປໜ້າໂຄງການ")}</span>
-            <ArrowLeft size={12} className="rotate-180 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
-          </button>
-        </div>
-      )}
       {confirmStatus !== null && (
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-[20vh]" onClick={() => !busy && setConfirmStatus(null)}>
-          <div className="w-full max-w-sm overflow-hidden rounded-lg bg-white shadow-[var(--theme-shadow-lg)]" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="w-full max-w-sm overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="px-6 pt-6 pb-4 text-center">
-              <div className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full ring-1 ${confirmStatus === 1 ? "bg-emerald-50 text-emerald-600 ring-emerald-100" : "bg-rose-50 text-rose-600 ring-rose-100"}`}>
+              <div
+                className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full ${
+                  confirmStatus === 1
+                    ? "bg-[var(--success-soft)] text-[var(--success)]"
+                    : "bg-[var(--danger-soft)] text-[var(--danger)]"
+                }`}
+              >
                 {confirmStatus === 1 ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
               </div>
-              <div className="text-[14px] font-semibold text-[var(--theme-text)]">
+              <div className="text-[14px] font-black text-[var(--text)]">
                 {confirmStatus === 1 ? t("boq.confirmApproveTitle", "ຢືນຢັນການອະນຸມັດ") : t("boq.confirmRejectTitle", "ຢືນຢັນການປະຕິເສດ")}
               </div>
-              <p className="mt-1 text-[12.5px] text-[var(--theme-text-mute)]">
+              <p className="mt-1 text-[12.5px] text-[var(--text-mute)]">
                 {confirmStatus === 1 ? t("boq.confirmApproveMsg", "ອະນຸມັດ BOQ ໃບນີ້?") : t("boq.confirmRejectMsg", "ປະຕິເສດ BOQ ໃບນີ້?")} ({b.boq_no})
               </p>
             </div>
-            <div className="flex gap-2 border-t border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)] p-3">
-              <button onClick={() => setConfirmStatus(null)} disabled={busy} className="flex-1 rounded-md border border-[var(--theme-border-subtle)] bg-white py-2 text-[12px] font-semibold text-[var(--theme-text-soft)] hover:bg-[var(--theme-bg-muted)] disabled:opacity-60">
+            <div className="flex gap-2 border-t border-[var(--border-soft)] bg-[var(--surface-sunken)] p-3">
+              <Btn variant="outline" className="flex-1" onClick={() => setConfirmStatus(null)} disabled={busy}>
                 {t("common.cancel", "ຍົກເລີກ")}
-              </button>
-              <button
+              </Btn>
+              <Btn
+                variant={confirmStatus === 1 ? "go" : "danger"}
+                className="flex-1"
                 onClick={async () => { const s = confirmStatus; setConfirmStatus(null); await doApprove(s!); }}
                 disabled={busy}
-                className={`flex-1 rounded-md py-2 text-[12px] font-semibold text-white disabled:opacity-60 ${confirmStatus === 1 ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"}`}
               >
                 {confirmStatus === 1 ? t("common.approve", "ອະນຸມັດ") : t("common.reject", "ປະຕິເສດ")}
-              </button>
+              </Btn>
             </div>
           </div>
         </div>
@@ -320,21 +292,15 @@ export default function BoqDetailPage() {
   );
 }
 
-function InfoRow({ icon, tone, label, value }: { icon: React.ReactNode; tone: "cyan" | "emerald" | "indigo" | "amber"; label: string; value: any }) {
-  const bg = {
-    cyan: "bg-cyan-50 text-cyan-600 border border-cyan-100/70",
-    emerald: "bg-emerald-50 text-emerald-600 border border-emerald-100/70",
-    indigo: "bg-indigo-50 text-indigo-600 border border-indigo-100/70",
-    amber: "bg-amber-50 text-amber-600 border border-amber-100/70",
-  }[tone];
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: any }) {
   return (
-    <div className="group flex items-center gap-3.5 rounded-xl border border-slate-100 bg-slate-50/30 p-2.5 transition-all duration-200 hover:border-slate-200 hover:bg-slate-50/70 hover:shadow-xs">
-      <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-110 ${bg}`}>
+    <div className="flex items-center gap-3 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-2.5">
+      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-mute)]">
         {icon}
       </span>
       <div className="min-w-0">
-        <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">{label}</div>
-        <div className="font-extrabold text-[12.5px] text-slate-700 break-words mt-0.5">{value || "-"}</div>
+        <div className="text-[10px] font-bold tracking-wider text-[var(--text-mute)]">{label}</div>
+        <div className="mt-0.5 break-words text-[12.5px] font-bold text-[var(--text)]">{value || "-"}</div>
       </div>
     </div>
   );

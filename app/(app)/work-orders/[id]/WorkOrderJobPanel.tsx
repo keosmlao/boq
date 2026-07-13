@@ -12,10 +12,11 @@
  */
 import React, { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, XCircle, MapPin, Camera, ShieldCheck, Clock, LogIn, LogOut, Smartphone } from "lucide-react";
-import { Card, Btn } from "../../_components/ui";
+import { CheckCircle2, XCircle, MapPin, Camera, ShieldCheck, Clock, LogIn, LogOut, RotateCcw, Smartphone } from "lucide-react";
+import { Card, Btn, SectionHeader } from "../../_components/ui";
 import { getV2User } from "../../../_lib/session";
 import { can } from "@/_lib/permissions";
+import { useT } from "@/_lib/i18n";
 import { useConfirm } from "../../_components/Confirm";
 import {
   approveWorkOrder,
@@ -25,6 +26,7 @@ import {
   closeWorkOrder,
   startWorkOrderFromErp,
 } from "@/_actions/workorder";
+import { resetWorkOrderRejection } from "@/_actions/workorder-reset";
 
 const fmtTime = (v: unknown) => (v ? new Date(String(v)).toLocaleString("en-GB") : "-");
 const coord = (v: unknown) => {
@@ -72,6 +74,7 @@ function fileToBase64(file: File): Promise<string> {
 export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChanged: () => void }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const t = useT();
   const [busy, setBusy] = useState<string>("");
   const [err, setErr] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -88,18 +91,21 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
   if (isErp) {
     if (!canApprove) return null;
     return (
-      <Card className="overflow-hidden border-t-4 border-t-emerald-500 shadow-sm">
-        <div className="flex items-center gap-2 border-b border-[var(--theme-border-subtle)] bg-slate-50/50 px-4 py-3">
-          <Smartphone size={16} className="text-emerald-600" />
-          <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">ສົ່ງເຂົ້າແອັບมือถือ</h2>
+      <Card className="overflow-hidden">
+        <div className="px-5 pt-5">
+          <SectionHeader icon={<Smartphone size={14} />} title="ສົ່ງເຂົ້າແອັບมือถือ" tone="brand" className="mb-0" />
         </div>
-        <div className="space-y-3 p-4">
-          <p className="text-[12.5px] text-[var(--theme-text-mute)]">
+        <div className="space-y-3 p-5">
+          <p className="text-[12.5px] text-[var(--text-mute)]">
             ໃບງານນີ້ແມ່ນລະບົບເກົ່າ (ERP). ກົດ "ມອບໝາຍ & ອະນຸມັດ" ເພື່ອสร้างสำเนาให้ช่างฮับ/check-in/out ผ่านมือถือ — ຊ່າງຈະໄດ້ຮັບການແຈ້ງเตือน.
           </p>
-          {err && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] font-medium text-red-700">{err}</div>}
+          {err && (
+            <div className="rounded-xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12.5px] font-semibold text-[var(--danger)]">
+              {err}
+            </div>
+          )}
           <Btn
-            variant="primary"
+            variant="go"
             className="w-full"
             disabled={!!busy}
             onClick={async () => {
@@ -131,6 +137,13 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
   const hasCheckin = !!wo.checkin_at;
   const hasCheckout = !!wo.checkout_at;
   const hasClose = !!wo.closed_at;
+  // A rejected work order (ບໍ່ອະນຸມັດ / ຊ່າງປະຕິເສດ) shows no stage buttons at all —
+  // it can only move again via the reset below.
+  const isRejected = approvalStatus === "rejected" || acceptStatus === "rejected";
+  const resetLabel =
+    approvalStatus === "rejected"
+      ? t("workorders.resetToApproval", "ສົ່ງກັບໄປລໍອະນຸມັດໃໝ່")
+      : t("workorders.resetToAccept", "ສົ່ງກັບໄປໃຫ້ຊ່າງຮັບງານໃໝ່");
 
   const run = async (label: string, fn: () => Promise<any>) => {
     setErr("");
@@ -182,7 +195,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
   };
 
   return (
-    <Card className="overflow-hidden border-t-4 border-t-emerald-500 shadow-sm">
+    <Card className="overflow-hidden">
       <input
         ref={fileRef}
         type="file"
@@ -192,12 +205,11 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
         onChange={onPhotoPicked}
       />
 
-      <div className="flex items-center gap-2 border-b border-[var(--theme-border-subtle)] bg-slate-50/50 px-4 py-3">
-        <ShieldCheck size={16} className="text-emerald-600" />
-        <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">ສະຖານະວຽກ & ການດຳເນີນງານ</h2>
+      <div className="px-5 pt-5">
+        <SectionHeader icon={<ShieldCheck size={14} />} title="ສະຖານະວຽກ & ການດຳເນີນງານ" tone="brand" className="mb-0" />
       </div>
 
-      <div className="space-y-4 p-4">
+      <div className="space-y-4 p-5">
         {/* Status timeline */}
         <div className="space-y-2">
           <Step
@@ -230,20 +242,50 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
         </div>
 
         {err && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] font-medium text-red-700">
+          <div className="rounded-xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12.5px] font-semibold text-[var(--danger)]">
             {err}
           </div>
         )}
 
         {/* Action buttons by stage */}
         <div className="flex flex-col gap-2.5">
+          {/* 0) Rejected → send it back into the flow (otherwise a dead end).
+                 approval_rejected → ລໍອະນຸມັດໃໝ່; accept_rejected → ຊ່າງຮັບງານໃໝ່. */}
+          {isRejected && canApprove && (
+            <Btn
+              variant="ink"
+              className="w-full"
+              disabled={!!busy}
+              onClick={async () => {
+                if (
+                  !(await confirm({
+                    title: t("workorders.resetTitle", "ສົ່ງກັບເຂົ້າຂັ້ນຕອນໃໝ່"),
+                    message: `${resetLabel} — ${wo.work_no || "ໃບງານ"}?`,
+                    confirmLabel: t("workorders.resetConfirm", "ສົ່ງກັບ"),
+                  }))
+                )
+                  return;
+                const note = window.prompt(t("workorders.resetNote", "ໝາຍເຫດ (ບໍ່ບັງຄັບ)")) ?? undefined;
+                void run("reset", () => resetWorkOrderRejection(String(wo.id), { note }));
+              }}
+            >
+              {busy === "reset" ? <Clock size={15} className="animate-spin" /> : <RotateCcw size={15} />}
+              {busy === "reset" ? t("common.saving", "ກຳລັງບັນທຶກ...") : resetLabel}
+            </Btn>
+          )}
+          {isRejected && !canApprove && (
+            <p className="flex items-center gap-1.5 text-[12.5px] text-[var(--danger)]">
+              <XCircle size={14} /> {t("workorders.rejectedWaitReset", "ໃບງານຖືກປະຕິເສດ — ລໍຖ້າຜູ້ຈັດການສົ່ງກັບໄປອະນຸມັດໃໝ່")}
+            </p>
+          )}
+
           {/* 1) Manager approval */}
           {approvalStatus === "pending" && canApprove && (
             <div className="grid grid-cols-2 gap-2.5">
-              <Btn variant="primary" className="w-full" disabled={!!busy} onClick={async () => { if (await confirm({ title: "ຢືນຢັນການອະນຸມັດ", message: `ອະນຸມັດ ${wo.work_no || "ໃບງານ"}?`, confirmLabel: "ອະນຸມັດ" })) run("approve", () => approveWorkOrder(String(wo.id), { approve: true })); }}>
+              <Btn variant="go" className="w-full" disabled={!!busy} onClick={async () => { if (await confirm({ title: "ຢືນຢັນການອະນຸມັດ", message: `ອະນຸມັດ ${wo.work_no || "ໃບງານ"}?`, confirmLabel: "ອະນຸມັດ" })) run("approve", () => approveWorkOrder(String(wo.id), { approve: true })); }}>
                 <CheckCircle2 size={15} /> ອະນຸມັດ
               </Btn>
-              <Btn variant="danger" className="w-full" disabled={!!busy} onClick={() => {
+              <Btn variant="danger-outline" className="w-full" disabled={!!busy} onClick={() => {
                 const note = window.prompt("ເຫດຜົນທີ່ປະຕິເສດ (ບໍ່ບັງຄັບ)") ?? undefined;
                 void run("reject-approval", () => approveWorkOrder(String(wo.id), { approve: false, note }));
               }}>
@@ -252,16 +294,16 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
             </div>
           )}
           {approvalStatus === "pending" && !canApprove && (
-            <p className="flex items-center gap-1.5 text-[12.5px] text-amber-600"><Clock size={14} /> ລໍຖ້າຜູ້ຈັດການອະນຸມັດກ່ອນ</p>
+            <p className="flex items-center gap-1.5 text-[12.5px] text-[var(--warning)]"><Clock size={14} /> ລໍຖ້າຜູ້ຈັດການອະນຸມັດກ່ອນ</p>
           )}
 
           {/* 2) Head craftsman accept / reject */}
           {approvalStatus === "approved" && acceptStatus === "pending" && canAct && (
             <div className="grid grid-cols-2 gap-2.5">
-              <Btn variant="primary" className="w-full" disabled={!!busy} onClick={() => run("accept", () => respondWorkOrder(String(wo.id), { accept: true }))}>
+              <Btn variant="go" className="w-full" disabled={!!busy} onClick={() => run("accept", () => respondWorkOrder(String(wo.id), { accept: true }))}>
                 <CheckCircle2 size={15} /> ຮັບງານ
               </Btn>
-              <Btn variant="danger" className="w-full" disabled={!!busy} onClick={() => {
+              <Btn variant="danger-outline" className="w-full" disabled={!!busy} onClick={() => {
                 const reason = window.prompt("ເຫດຜົນທີ່ປະຕິເສດ (ບໍ່ບັງຄັບ)") ?? undefined;
                 void run("reject", () => respondWorkOrder(String(wo.id), { accept: false, reason }));
               }}>
@@ -272,7 +314,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
 
           {/* 3) Check-in */}
           {approvalStatus === "approved" && acceptStatus === "accepted" && !hasCheckin && canAct && (
-            <Btn variant="primary" className="w-full" disabled={!!busy} onClick={() => startCheckpoint("checkin")}>
+            <Btn variant="ink" className="w-full" disabled={!!busy} onClick={() => startCheckpoint("checkin")}>
               {busy === "checkin" ? <Clock size={15} className="animate-spin" /> : <LogIn size={15} />}
               {busy === "checkin" ? "ກຳລັງບັນທຶກ..." : "Check-in (ຖ່າຍຮູບ + GPS)"}
             </Btn>
@@ -280,7 +322,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
 
           {/* 4) Check-out (work done → awaiting inspection) */}
           {hasCheckin && !hasCheckout && canAct && (
-            <Btn variant="primary" className="w-full" disabled={!!busy} onClick={() => startCheckpoint("checkout")}>
+            <Btn variant="ink" className="w-full" disabled={!!busy} onClick={() => startCheckpoint("checkout")}>
               {busy === "checkout" ? <Clock size={15} className="animate-spin" /> : <LogOut size={15} />}
               {busy === "checkout" ? "ກຳລັງບັນທຶກ..." : "Check-out — ສົ່ງກວດສອບ (ຖ່າຍຮູບ + GPS)"}
             </Btn>
@@ -288,7 +330,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
 
           {/* 5) Inspection close — manager/inspector only */}
           {hasCheckout && !hasClose && canApprove && (
-            <Btn variant="primary" className="w-full" disabled={!!busy} onClick={() => {
+            <Btn variant="go" className="w-full" disabled={!!busy} onClick={() => {
               const note = window.prompt("ໝາຍເຫດການກວດສອບ (ບໍ່ບັງຄັບ)") ?? undefined;
               void run("close", () => closeWorkOrder(String(wo.id), { note }));
             }}>
@@ -296,11 +338,11 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
             </Btn>
           )}
           {hasCheckout && !hasClose && !canApprove && (
-            <p className="flex items-center gap-1.5 text-[12.5px] text-amber-600"><Clock size={14} /> ລໍຖ້າຜູ້ກວດສອບປິດງານ</p>
+            <p className="flex items-center gap-1.5 text-[12.5px] text-[var(--warning)]"><Clock size={14} /> ລໍຖ້າຜູ້ກວດສອບປິດງານ</p>
           )}
 
           {hasClose && (
-            <p className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-[12.5px] font-bold text-emerald-700">
+            <p className="flex items-center gap-1.5 rounded-xl border border-[var(--success-soft)] bg-[var(--success-soft)] px-3 py-2 text-[12.5px] font-bold text-[var(--success)]">
               <CheckCircle2 size={15} /> ປິດງານສຳເລັດ
             </p>
           )}
@@ -308,7 +350,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
 
         {/* Captured evidence */}
         {(hasCheckin || hasCheckout) && (
-          <div className="grid grid-cols-2 gap-3 border-t border-[var(--theme-border-subtle)] pt-3">
+          <div className="grid grid-cols-2 gap-3 border-t border-[var(--border-soft)] pt-3">
             <Evidence title="ກ່ອນເລີ່ມວຽກ" photo={wo.checkin_photo} lat={wo.checkin_lat} lng={wo.checkin_lng} at={wo.checkin_at} />
             <Evidence title="ຫຼັງສຳເລັດ" photo={wo.checkout_photo} lat={wo.checkout_lat} lng={wo.checkout_lng} at={wo.checkout_at} />
           </div>
@@ -319,13 +361,13 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
 }
 
 function Step({ done, rejected, label, value }: { done?: boolean; rejected?: boolean; label: string; value: string }) {
-  const tone = rejected ? "bg-red-500" : done ? "bg-emerald-500" : "bg-slate-300";
+  const tone = rejected ? "var(--danger)" : done ? "var(--success)" : "var(--border-strong)";
   return (
     <div className="flex items-start gap-2.5">
-      <span className={`mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full ${tone}`} />
+      <span className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: tone }} />
       <div className="min-w-0">
-        <span className="text-[12px] font-bold text-[var(--theme-text)]">{label}</span>
-        <p className="text-[11.5px] text-[var(--theme-text-mute)] break-words">{value}</p>
+        <span className="text-[12px] font-bold text-[var(--text)]">{label}</span>
+        <p className="break-words text-[11.5px] text-[var(--text-mute)]">{value}</p>
       </div>
     </div>
   );
@@ -337,14 +379,14 @@ function Evidence({ title, photo, lat, lng, at }: { title: string; photo?: strin
   const ln = coord(lng);
   return (
     <div className="space-y-1.5">
-      <span className="text-[11px] font-semibold text-[var(--theme-text-mute)]">{title}</span>
+      <span className="text-[11px] font-bold tracking-wider text-[var(--text-mute)]">{title}</span>
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <a href={photo} target="_blank" rel="noreferrer">
-          <img src={photo} alt={title} className="h-32 w-full rounded-lg border border-slate-200 object-cover" />
+          <img src={photo} alt={title} className="h-32 w-full rounded-xl border border-[var(--border)] object-cover" />
         </a>
       ) : (
-        <div className="flex h-32 w-full items-center justify-center rounded-lg border border-dashed border-slate-200 text-slate-300">
+        <div className="flex h-32 w-full items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-[var(--text-mute)]">
           <Camera size={20} />
         </div>
       )}
@@ -353,7 +395,7 @@ function Evidence({ title, photo, lat, lng, at }: { title: string; photo?: strin
           href={`https://www.google.com/maps?q=${la},${ln}`}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:underline"
+          className="flex items-center gap-1 text-[11px] font-semibold text-[var(--brand)] hover:underline"
         >
           <MapPin size={12} /> {la}, {ln}
         </a>

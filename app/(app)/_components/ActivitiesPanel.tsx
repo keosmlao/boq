@@ -9,16 +9,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarClock, Check, X, Plus, ListTodo, Phone, Users, Mail, FileText, Loader2 } from "lucide-react";
 import { getActivities, scheduleActivity, markActivityDone, cancelActivity, getAssignableUsers, type Activity } from "@/_actions/activities";
 import RSelect from "./RSelect";
+import { Btn, Card, Pill, inputCls } from "./ui";
 import { useT } from "@/_lib/i18n";
 
 const POLL_MS = 8000;
 
 const TYPE_DEFS: { key: string; icon: React.ReactNode; tone: string }[] = [
-  { key: "todo", icon: <ListTodo size={14} />, tone: "bg-blue-50 text-blue-600" },
-  { key: "call", icon: <Phone size={14} />, tone: "bg-emerald-50 text-emerald-600" },
-  { key: "meeting", icon: <Users size={14} />, tone: "bg-violet-50 text-violet-600" },
-  { key: "email", icon: <Mail size={14} />, tone: "bg-amber-50 text-amber-600" },
-  { key: "document", icon: <FileText size={14} />, tone: "bg-cyan-50 text-cyan-600" },
+  { key: "todo", icon: <ListTodo size={14} />, tone: "bg-[var(--info-soft)] text-[var(--info)]" },
+  { key: "call", icon: <Phone size={14} />, tone: "bg-[var(--success-soft)] text-[var(--success)]" },
+  { key: "meeting", icon: <Users size={14} />, tone: "bg-[var(--brand-soft)] text-[var(--brand-strong)]" },
+  { key: "email", icon: <Mail size={14} />, tone: "bg-[var(--warning-soft)] text-[var(--warning)]" },
+  { key: "document", icon: <FileText size={14} />, tone: "bg-[var(--surface-sunken)] text-[var(--text-soft)]" },
 ];
 
 const todayStr = () => {
@@ -38,12 +39,12 @@ export default function ActivitiesPanel({ entityType, entityId }: { entityType: 
   };
   const TYPES = TYPE_DEFS.map((d) => ({ ...d, label: TYPE_LABEL[d.key] ?? d.key }));
   const typeMeta = (k: string) => TYPES.find((x) => x.key === k) || TYPES[0];
-  const dueMeta = (due: string | null) => {
-    if (!due) return { label: t("components.activities.noDueDate", "ບໍ່ກຳນົດ"), cls: "bg-slate-100 text-slate-500" };
+  const dueMeta = (due: string | null): { label: string; tone: "neutral" | "red" | "amber" } => {
+    if (!due) return { label: t("components.activities.noDueDate", "ບໍ່ກຳນົດ"), tone: "neutral" };
     const today = todayStr();
-    if (due < today) return { label: `${t("components.activities.overdue", "ເລີຍກຳນົດ")} · ${due}`, cls: "bg-rose-50 text-rose-700" };
-    if (due === today) return { label: t("components.activities.today", "ມື້ນີ້"), cls: "bg-amber-50 text-amber-700" };
-    return { label: due, cls: "bg-slate-100 text-slate-500" };
+    if (due < today) return { label: `${t("components.activities.overdue", "ເລີຍກຳນົດ")} · ${due}`, tone: "red" };
+    if (due === today) return { label: t("components.activities.today", "ມື້ນີ້"), tone: "amber" };
+    return { label: due, tone: "neutral" };
   };
   const id = String(entityId ?? "");
   const [items, setItems] = useState<Activity[]>([]);
@@ -113,28 +114,29 @@ export default function ActivitiesPanel({ entityType, entityId }: { entityType: 
   };
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
-        <CalendarClock size={16} className="text-amber-600" />
-        <h2 className="text-[13px] font-black text-slate-800">{t("components.activities.title", "ກິດຈະກຳທີ່ຕ້ອງເຮັດ")}</h2>
-        {planned.length > 0 && <span className="rounded-lg bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">{planned.length}</span>}
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className="ml-auto inline-flex h-7 items-center gap-1 rounded-lg bg-blue-600 px-2.5 text-[11px] font-bold text-white transition hover:bg-blue-700 active:scale-95"
-        >
+    <Card className="overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-[var(--border-soft)] px-5 py-3.5">
+        <CalendarClock size={16} className="text-[var(--warning)]" />
+        <h2 className="text-[13px] font-black text-[var(--text)]">{t("components.activities.title", "ກິດຈະກຳທີ່ຕ້ອງເຮັດ")}</h2>
+        {planned.length > 0 && <Pill tone="amber">{planned.length}</Pill>}
+        <Btn variant="go" className="ml-auto h-7 px-2.5 text-[11px]" onClick={() => setOpen((o) => !o)}>
           <Plus size={13} strokeWidth={3} /> {t("components.activities.schedule", "ນັດໝາຍ")}
-        </button>
+        </Btn>
       </div>
 
       {/* Schedule form */}
       {open && (
-        <div className="space-y-2.5 border-b border-slate-100 bg-slate-50/60 px-4 py-3.5">
+        <div className="space-y-2.5 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-4 py-3.5">
           <div className="flex flex-wrap gap-1.5">
             {TYPES.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setType(t.key)}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11.5px] font-bold transition ${type === t.key ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"}`}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11.5px] font-bold transition ${
+                  type === t.key
+                    ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+                }`}
               >
                 {t.icon} {t.label}
               </button>
@@ -144,7 +146,7 @@ export default function ActivitiesPanel({ entityType, entityId }: { entityType: 
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
             placeholder={t("components.activities.summaryPlaceholder", "ຫົວຂໍ້ກິດຈະກຳ...")}
-            className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/15"
+            className={inputCls}
           />
           <div className="flex flex-wrap gap-2">
             <div className="min-w-[140px] flex-1">
@@ -160,43 +162,47 @@ export default function ActivitiesPanel({ entityType, entityId }: { entityType: 
               type="date"
               value={due}
               onChange={(e) => setDue(e.target.value)}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-[12.5px] font-semibold text-slate-700 outline-none focus:border-blue-500"
+              className={`${inputCls} w-auto font-semibold`}
             />
-            <button
-              onClick={submit}
-              disabled={!summary.trim() || busy}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-blue-600 px-4 text-xs font-bold text-white transition hover:bg-blue-700 active:scale-95 disabled:opacity-50"
-            >
+            <Btn variant="ink" onClick={submit} disabled={!summary.trim() || busy}>
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {t("common.save", "ບັນທຶກ")}
-            </button>
+            </Btn>
           </div>
         </div>
       )}
 
       {/* Planned list */}
-      <div className="divide-y divide-slate-50">
+      <div>
         {planned.length === 0 ? (
-          <div className="px-5 py-6 text-center text-[12px] font-semibold text-slate-400">{t("components.activities.empty", "ບໍ່ມີກິດຈະກຳຄ້າງ")}</div>
+          <div className="px-5 py-6 text-center text-[12px] font-semibold text-[var(--text-mute)]">{t("components.activities.empty", "ບໍ່ມີກິດຈະກຳຄ້າງ")}</div>
         ) : (
           planned.map((a) => {
             const tm = typeMeta(a.activity_type);
             const dm = dueMeta(a.due_date);
             return (
-              <div key={a.id} className="group flex items-start gap-3 px-4 py-3">
+              <div key={a.id} className="group flex items-start gap-3 border-b border-[var(--border-soft)] px-4 py-3 last:border-b-0">
                 <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl ${tm.tone}`}>{tm.icon}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] font-bold text-slate-800">{a.summary}</div>
+                  <div className="text-[13px] font-bold text-[var(--text)]">{a.summary}</div>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${dm.cls}`}>{dm.label}</span>
-                    {a.assignee_name && <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-semibold text-slate-500">👤 {a.assignee_name}</span>}
+                    <Pill tone={dm.tone}>{dm.label}</Pill>
+                    {a.assignee_name && <Pill tone="neutral">👤 {a.assignee_name}</Pill>}
                   </div>
-                  {a.note && <p className="mt-1 text-[11.5px] text-slate-500">{a.note}</p>}
+                  {a.note && <p className="mt-1 text-[11.5px] text-[var(--text-soft)]">{a.note}</p>}
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-1">
-                  <button onClick={() => done(a.id)} title={t("components.activities.done", "ສຳເລັດ")} className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 transition hover:bg-emerald-100">
+                  <button
+                    onClick={() => done(a.id)}
+                    title={t("components.activities.done", "ສຳເລັດ")}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--success-soft)] text-[var(--success)] transition hover:opacity-80"
+                  >
                     <Check size={14} strokeWidth={2.5} />
                   </button>
-                  <button onClick={() => cancel(a.id)} title={t("common.cancel", "ຍົກເລີກ")} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-300 transition hover:bg-rose-50 hover:text-rose-500">
+                  <button
+                    onClick={() => cancel(a.id)}
+                    title={t("common.cancel", "ຍົກເລີກ")}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-mute)] transition hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+                  >
                     <X size={14} />
                   </button>
                 </div>
@@ -205,6 +211,6 @@ export default function ActivitiesPanel({ entityType, entityId }: { entityType: 
           })
         )}
       </div>
-    </div>
+    </Card>
   );
 }

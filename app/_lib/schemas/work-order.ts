@@ -67,6 +67,10 @@ export function ensureWorkOrderSchema(): Promise<void> {
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_signature TEXT; -- customer sign-off image (url)
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS checkout_by TEXT;
         ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS shift TEXT; -- 'morning' | 'afternoon'
+        -- ລົດຊ່າງ: vehicle assigned to the team (from public.app_car_vehicles)
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS vehicle_id TEXT;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS vehicle_plate TEXT;
+        ALTER TABLE odg_work_order ADD COLUMN IF NOT EXISTS vehicle_name TEXT;
 
         -- Material requests raised by the craftsman from the app (app-owned).
         CREATE TABLE IF NOT EXISTS odg_wo_material_request (

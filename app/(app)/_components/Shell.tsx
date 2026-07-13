@@ -18,6 +18,8 @@ import {
   LogOut,
   Menu,
   PackageOpen,
+  PanelLeftClose,
+  Search,
   ShieldCheck,
   Sun,
   Moon,
@@ -34,6 +36,7 @@ import {
 } from "lucide-react";
 import { canView, isAdmin, ROLE_LABELS, type Role } from "@/_lib/permissions";
 import { getApprovalCount } from "@/_actions/approvals";
+import { getNavCounts } from "@/_actions/nav-counts";
 import { clearV2User, getV2User, type V2User } from "../../_lib/session";
 import { useTheme } from "@/_components/theme/ThemeProvider";
 import NavProgress from "./NavProgress";
@@ -45,68 +48,74 @@ import LanguageSwitcher from "./LanguageSwitcher";
 import { useT } from "@/_lib/i18n";
 
 type NavItem = { label: string; tKey: string; href: string; icon: React.ReactNode; permKey?: string };
-type NavSection = { section?: string; sectionKey?: string; items: NavItem[] };
+type NavSection = { section?: string; sectionKey?: string; icon?: React.ReactNode; items: NavItem[] };
 
 const NAV_SECTIONS: NavSection[] = [
   { items: [
-    { label: "ພາບລວມ", tKey: "nav.overview", href: "/", icon: <Home size={16} /> },
-    { label: "ລໍຖ້າອະນຸມັດ", tKey: "nav.approvals", href: "/approvals", icon: <Inbox size={16} />, permKey: "*" },
+    { label: "ພາບລວມ", tKey: "nav.overview", href: "/", icon: <Home size={14} /> },
+    { label: "ລໍຖ້າອະນຸມັດ", tKey: "nav.approvals", href: "/approvals", icon: <Inbox size={14} />, permKey: "*" },
   ] },
   {
     section: "ການຂາຍ",
     sectionKey: "nav.section.sales",
+    icon: <FolderKanban size={15} />,
     items: [
-      { label: "ລູກຄ້າ", tKey: "nav.customers", href: "/customers", icon: <Users size={16} /> },
-      { label: "ໂຄງການ", tKey: "nav.projects", href: "/projects", icon: <FolderKanban size={16} /> },
-      { label: "ແຜນທີ່ໂຄງການ", tKey: "nav.projectsMap", href: "/projects/map", icon: <MapPin size={16} />, permKey: "projects" },
-      { label: "ໃບສະເໜີລາຄາ", tKey: "nav.quotations", href: "/quotations", icon: <FileText size={16} /> },
-      { label: "ສັນຍາ", tKey: "nav.contracts", href: "/contracts", icon: <FileSignature size={16} /> },
+      { label: "ລູກຄ້າ", tKey: "nav.customers", href: "/customers", icon: <Users size={14} /> },
+      { label: "ໂຄງການ", tKey: "nav.projects", href: "/projects", icon: <FolderKanban size={14} /> },
+      { label: "ແຜນທີ່ໂຄງການ", tKey: "nav.projectsMap", href: "/projects/map", icon: <MapPin size={14} />, permKey: "projects" },
+      { label: "ໃບສະເໜີລາຄາ", tKey: "nav.quotations", href: "/quotations", icon: <FileText size={14} /> },
+      { label: "ສັນຍາ", tKey: "nav.contracts", href: "/contracts", icon: <FileSignature size={14} /> },
     ],
   },
   {
     section: "ໜ້າງານ & ຕິດຕັ້ງ",
     sectionKey: "nav.section.work",
+    icon: <Wrench size={15} />,
     items: [
-      { label: "BOQ", tKey: "nav.boq", href: "/boq", icon: <ListChecks size={16} /> },
-      { label: "ລວມວັດສະດຸ", tKey: "nav.materials", href: "/materials", icon: <Boxes size={16} />, permKey: "boq" },
-      { label: "ຕາຕະລາງວຽກ", tKey: "nav.schedule", href: "/schedule", icon: <CalendarRange size={16} /> },
-      { label: "ໃບງານ", tKey: "nav.workorders", href: "/work-orders", icon: <Wrench size={16} /> },
-      { label: "ງານຕິດຕັ້ງມາດຕະຖານ", tKey: "nav.stdtasks", href: "/std-tasks", icon: <ClipboardCheck size={16} /> },
-      { label: "ຕິດຕາມການຕິດຕັ້ງ", tKey: "nav.installtracking", href: "/install-tracking", icon: <CalendarRange size={16} /> },
+      { label: "BOQ", tKey: "nav.boq", href: "/boq", icon: <ListChecks size={14} /> },
+      { label: "ລວມວັດສະດຸ", tKey: "nav.materials", href: "/materials", icon: <Boxes size={14} />, permKey: "boq" },
+      { label: "ຕາຕະລາງວຽກ", tKey: "nav.schedule", href: "/schedule", icon: <CalendarRange size={14} /> },
+      { label: "ໃບງານ", tKey: "nav.workorders", href: "/work-orders", icon: <Wrench size={14} /> },
+      { label: "ງານຕິດຕັ້ງມາດຕະຖານ", tKey: "nav.stdtasks", href: "/std-tasks", icon: <ClipboardCheck size={14} /> },
+      { label: "ຕິດຕາມການຕິດຕັ້ງ", tKey: "nav.installtracking", href: "/install-tracking", icon: <CalendarRange size={14} /> },
     ],
   },
   {
     section: "ທີມຊ່າງ",
     sectionKey: "nav.section.techs",
+    icon: <UsersRound size={15} />,
     items: [
-      { label: "ຈັດການທີມຊ່າງ", tKey: "nav.techteams", href: "/tech-teams", icon: <UsersRound size={16} /> },
-      { label: "ປະຕິທິນງານຊ່າງ", tKey: "nav.techcalendar", href: "/tech-calendar", icon: <CalendarRange size={16} />, permKey: "work-orders" },
-      { label: "ສະຫຼຸບຜົນງານຊ່າງ", tKey: "nav.techsummary", href: "/tech-summary", icon: <Award size={16} /> },
-      { label: "ຕິດຕາມຊ່າງ", tKey: "nav.tracking", href: "/tracking", icon: <MapPin size={16} /> },
+      { label: "ຈັດການທີມຊ່າງ", tKey: "nav.techteams", href: "/tech-teams", icon: <UsersRound size={14} /> },
+      { label: "ປະຕິທິນງານຊ່າງ", tKey: "nav.techcalendar", href: "/tech-calendar", icon: <CalendarRange size={14} />, permKey: "work-orders" },
+      { label: "ສະຫຼຸບຜົນງານຊ່າງ", tKey: "nav.techsummary", href: "/tech-summary", icon: <Award size={14} /> },
+      { label: "ຕິດຕາມຊ່າງ", tKey: "nav.tracking", href: "/tracking", icon: <MapPin size={14} /> },
     ],
   },
   {
     section: "ສິນຄ້າ & ເບີກ",
     sectionKey: "nav.section.inventory",
+    icon: <Boxes size={15} />,
     items: [
-      { label: "ການຂໍເບີກ", tKey: "nav.requests", href: "/requests", icon: <PackageOpen size={16} /> },
-      { label: "ສິນຄ້າ / ສະຕັອກ", tKey: "nav.inventory", href: "/inventory", icon: <Boxes size={16} /> },
+      { label: "ການຂໍເບີກ", tKey: "nav.requests", href: "/requests", icon: <PackageOpen size={14} /> },
+      { label: "ສິນຄ້າ / ສະຕັອກ", tKey: "nav.inventory", href: "/inventory", icon: <Boxes size={14} /> },
     ],
   },
   {
     section: "ການເງິນ & ລາຍງານ",
     sectionKey: "nav.section.finance",
+    icon: <Wallet size={15} />,
     items: [
-      { label: "ບັນຊີ / ງວດຈ່າຍ", tKey: "nav.finance", href: "/finance", icon: <Wallet size={16} /> },
-      { label: "ລາຍງານ & ສະຖິຕິ", tKey: "nav.reports", href: "/reports", icon: <BarChart3 size={16} /> },
+      { label: "ບັນຊີ / ງວດຈ່າຍ", tKey: "nav.finance", href: "/finance", icon: <Wallet size={14} /> },
+      { label: "ລາຍງານ & ສະຖິຕິ", tKey: "nav.reports", href: "/reports", icon: <BarChart3 size={14} /> },
     ],
   },
   {
     section: "ລະບົບ",
     sectionKey: "nav.section.system",
+    icon: <ShieldCheck size={15} />,
     items: [
-      { label: "ຜູ້ໃຊ້ & ສິດ", tKey: "nav.users", href: "/users", icon: <ShieldCheck size={16} /> },
-      { label: "ທົດສອບແຈ້ງເຕືອນ", tKey: "nav.pushtest", href: "/push-test", icon: <Bell size={16} /> },
+      { label: "ຜູ້ໃຊ້ & ສິດ", tKey: "nav.users", href: "/users", icon: <ShieldCheck size={14} /> },
+      { label: "ທົດສອບແຈ້ງເຕືອນ", tKey: "nav.pushtest", href: "/push-test", icon: <Bell size={14} /> },
     ],
   },
 ];
@@ -141,8 +150,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<V2User | null>(null);
   const [ready, setReady] = useState(false);
   const [approvalCount, setApprovalCount] = useState(0);
+  const [navCounts, setNavCounts] = useState<Record<string, number>>({});
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<string[]>([]);
+  const [navQuery, setNavQuery] = useState("");
   const { theme, toggle: toggleTheme } = useTheme();
   const t = useT();
 
@@ -160,6 +172,27 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let alive = true;
     const tick = () => getApprovalCount().then((c) => { if (alive) setApprovalCount(c); }).catch(() => {});
+    tick();
+    const h = setInterval(tick, 60_000);
+    return () => { alive = false; clearInterval(h); };
+  }, [pathname]);
+
+  // "Still needs me" badge per menu item.
+  useEffect(() => {
+    let alive = true;
+    const tick = () =>
+      getNavCounts()
+        .then((c) => {
+          if (!alive) return;
+          setNavCounts({
+            "/work-orders": c.workOrders,
+            "/requests": c.requests,
+            "/quotations": c.quotations,
+            "/contracts": c.contracts,
+            "/projects": c.projects,
+          });
+        })
+        .catch(() => {});
     tick();
     const h = setInterval(tick, 60_000);
     return () => { alive = false; clearInterval(h); };
@@ -188,9 +221,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           if (item.permKey === "*") return true;
           if (item.href === "/users" || item.href === "/push-test") return isAdmin(user);
           return canView(user, item.permKey ?? item.href.slice(1));
+        }).filter((item) => {
+          const query = navQuery.trim().toLocaleLowerCase();
+          return !query || item.label.toLocaleLowerCase().includes(query) || section.section?.toLocaleLowerCase().includes(query);
         }),
       })).filter((section) => section.items.length > 0),
-    [user],
+    [user, navQuery],
   );
 
   const activeHref = useMemo(() => {
@@ -200,6 +236,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       .sort((a, b) => b.href.length - a.href.length);
     return matches[0]?.href || "";
   }, [pathname, visibleSections]);
+
+  const toggleSection = (section: string) => {
+    setOpenSections((current) =>
+      current.includes(section)
+        ? current.filter((item) => item !== section)
+        : [...current, section],
+    );
+  };
 
   const doLogout = async () => {
     clearV2User();
@@ -213,9 +257,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[var(--theme-page)]">
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-bold text-slate-500 shadow-sm">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
+      <div className="flex h-screen items-center justify-center bg-[var(--bg)]">
+        <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-xs font-bold text-[var(--text-mute)] shadow-[var(--shadow-sm)]">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--brand)]" />
           {t("shell.opening")}
         </div>
       </div>
@@ -226,25 +270,53 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const roleLabel = ROLE_LABELS[(user?.role as Role) || "staff"] || "ຜູ້ໃຊ້ງານ";
 
   const sidebar = (
-    <nav className="flex h-full flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)]">
-      <div className="flex h-[72px] items-center gap-3 border-b border-[var(--border-soft)] px-5">
-        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/20">
-          <FolderKanban size={18} strokeWidth={2.5} />
+    <nav className="flex h-full flex-col overflow-hidden border-r border-white/10 bg-[#050b1d] text-slate-300">
+      <div className="flex h-[58px] items-center gap-2.5 border-b border-white/10 px-4">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500 text-white">
+          <Wrench size={16} strokeWidth={2.5} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="font-display block truncate text-[14.5px] font-extrabold tracking-tight text-[var(--text)]">ODG Projects</span>
-          <span className="mt-0.5 block truncate text-[8px] font-black uppercase tracking-[0.25em] text-[var(--text-mute)]">{t("app.subtitle")}</span>
+          <span className="font-display block truncate text-[12.5px] font-bold tracking-wide text-white">ODG PROJECTS</span>
+          <span className="block truncate text-[9.5px] font-medium text-slate-500">{t("app.subtitle")}</span>
         </span>
+        <PanelLeftClose size={15} className="hidden text-slate-500 md:block" />
         <button onClick={() => setMobileOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-mute)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] md:hidden" aria-label={t("shell.closeMenu")}>
           <X size={17} />
         </button>
       </div>
 
-      <div className="theme-scrollbar flex-1 space-y-4 overflow-y-auto px-3 pb-3 pt-4">
+      <div className="px-4 pt-4">
+        <label className="flex h-8 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-slate-500 focus-within:border-teal-500/60">
+          <Search size={14} />
+          <input
+            value={navQuery}
+            onChange={(event) => setNavQuery(event.target.value)}
+            placeholder={t("shell.searchMenu", "ຄົ້ນຫາເມນູ...")}
+            className="min-w-0 flex-1 border-0 bg-transparent text-[11.5px] text-slate-200 outline-none placeholder:text-slate-600"
+          />
+        </label>
+      </div>
+
+      <div className="theme-scrollbar flex-1 space-y-1 overflow-y-auto px-2.5 py-3">
         {visibleSections.map((section, index) => (
           <div key={section.section || index}>
-            {section.section && <p className="mb-1 px-3 text-[8.5px] font-black uppercase tracking-[0.18em] text-[var(--text-mute)]">{t(section.sectionKey || "", section.section)}</p>}
-            <div className="space-y-0.5">
+            {section.section && (() => {
+              const containsActive = section.items.some((item) => item.href === activeHref);
+              const expanded = containsActive || openSections.includes(section.section!);
+              return (
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.section!)}
+                  className={`flex h-8.5 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[11.5px] font-bold transition ${containsActive ? "bg-white/[0.06] text-white" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
+                  aria-expanded={expanded}
+                >
+                  <span className={containsActive ? "text-teal-400" : "text-slate-500"}>{section.icon}</span>
+                  <span className="min-w-0 flex-1 truncate">{t(section.sectionKey || "", section.section)}</span>
+                  <ChevronDown size={14} className={`text-slate-600 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                </button>
+              );
+            })()}
+            <div className={`space-y-0.5 ${section.section ? "ml-8 mt-0.5" : ""} ${section.section && !section.items.some((item) => item.href === activeHref) && !openSections.includes(section.section) ? "hidden" : ""}`}>
               {section.items.map((item) => {
                 const active = activeHref === item.href;
                 return (
@@ -253,30 +325,32 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     onClick={() => setMobileOpen(false)}
-                    className={`group relative flex h-10 items-center gap-3 rounded-xl px-3 text-[12px] font-semibold transition-all duration-150 ${
+                    className={`group relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[11px] font-medium transition-colors duration-150 ${
                       active
-                        ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
-                        : "text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)]"
+                        ? "bg-teal-500/10 pl-4 font-semibold text-white"
+                        : "text-slate-400 hover:bg-white/5 hover:text-slate-100"
                     }`}
                   >
-                    {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-blue-600 dark:bg-blue-400" />}
+                    {active && <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-teal-400" />}
                     <span
-                      className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors duration-150 ${
-                        active ? "text-blue-600 dark:text-blue-300" : "text-[var(--text-mute)] group-hover:text-blue-600 dark:group-hover:text-blue-400"
-                      }`}
+                      className={`flex h-6 w-6 items-center justify-center transition-colors duration-150 ${
+                        active ? "text-teal-400" : "text-slate-500 group-hover:text-teal-400"
+                      } ${section.section ? "hidden" : ""}`}
                     >
                       {item.icon}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{t(item.tKey, item.label)}</span>
-                    {item.href === "/approvals" && approvalCount > 0 && (
-                      <span className="ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">{approvalCount > 99 ? "99+" : approvalCount}</span>
+                    {item.href === "/approvals" ? (
+                      approvalCount > 0 && (
+                        <span className="ml-auto inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[9.5px] font-bold text-white">{approvalCount > 99 ? "99+" : approvalCount}</span>
+                      )
+                    ) : (
+                      (navCounts[item.href] ?? 0) > 0 && (
+                        <span className="ml-auto inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-white/10 px-1.5 text-[9.5px] font-bold text-slate-300">
+                          {navCounts[item.href]! > 99 ? "99+" : navCounts[item.href]}
+                        </span>
+                      )
                     )}
-                    <ChevronRight
-                      size={13}
-                      className={`transition-all duration-150 ${
-                        active ? "text-blue-400" : "text-[var(--text-mute)] opacity-0 -translate-x-1 group-hover:translate-x-0 group-hover:opacity-100"
-                      } ${item.href === "/approvals" && approvalCount > 0 ? "hidden" : ""}`}
-                    />
                   </Link>
                 );
               })}
@@ -285,25 +359,25 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      <div className="border-t border-[var(--border-soft)] p-3">
-        <Link href="/profile" onClick={() => setMobileOpen(false)} className="group flex items-center gap-3 rounded-xl border border-transparent p-2.5 transition-all duration-150 hover:border-[var(--border)] hover:bg-[var(--surface-soft)]">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-[11px] font-black text-white shadow-sm shadow-blue-500/20">{initial}</span>
+      <div className="border-t border-white/10 p-3">
+        <Link href="/profile" onClick={() => setMobileOpen(false)} className="group flex items-center gap-3 rounded-lg p-2.5 transition hover:bg-white/5">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-600 text-[10px] font-bold text-white">{initial}</span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[11.5px] font-bold text-[var(--text)] transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-300">{user?.name || user?.username}</span>
-            <span className="mt-0.5 block truncate text-[9.5px] font-semibold uppercase tracking-wider text-[var(--text-mute)]">{roleLabel}</span>
+            <span className="block truncate text-[10.5px] font-bold text-slate-100">{user?.name || user?.username}</span>
+            <span className="mt-0.5 block truncate text-[9.5px] font-medium text-slate-500">{roleLabel}</span>
           </span>
-          <UserCog size={14} className="text-[var(--text-mute)] transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+          <UserCog size={14} className="text-slate-600 transition-colors group-hover:text-teal-400" />
         </Link>
       </div>
     </nav>
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--theme-page)]">
+    <div className="flex h-screen overflow-hidden bg-[var(--bg)]">
       <NavProgress />
       <ChatWidget />
 
-      <aside className="hidden w-[272px] flex-shrink-0 md:block">{sidebar}</aside>
+      <aside className="hidden w-[228px] flex-shrink-0 md:block">{sidebar}</aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
@@ -313,29 +387,19 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="relative z-20 flex h-[72px] flex-shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--topbar-bg)] backdrop-blur-md px-4 md:px-6 transition-all duration-300">
+        <header className="relative z-20 flex h-[52px] flex-shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 md:px-6">
           <button onClick={() => setMobileOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition md:hidden" aria-label={t("shell.openMenu")}>
             <Menu size={18} />
           </button>
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--text-mute)]">
-              <span>ODG Projects</span><ChevronRight size={10} /><span className="truncate text-blue-600 dark:text-blue-400 font-extrabold">{(() => { const s = sectionFor(pathname); return t(s.key, s.fallback); })()}</span>
+              <span>ODG Projects</span><ChevronRight size={10} /><span className="truncate font-extrabold text-teal-600 dark:text-teal-400">{(() => { const s = sectionFor(pathname); return t(s.key, s.fallback); })()}</span>
             </div>
-            <h2 className="mt-1 truncate text-[15.5px] font-black tracking-tight text-[var(--text)]">{(() => { const ti = titleFor(pathname); return t(ti.key, ti.fallback); })()}</h2>
+            <h2 className="mt-1 truncate text-[13.5px] font-black tracking-tight text-[var(--text)]">{(() => { const ti = titleFor(pathname); return t(ti.key, ti.fallback); })()}</h2>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            {canView(user, "schedule") && (
-              <Link href="/schedule" className="hidden h-9 items-center gap-2 rounded-xl px-3 text-[11px] font-bold text-[var(--text-soft)] transition-all duration-200 hover:bg-[var(--surface-soft)] hover:text-[var(--text)] lg:inline-flex border border-transparent hover:border-[var(--border)]">
-                <CalendarRange size={14} /> {t("nav.schedule")}
-              </Link>
-            )}
-            {canView(user, "reports") && (
-              <Link href="/reports" className="hidden h-9 items-center gap-2 rounded-xl px-3 text-[11px] font-bold text-[var(--text-soft)] transition-all duration-200 hover:bg-[var(--surface-soft)] hover:text-[var(--text)] lg:inline-flex border border-transparent hover:border-[var(--border)]">
-                <BarChart3 size={14} /> {t("nav.reports", "ລາຍງານ")}
-              </Link>
-            )}
             <LanguageSwitcher />
             <NotificationsBell />
             <MyActivitiesBell />
@@ -359,7 +423,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 pr-2.5 transition-all duration-200 hover:border-[var(--border-strong)] hover:bg-[var(--surface-soft)]"
                 aria-expanded={userMenuOpen}
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 text-[10px] font-black text-white shadow-md shadow-blue-500/15">{initial}</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-[10px] font-bold text-white">{initial}</span>
                 <span className="hidden max-w-[130px] text-left sm:block">
                   <span className="block truncate text-[11px] font-bold text-[var(--text)]">{user?.name || user?.username}</span>
                   <span className="block truncate text-[8.5px] font-semibold text-[var(--text-mute)] uppercase tracking-wider">{roleLabel}</span>
@@ -388,7 +452,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto bg-[var(--theme-page)]"><ConfirmProvider>{children}</ConfirmProvider></main>
+        <main className="system-content min-h-0 flex-1 overflow-y-auto bg-[var(--bg)]"><ConfirmProvider>{children}</ConfirmProvider></main>
       </div>
     </div>
   );

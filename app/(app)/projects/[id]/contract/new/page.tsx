@@ -10,8 +10,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Save, FileSignature, Paperclip, X, Wind, Wrench } from "lucide-react";
 import { getQuotations } from "@/_actions/quotations";
 import { createContract, getContracts, getContract, updateContract } from "@/_actions/contracts";
-import { advanceProjectStage } from "@/_actions/projects";
-import { Page, Card, Btn, Field, inputCls } from "../../../../_components/ui";
+import { Page, Card, Btn, Field, SectionHeader, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
 import RSelect from "../../../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
 
@@ -194,7 +193,7 @@ export default function CreateContractPage() {
           router.push(`/contracts/${editId}`);
           return;
         }
-        await advanceProjectStage(String(id), "ສັນຍາ").catch(() => {});
+        // Stage follows the APPROVAL (sales + accounting), not the creation.
         router.push(`/projects/${id}?tab=contracts`);
       } else setError(res?.message || t("contractNew.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
     } catch (err: any) {
@@ -206,64 +205,79 @@ export default function CreateContractPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
+      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--text-mute)]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--brand)]" />
         <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
 
+  const canEdit = editId || (!hasContract && approvedQuos.length > 0);
+
   return (
     <Page max="max-w-[1000px]">
-      <button
-        onClick={() => router.push(`/projects/${id}`)}
-        className="mb-2 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]"
-      >
-        <ArrowLeft size={14} /> {t("contractNew.toProject", "ໄປໂຄງການ")}
-      </button>
-
-      <div className="mb-4 flex items-center gap-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 p-4 text-white shadow-[var(--theme-shadow)]">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur">
-          <FileSignature size={24} />
+      <form onSubmit={submit}>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => router.push(`/projects/${id}`)}
+              className="mb-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--text-mute)] transition-colors hover:text-[var(--brand)]"
+            >
+              <ArrowLeft size={14} /> {t("contractNew.toProject", "ໄປໂຄງການ")}
+            </button>
+            <h1 className="flex items-center gap-2.5 text-[19px] font-black leading-tight tracking-tight text-[var(--text)]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+                <FileSignature size={16} />
+              </span>
+              {editId ? t("contractNew.editContract", "ແກ້ໄຂສັນຍາ") : t("contractNew.createContract", "ສ້າງສັນຍາ")}
+            </h1>
+            <p className="mt-1.5 text-[12px] text-[var(--text-mute)]">{t("contractNew.fromApprovedQuotation", "ຈາກໃບສະເໜີລາຄາທີ່ອະນຸມັດແລ້ວ")}</p>
+          </div>
+          {canEdit && (
+            <div className="flex items-center gap-2">
+              <Btn type="button" variant="outline" onClick={() => router.push(`/projects/${id}`)}>{t("common.cancel", "ຍົກເລີກ")}</Btn>
+              <Btn type="submit" variant="go" disabled={saving}>
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("contractNew.saveContract", "ບັນທຶກສັນຍາ")}
+              </Btn>
+            </div>
+          )}
         </div>
-        <div>
-          <h1 className="text-[18px] font-bold leading-tight">{editId ? t("contractNew.editContract", "ແກ້ໄຂສັນຍາ") : t("contractNew.createContract", "ສ້າງສັນຍາ")}</h1>
-          <p className="text-[12px] text-white/85">{t("contractNew.fromApprovedQuotation", "ຈາກໃບສະເໜີລາຄາທີ່ອະນຸມັດແລ້ວ")}</p>
-        </div>
-      </div>
 
       {!editId && hasContract ? (
         <Card className="p-6 text-center">
-          <p className="text-[13px] text-[var(--theme-text-soft)]">
-            {t("contractNew.alreadyHasPrefix", "ໂຄງການນີ້")} <b>{t("contractNew.alreadyHasContract", "ມີສັນຍາແລ້ວ")}</b> {t("contractNew.oneProjectOneContract", "— 1 ໂຄງການ ມີ 1 ສັນຍາ.")}
+          <p className="text-[13px] text-[var(--text-soft)]">
+            {t("contractNew.alreadyHasPrefix", "ໂຄງການນີ້")} <b className="text-[var(--text)]">{t("contractNew.alreadyHasContract", "ມີສັນຍາແລ້ວ")}</b> {t("contractNew.oneProjectOneContract", "— 1 ໂຄງການ ມີ 1 ສັນຍາ.")}
           </p>
           <div className="mt-4 flex justify-center">
-            <Btn onClick={() => router.push(`/projects/${id}`)}>{t("contractNew.backToViewContract", "ກັບໄປເບິ່ງສັນຍາ")}</Btn>
+            <Btn type="button" onClick={() => router.push(`/projects/${id}`)}>{t("contractNew.backToViewContract", "ກັບໄປເບິ່ງສັນຍາ")}</Btn>
           </div>
         </Card>
       ) : !editId && approvedQuos.length === 0 ? (
         <Card className="p-6 text-center">
-          <p className="text-[13px] text-[var(--theme-text-soft)]">
-            {t("contractNew.noApprovedPrefix", "ຍັງບໍ່ມີໃບສະເໜີລາຄາທີ່")} <b>{t("status.approved", "ອະນຸມັດແລ້ວ")}</b> {t("contractNew.noApprovedSuffix", "— ຕ້ອງສ້າງ ແລະ ອະນຸມັດໃບສະເໜີກ່ອນ ຈຶ່ງສ້າງສັນຍາໄດ້.")}
+          <p className="text-[13px] text-[var(--text-soft)]">
+            {t("contractNew.noApprovedPrefix", "ຍັງບໍ່ມີໃບສະເໜີລາຄາທີ່")} <b className="text-[var(--text)]">{t("status.approved", "ອະນຸມັດແລ້ວ")}</b> {t("contractNew.noApprovedSuffix", "— ຕ້ອງສ້າງ ແລະ ອະນຸມັດໃບສະເໜີກ່ອນ ຈຶ່ງສ້າງສັນຍາໄດ້.")}
           </p>
           <div className="mt-4 flex justify-center gap-2">
-            <Btn variant="outline" onClick={() => router.push(`/projects/${id}`)}>{t("contractNew.backToProject", "ກັບໄປໂຄງການ")}</Btn>
-            <Btn onClick={() => router.push(`/projects/${id}/quotation/new`)}>{t("contractNew.createQuotation", "ສ້າງໃບສະເໜີ")}</Btn>
+            <Btn type="button" variant="outline" onClick={() => router.push(`/projects/${id}`)}>{t("contractNew.backToProject", "ກັບໄປໂຄງການ")}</Btn>
+            <Btn type="button" onClick={() => router.push(`/projects/${id}/quotation/new`)}>{t("contractNew.createQuotation", "ສ້າງໃບສະເໜີ")}</Btn>
           </div>
         </Card>
       ) : (
-        <form onSubmit={submit}>
+        <>
           {error && (
-            <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">
+            <div className="mb-4 rounded-xl border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">
               {error}
             </div>
           )}
 
-          <Card className="mb-4 border-t-2 border-t-blue-400 p-4">
+          <Card className="mb-4 p-4">
+            <SectionHeader icon={<FileSignature size={15} />} title={t("contractNew.contractInfo", "ຂໍ້ມູນສັນຍາ")} tone="brand" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {editId ? (
                 <Field label={t("contractNew.contractNo", "ເລກສັນຍາ")} className="lg:col-span-3">
-                  <input value={contractData?.contract_no || ""} readOnly className={`${inputCls} bg-[var(--theme-bg-muted)]`} />
+                  <input value={contractData?.contract_no || ""} readOnly className={`${inputCls} cursor-default bg-[var(--surface-sunken)] text-[var(--text-soft)] hover:border-[var(--border)] focus:border-[var(--border)] focus:ring-0`} />
                 </Field>
               ) : (
                 <Field label={t("contractNew.refQuotation", "ອ້າງອີງໃບສະເໜີ (ອະນຸມັດແລ້ວ)")} required className="lg:col-span-2">
@@ -290,54 +304,63 @@ export default function CreateContractPage() {
                 <input type="date" required value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
               </Field>
               <div className="lg:col-span-3">
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="h-4 w-1 rounded bg-[var(--theme-primary)]" />
-                  <span className="text-[13px] font-bold text-[var(--theme-text)]">{t("contractNew.paymentTitle", "ການຊຳລະ — ແບ່ງເປັນ 2 ສ່ວນ")}</span>
-                </div>
+                <SectionHeader icon={<Wind size={15} />} title={t("contractNew.paymentTitle", "ການຊຳລະ — ແບ່ງເປັນ 2 ສ່ວນ")} tone="brand" className="mb-3" />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {/* ສ່ວນແອ */}
-                  <div className="rounded-xl border border-cyan-200 bg-cyan-50/40 p-3.5">
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] p-3.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-100 text-cyan-600"><Wind size={17} /></span>
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--info-soft)] bg-[var(--info-soft)] text-[var(--info)]"><Wind size={17} /></span>
                         <div>
-                          <div className="text-[12.5px] font-bold text-slate-800">{t("contractNew.partAc", "ສ່ວນແອ")}</div>
-                          <div className="text-[10.5px] text-slate-400">{t("contractNew.partAcDesc", "ຄ່າເຄື່ອງແອ")}</div>
+                          <div className="text-[12.5px] font-bold text-[var(--text)]">{t("contractNew.partAc", "ສ່ວນແອ")}</div>
+                          <div className="text-[10.5px] text-[var(--text-mute)]">{t("contractNew.partAcDesc", "ຄ່າເຄື່ອງແອ")}</div>
                         </div>
                       </div>
-                      <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10.5px] font-bold tabular-nums text-cyan-700">{installSum > 0 ? Math.round(((Number(acAmount) || 0) / installSum) * 100) : 0}%</span>
+                      <span className="rounded-md border border-[var(--info-soft)] bg-[var(--info-soft)] px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums text-[var(--info)]">{installSum > 0 ? Math.round(((Number(acAmount) || 0) / installSum) * 100) : 0}%</span>
                     </div>
-                    <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-cyan-200 bg-white px-2.5 focus-within:ring-2 focus-within:ring-cyan-100">
-                      <input type="number" min="0" inputMode="numeric" value={acAmount} onChange={(e) => setAcAmount(e.target.value)} className="h-9 min-w-0 flex-1 bg-transparent text-right text-[14px] font-bold tabular-nums text-slate-800 outline-none" placeholder="0" />
-                      <span className="text-[11px] font-semibold text-slate-400">{t("common.kip", "ບາດ")}</span>
+                    <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
+                      <input type="number" min="0" inputMode="numeric" value={acAmount} onChange={(e) => setAcAmount(e.target.value)} className="h-9 min-w-0 flex-1 bg-transparent text-right text-[14px] font-bold tabular-nums text-[var(--text)] outline-none" placeholder="0" />
+                      <span className="text-[11px] font-semibold text-[var(--text-mute)]">{t("common.kip", "ບາດ")}</span>
                     </div>
                   </div>
                   {/* ສ່ວນຕິດຕັ້ງ */}
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3.5">
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] p-3.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600"><Wrench size={17} /></span>
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] text-[var(--warning)]"><Wrench size={17} /></span>
                         <div>
-                          <div className="text-[12.5px] font-bold text-slate-800">{t("contractNew.partInstall", "ສ່ວນຕິດຕັ້ງ")}</div>
-                          <div className="text-[10.5px] text-slate-400">{t("contractNew.partInstallDesc", "ຄ່າແຮງຕິດຕັ້ງ")}</div>
+                          <div className="text-[12.5px] font-bold text-[var(--text)]">{t("contractNew.partInstall", "ສ່ວນຕິດຕັ້ງ")}</div>
+                          <div className="text-[10.5px] text-[var(--text-mute)]">{t("contractNew.partInstallDesc", "ຄ່າແຮງຕິດຕັ້ງ")}</div>
                         </div>
                       </div>
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10.5px] font-bold tabular-nums text-amber-700">{installSum > 0 ? Math.round(((Number(installAmount) || 0) / installSum) * 100) : 0}%</span>
+                      <span className="rounded-md border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums text-[var(--warning)]">{installSum > 0 ? Math.round(((Number(installAmount) || 0) / installSum) * 100) : 0}%</span>
                     </div>
-                    <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-2.5 focus-within:ring-2 focus-within:ring-amber-100">
-                      <input type="number" min="0" inputMode="numeric" value={installAmount} onChange={(e) => setInstallAmount(e.target.value)} className="h-9 min-w-0 flex-1 bg-transparent text-right text-[14px] font-bold tabular-nums text-slate-800 outline-none" placeholder="0" />
-                      <span className="text-[11px] font-semibold text-slate-400">{t("common.kip", "ບາດ")}</span>
+                    <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
+                      <input type="number" min="0" inputMode="numeric" value={installAmount} onChange={(e) => setInstallAmount(e.target.value)} className="h-9 min-w-0 flex-1 bg-transparent text-right text-[14px] font-bold tabular-nums text-[var(--text)] outline-none" placeholder="0" />
+                      <span className="text-[11px] font-semibold text-[var(--text-mute)]">{t("common.kip", "ບາດ")}</span>
                     </div>
                   </div>
                 </div>
                 {/* ລວມທັງໝົດ */}
-                <div className={`mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2.5 ${sumMatches ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-                  <span className="text-[12px] font-bold text-slate-600">{t("contractNew.paymentTotal", "ລວມທັງໝົດ")}</span>
+                <div
+                  className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2.5"
+                  style={{
+                    borderColor: sumMatches ? "var(--success)" : "var(--warning)",
+                    background: sumMatches ? "var(--success-soft)" : "var(--warning-soft)",
+                  }}
+                >
+                  <span className="text-[11px] font-black tracking-wider text-[var(--text-soft)]">{t("contractNew.paymentTotal", "ລວມທັງໝົດ")}</span>
                   <div className="flex items-center gap-2">
-                    <b className={`text-[16px] tabular-nums ${sumMatches ? "text-emerald-700" : "text-amber-700"}`}>{money(installSum)}</b>
-                    <span className="text-[12px] text-slate-500">{t("common.kip", "ບາດ")}</span>
+                    <b className="text-[16px] tabular-nums" style={{ color: sumMatches ? "var(--success)" : "var(--warning)" }}>{money(installSum)}</b>
+                    <span className="text-[12px] text-[var(--text-mute)]">{t("common.kip", "ບາດ")}</span>
                     {contractTotal > 0 && (
-                      <span className={`ml-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${sumMatches ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                      <span
+                        className="ml-1 rounded-md px-2 py-0.5 text-[10.5px] font-extrabold"
+                        style={{
+                          color: sumMatches ? "var(--success)" : "var(--warning)",
+                          background: "var(--surface)",
+                        }}
+                      >
                         {sumMatches ? t("contractNew.sumOk", "= ຍອດສັນຍາ ✓") : `${t("contractNew.contractTotal", "ຍອດສັນຍາ")}: ${money(contractTotal)}`}
                       </span>
                     )}
@@ -349,21 +372,21 @@ export default function CreateContractPage() {
               </Field>
               {(
                 <div className="lg:col-span-3">
-                  <div className="mb-1.5 text-[12px] font-semibold text-[var(--theme-text-soft)]">{t("contractNew.attachments", "ເອກະສານສັນຍາ (ແນບໄຟລ໌)")}</div>
-                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)]/40 px-3 py-3 text-[12.5px] text-[var(--theme-text-mute)] transition hover:border-[var(--theme-primary)] hover:text-[var(--theme-primary)]">
+                  <div className="mb-1.5 block text-[11px] font-bold tracking-wider text-[var(--text-mute)]">{t("contractNew.attachments", "ເອກະສານສັນຍາ (ແນບໄຟລ໌)")}</div>
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[12.5px] font-semibold text-[var(--text-mute)] transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]">
                     <Paperclip size={15} /> {t("contractNew.pickFiles", "ກົດເພື່ອເລືອກໄຟລ໌ (PDF/ຮູບ)")}
                     <input type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={onPickFiles} />
                   </label>
                   {attachments.length > 0 && (
                     <ul className="mt-2 space-y-1.5">
                       {attachments.map((a, i) => (
-                        <li key={i} className="flex items-center justify-between gap-2 rounded-md border border-[var(--theme-border-subtle)] bg-white px-2.5 py-1.5 text-[12px]">
+                        <li key={i} className="flex items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px]">
                           {a.file_path ? (
-                            <a href={a.file_path} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1.5 truncate text-[var(--theme-primary)] hover:underline"><Paperclip size={12} className="shrink-0" /> {a.fileName}</a>
+                            <a href={a.file_path} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1.5 truncate font-semibold text-[var(--brand)] hover:underline"><Paperclip size={12} className="shrink-0" /> {a.fileName}</a>
                           ) : (
-                            <span className="flex min-w-0 items-center gap-1.5 truncate text-[var(--theme-text)]"><Paperclip size={12} className="shrink-0 text-[var(--theme-text-mute)]" /> {a.fileName}</span>
+                            <span className="flex min-w-0 items-center gap-1.5 truncate text-[var(--text)]"><Paperclip size={12} className="shrink-0 text-[var(--text-mute)]" /> {a.fileName}</span>
                           )}
-                          <button type="button" onClick={() => removeAttachment(i)} className="shrink-0 text-[var(--theme-text-mute)] hover:text-rose-600">
+                          <button type="button" onClick={() => removeAttachment(i)} className="shrink-0 text-[var(--text-mute)] transition-colors hover:text-[var(--danger)]">
                             <X size={13} />
                           </button>
                         </li>
@@ -376,33 +399,33 @@ export default function CreateContractPage() {
           </Card>
 
           {/* Selected quotation preview (items come from the quotation) */}
-          <Card className="mb-4 overflow-hidden border-t-2 border-t-amber-400">
-            <div className="flex items-center justify-between border-b border-[var(--theme-border-subtle)] px-3 py-2">
-              <h2 className="text-[13px] font-bold text-[var(--theme-text)]">{t("contractNew.itemsFromQuotation", "ລາຍການ (ຈາກໃບສະເໜີ)")}</h2>
-              <span className="text-[12px] text-[var(--theme-text-mute)]">{t("contractNew.value", "ມູນຄ່າ")}: {money(selected?.total_amount)}</span>
+          <Card className="mb-4 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2.5">
+              <h2 className="text-[11px] font-black tracking-wider text-[var(--text)]">{t("contractNew.itemsFromQuotation", "ລາຍການ (ຈາກໃບສະເໜີ)")}</h2>
+              <span className="text-[12px] tabular-nums text-[var(--text-mute)]">{t("contractNew.value", "ມູນຄ່າ")}: {money(selected?.total_amount)}</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-[12.5px]">
+              <table className={tblCls}>
                 <thead>
-                  <tr className="border-b border-[var(--theme-border-subtle)] text-[10px] font-semibold uppercase tracking-wider text-[var(--theme-text-mute)]">
-                    <th className="px-3 py-2 text-left">{t("contractNew.description", "ລາຍລະອຽດ")}</th>
-                    <th className="px-3 py-2 text-left">{t("common.unit", "ໜ່ວຍ")}</th>
-                    <th className="px-3 py-2 text-right">{t("common.qty", "ຈຳນວນ")}</th>
-                    <th className="px-3 py-2 text-right">{t("common.price", "ລາຄາ")}</th>
-                    <th className="px-3 py-2 text-right">{t("contractNew.lineTotal", "ລວມ")}</th>
+                  <tr>
+                    <th className={thCls}>{t("contractNew.description", "ລາຍລະອຽດ")}</th>
+                    <th className={`${thCls} w-20`}>{t("common.unit", "ໜ່ວຍ")}</th>
+                    <th className={`${thCls} w-24 text-right`}>{t("common.qty", "ຈຳນວນ")}</th>
+                    <th className={`${thCls} w-32 text-right`}>{t("common.price", "ລາຄາ")}</th>
+                    <th className={`${thCls} w-32 text-right`}>{t("contractNew.lineTotal", "ລວມ")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.length === 0 ? (
-                    <tr><td colSpan={5} className="px-3 py-4 text-center text-[var(--theme-text-mute)]">{t("contractNew.noItems", "ບໍ່ມີລາຍການ")}</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-6 text-center text-[12px] text-[var(--text-mute)]">{t("contractNew.noItems", "ບໍ່ມີລາຍການ")}</td></tr>
                   ) : (
                     items.map((it: any, i: number) => (
-                      <tr key={i} className="border-b border-[var(--theme-border-subtle)] last:border-0">
-                        <td className="px-3 py-1.5">{it.description || it.item_code || "-"}</td>
-                        <td className="px-3 py-1.5 text-[var(--theme-text-soft)]">{it.unit || "-"}</td>
-                        <td className="px-3 py-1.5 text-right font-mono tabular-nums">{money(it.qty)}</td>
-                        <td className="px-3 py-1.5 text-right font-mono tabular-nums">{money(it.unit_price)}</td>
-                        <td className="px-3 py-1.5 text-right font-mono tabular-nums">{money(it.amount)}</td>
+                      <tr key={i}>
+                        <td className={`${tdCls} font-semibold text-[var(--text)]`}>{it.description || it.item_code || "-"}</td>
+                        <td className={tdCls}>{it.unit || "-"}</td>
+                        <td className={`${tdCls} text-right tabular-nums`}>{money(it.qty)}</td>
+                        <td className={`${tdCls} text-right tabular-nums`}>{money(it.unit_price)}</td>
+                        <td className={`${tdCls} text-right font-semibold tabular-nums text-[var(--text)]`}>{money(it.amount)}</td>
                       </tr>
                     ))
                   )}
@@ -410,16 +433,9 @@ export default function CreateContractPage() {
               </table>
             </div>
           </Card>
-
-          <div className="flex justify-end gap-2">
-            <Btn type="button" variant="outline" onClick={() => router.push(`/projects/${id}`)}>{t("common.cancel", "ຍົກເລີກ")}</Btn>
-            <Btn type="submit" disabled={saving}>
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("contractNew.saveContract", "ບັນທຶກສັນຍາ")}
-            </Btn>
-          </div>
-        </form>
+        </>
       )}
+      </form>
     </Page>
   );
 }

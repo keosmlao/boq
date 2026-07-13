@@ -11,6 +11,10 @@ function fail(message: string): Fail { return { success: false, message }; }
 
 const TTL = 10_000;
 
+// Quotation approval states (odg_quotation.status holds the Lao label).
+const QUOTATION_PENDING = "ລໍຖ້າອະນຸມັດ";
+const QUOTATION_REJECTED = "ປະຕິເສດ";
+
 export async function getQuotations(opts: { projectId?: string; status?: string; search?: string } = {}): Promise<{ success: true; data: unknown[] } | Fail> {
   try {
     // Cache list-by-filters. Search results aren't cached (typing changes each
@@ -41,6 +45,7 @@ export async function getQuotations(opts: { projectId?: string; status?: string;
 
 export async function createQuotation(body: any): Promise<{ success: true; data: unknown } | Fail> {
   try {
+    await requirePermission("quotations", "create");
     await ensureQuotationSchema();
     if (!body?.quotation_no) return fail("quotation_no is required");
 
@@ -99,6 +104,15 @@ export async function updateQuotation(id: string, body: any): Promise<{ success:
   try {
     await requirePermission("quotations", "edit");
     await ensureQuotationSchema();
+
+    // Fixing a REJECTED quotation must send it back into the approval queue —
+    // decided server-side so the form cannot bypass it. Any other status is left
+    // to the caller (COALESCE keeps the current one when nothing is sent).
+    const current = await query(`SELECT status FROM odg_quotation WHERE id = $1 LIMIT 1`, [id]);
+    if (!current.rows.length) return fail("Quotation not found");
+    const wasRejected = String(current.rows[0].status || "") === QUOTATION_REJECTED;
+    const nextStatus = wasRejected ? QUOTATION_PENDING : body.status || null;
+
     const result = await query(
       `UPDATE odg_quotation SET
         quotation_no = COALESCE($2, quotation_no),
@@ -125,12 +139,13 @@ export async function updateQuotation(id: string, body: any): Promise<{ success:
         num(body.subtotal),
         num(body.total_amount),
         body.notes || null,
-        body.status || null,
+        nextStatus,
         JSON.stringify(Array.isArray(body.items) ? body.items : []),
       ],
     );
     if (!result.rows.length) return fail("Quotation not found");
     await logActivity("quotation", id, "ແກ້ໄຂໃບສະເໜີລາຄາ");
+    if (wasRejected) await logActivity("quotation", id, "ສົ່ງອະນຸມັດໃໝ່", QUOTATION_PENDING);
     invalidate("quotations:");
     return { success: true, data: result.rows[0] };
   } catch (e) { return fail((e as Error).message); }
@@ -139,6 +154,7 @@ export async function updateQuotation(id: string, body: any): Promise<{ success:
 /** Update ONLY the status (approve/reject) — never touches the other fields. */
 export async function approveQuotation(id: string, status: string): Promise<{ success: true } | Fail> {
   try {
+    await requirePermission("quotations", "approve");
     await ensureQuotationSchema();
     const result = await query(
       `UPDATE odg_quotation SET status = $2, updated_at = now() WHERE id = $1 RETURNING id`,

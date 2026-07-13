@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { ThemeProvider } from "./_components/theme/ThemeProvider";
 import { ThemeScript } from "./_components/theme/theme-script";
+import { LanguageProvider } from "./_lib/i18n";
 
 const notoSansLao = localFont({
   src: [
@@ -57,7 +58,11 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <ThemeScript />
       </head>
       <body className={`${notoSansLao.className} ${notoSansLao.variable}`}>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {/* Locale lives at the root so logged-out routes (login, /download,
+              404) honour the saved language too, not just the (app) group. */}
+          <LanguageProvider>{children}</LanguageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -160,6 +160,70 @@ export async function approveWorkOrderAs(
   }
 }
 
+/**
+ * Send a REJECTED work order back into the flow (ສົ່ງກັບໄປລໍອະນຸມັດໃໝ່).
+ * Without this a rejection is a dead end — approve/accept buttons only render on
+ * `pending`, so the only recovery was delete + recreate.
+ *   • approval_rejected (ບໍ່ອະນຸມັດ) → approval_status back to 'pending' (approver,
+ *     approved_at, approve_note cleared) and the accept side reset with it.
+ *   • accept_rejected (ຊ່າງປະຕິເສດ) → the manager's approval still stands, so only
+ *     accept_status goes back to 'pending' and reject_reason is cleared.
+ * Guarded by the same permission as the approve path (work-orders.approve).
+ */
+export async function resetWorkOrderRejectionAs(
+  user: ActingUser,
+  id: string,
+  opts: { note?: string } = {},
+): Promise<Ok | Fail> {
+  try {
+    const bad = assertV2Id(String(id));
+    if (bad) return fail(bad);
+    if (!can(user, "work-orders", "approve")) return fail("ບໍ່ມີສິດອະນຸມັດໃບງານ");
+    await ensureWorkOrderSchema();
+    const wo = await loadWoRow(String(id));
+    if (!wo) return fail("ບໍ່ພົບໃບງານ");
+
+    const approvalRejected = String(wo.approval_status || "") === "rejected";
+    const acceptRejected = String(wo.accept_status || "") === "rejected";
+    if (!approvalRejected && !acceptRejected) return fail("ໃບງານນີ້ບໍ່ໄດ້ຖືກປະຕິເສດ");
+
+    const r = approvalRejected
+      ? await query(
+          `UPDATE odg_work_order
+              SET approval_status = 'pending', approver = NULL, approved_at = NULL, approve_note = NULL,
+                  accept_status = 'pending', accepted_by = NULL, accepted_at = NULL, reject_reason = NULL,
+                  status = 'open'
+            WHERE id = $1 RETURNING *`,
+          [String(id)],
+        )
+      : await query(
+          `UPDATE odg_work_order
+              SET accept_status = 'pending', accepted_by = NULL, accepted_at = NULL, reject_reason = NULL,
+                  status = 'open'
+            WHERE id = $1 RETURNING *`,
+          [String(id)],
+        );
+    invalidate("wo:");
+
+    const what = approvalRejected ? "ສົ່ງກັບໄປລໍອະນຸມັດໃໝ່" : "ສົ່ງກັບໄປໃຫ້ຊ່າງຮັບງານໃໝ່";
+    const body = `${actorName(user)} ${what} ${wo.work_no || "ໃບງານ"}${opts.note ? ` · ${opts.note}` : ""}`;
+    // The approval still stands on an accept-reject → the craftsman can act now.
+    if (acceptRejected) {
+      await notifyCraftsman(
+        wo.technician_code,
+        "ໃບງານຖືກສົ່ງກັບມາໃຫ້ຮັບໃໝ່",
+        `${wo.work_no || "ໃບງານ"} — ກະລຸນາກົດຮັບງານ`,
+        { workOrderId: String(id), type: "wo_approved" },
+      );
+    }
+    await notifyManagers(what, body, { workOrderId: String(id), type: "wo_reset" });
+    await notifyWebParties("work_order", String(id), "wo_reset", body, user.username, actorName(user));
+    return { success: true, data: r.rows[0] };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
 /** Assigned head craftsman accepts or rejects an APPROVED work order. */
 export async function respondWorkOrderAs(
   user: ActingUser,
@@ -454,9 +518,9 @@ export async function createMaterialRequestAs(
   }
 }
 
-/** The requester (by name) or a manager/approver may manage a pending request. */
+/** The requester (by name), a requests approver, or a manager may manage a pending request. */
 function canManageMatReq(user: ActingUser, req: any): boolean {
-  if (can(user, "work-orders", "approve")) return true;
+  if (isManager(user) || can(user, "requests", "approve")) return true;
   return String(req?.requested_by || "") === actorName(user);
 }
 
@@ -526,11 +590,18 @@ export async function setMaterialRequestStatusAs(
     if (!req) return fail("ບໍ່ພົບໃບຂໍເບີກ");
     // Who may act: the ຫົວໜ້າຊ່າງ / supervisor (requests.approve) or a manager/admin.
     // The team lead (ຫົວໜ້າທີມ) does NOT approve — that's a different person.
-    const isApprover = can(user, "requests", "approve") || can(user, "work-orders", "approve");
+    // Note: work-orders.approve is deliberately NOT accepted here. It used to be,
+    // which let anyone who could approve a work order also settle material requests
+    // without ever being granted anything in the requests module.
+    const isApprover = can(user, "requests", "approve") || isManager(user);
     if (!isApprover) return fail("ສະເພາະຫົວໜ້າຊ່າງ (supervisor) ຫຼື ຜູ້ຈັດການ ອະນຸມັດໄດ້");
-    // Forward-only flow: ຂໍເບີກ(pending) → ອະນຸມັດ(approved) → ເບີກແລ້ວ(issued).
+    // Flow: ຂໍເບີກ(pending) → ອະນຸມັດ(approved) → ເບີກແລ້ວ(issued).
     if (status === "issued" && req.status !== "approved") return fail("ຕ້ອງອະນຸມັດກ່ອນຈຶ່ງເບີກໄດ້");
-    if (status === "approved" && req.status !== "pending") return fail("ໃບນີ້ດຳເນີນການໄປແລ້ວ");
+    // A mistaken rejection is recoverable: rejected → approved (un-reject). A
+    // request already pulled into a real requisition (converted) or issued is
+    // final and can never be re-approved — that would double-draw the BOQ.
+    const cur0 = String(req.status || "pending");
+    if (status === "approved" && !["pending", "rejected"].includes(cur0)) return fail("ໃບນີ້ດຳເນີນການໄປແລ້ວ");
     const r = await query(
       `UPDATE odg_wo_material_request
           SET status = $2, approver = $3, status_at = now(), status_note = COALESCE($4, status_note)

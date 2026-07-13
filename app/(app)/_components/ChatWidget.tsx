@@ -18,7 +18,14 @@ const hhmm = (iso: string) => {
   const d = new Date(iso);
   return Number.isFinite(d.getTime()) ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "";
 };
-const AV = ["bg-blue-100 text-blue-700", "bg-violet-100 text-violet-700", "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700", "bg-rose-100 text-rose-700", "bg-cyan-100 text-cyan-700"];
+const AV = [
+  "bg-[var(--brand-soft)] text-[var(--brand-strong)]",
+  "bg-[var(--info-soft)] text-[var(--info)]",
+  "bg-[var(--success-soft)] text-[var(--success)]",
+  "bg-[var(--warning-soft)] text-[var(--warning)]",
+  "bg-[var(--danger-soft)] text-[var(--danger)]",
+  "bg-[var(--surface-sunken)] text-[var(--text-soft)]",
+];
 const toneFor = (s: string) => AV[[...(s || "?")].reduce((a, c) => a + c.charCodeAt(0), 0) % AV.length];
 
 export default function ChatWidget() {
@@ -152,12 +159,12 @@ export default function ChatWidget() {
       {!open && (
         <button
           onClick={toggle}
-          className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition hover:-translate-y-0.5 hover:bg-blue-700 active:scale-95"
+          className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--brand)] text-white shadow-[var(--shadow-lg)] transition hover:-translate-y-0.5 hover:bg-[var(--brand-hover)] active:scale-95"
           title="ແชັດ"
         >
           <MessageCircle size={24} />
           {unread > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-black text-white ring-2 ring-[var(--surface)]">
               {unread > 99 ? "99+" : unread}
             </span>
           )}
@@ -166,30 +173,31 @@ export default function ChatWidget() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-5 right-5 z-50 flex h-[min(560px,80vh)] w-[min(380px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/15 animate-scale-up">
+        <div className="fixed bottom-5 right-5 z-50 flex h-[min(560px,80vh)] w-[min(380px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
           {/* Header */}
-          <div className="flex items-center gap-2.5 border-b border-slate-100 bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-3 text-white">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15">
+          {/* Brand teal in both themes — ink would invert to a light slab in dark mode. */}
+          <div className="flex items-center gap-2.5 border-b border-[var(--border-soft)] bg-[var(--brand)] px-4 py-3 text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand)] text-white">
               <Users size={16} />
             </span>
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-black leading-tight">ແชັດທີມ</div>
-              <div className="text-[10.5px] font-medium text-white/80">ຫ້ອງລວມ · ທຸກຄົນ</div>
+              <div className="text-[10.5px] font-medium opacity-75">ຫ້ອງລວມ · ທຸກຄົນ</div>
             </div>
-            <button onClick={toggle} className="rounded-lg p-1.5 transition hover:bg-white/15" title="ປິດ">
+            <button onClick={toggle} className="rounded-lg p-1.5 transition hover:bg-[var(--brand)] hover:text-white" title="ປິດ">
               <X size={17} />
             </button>
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 space-y-2.5 overflow-y-auto bg-slate-50/50 px-3 py-3">
+          <div ref={scrollRef} className="flex-1 space-y-2.5 overflow-y-auto bg-[var(--surface-sunken)] px-3 py-3">
             {loading && msgs.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-slate-300">
+              <div className="flex h-full items-center justify-center text-[var(--text-mute)]">
                 <Loader2 size={18} className="animate-spin" />
               </div>
             ) : msgs.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-1.5 text-[12px] font-semibold text-slate-400">
-                <MessageCircle size={26} className="text-slate-200" />
+              <div className="flex h-full flex-col items-center justify-center gap-1.5 text-[12px] font-semibold text-[var(--text-mute)]">
+                <MessageCircle size={26} className="text-[var(--text-mute)] opacity-50" />
                 ຍັງບໍ່ມີຂໍ້ຄວາມ — ທັກທາຍກ່ອນເລີຍ 👋
               </div>
             ) : (
@@ -203,14 +211,14 @@ export default function ChatWidget() {
                       </span>
                     )}
                     <div className={`min-w-0 max-w-[78%] ${mine ? "items-end text-right" : ""}`}>
-                      {!mine && <div className="mb-0.5 px-1 text-[10.5px] font-bold text-slate-500">{m.user_name || m.username}</div>}
-                      <div className={`inline-block whitespace-pre-wrap break-words rounded-2xl px-3 py-1.5 text-[12.5px] leading-relaxed ${mine ? "bg-blue-600 text-white" : "border border-slate-200 bg-white text-slate-700"}`}>
+                      {!mine && <div className="mb-0.5 px-1 text-[10.5px] font-bold text-[var(--text-soft)]">{m.user_name || m.username}</div>}
+                      <div className={`inline-block whitespace-pre-wrap break-words rounded-2xl px-3 py-1.5 text-[12.5px] leading-relaxed ${mine ? "bg-[var(--brand)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)]"}`}>
                         {m.body}
                       </div>
-                      <div className="mt-0.5 px-1 text-[9.5px] font-medium text-slate-400">
+                      <div className="mt-0.5 px-1 text-[9.5px] font-medium text-[var(--text-mute)]">
                         {hhmm(m.created_at)}
                         {mine && (
-                          <span className={Number(m.id) <= readWm ? "text-blue-500" : "text-slate-400"}>
+                          <span className={Number(m.id) <= readWm ? "text-[var(--brand)]" : "text-[var(--text-mute)]"}>
                             {" · "}{Number(m.id) <= readWm ? "ອ່ານແລ້ວ" : "ສົ່ງແລ້ວ"}
                           </span>
                         )}
@@ -223,7 +231,7 @@ export default function ChatWidget() {
           </div>
 
           {/* Composer */}
-          <div className="flex items-end gap-2 border-t border-slate-100 bg-white px-3 py-3">
+          <div className="flex items-end gap-2 border-t border-[var(--border-soft)] bg-[var(--surface)] px-3 py-3">
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -235,12 +243,12 @@ export default function ChatWidget() {
               }}
               rows={1}
               placeholder="ພິມຂໍ້ຄວາມ... (Enter ສົ່ງ)"
-              className="max-h-24 min-h-[40px] flex-1 resize-none rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] text-slate-800 outline-none transition focus:border-blue-500 focus:ring-3 focus:ring-blue-500/15"
+              className="max-h-24 min-h-[40px] flex-1 resize-none rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-[13px] text-[var(--text)] outline-none transition placeholder:text-[var(--text-mute)] hover:border-[var(--border-strong)] focus:border-[var(--brand)] focus:ring-3 focus:ring-[var(--brand-ring)]"
             />
             <button
               onClick={submit}
               disabled={!text.trim() || sending}
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-[var(--go)] text-white shadow-[var(--shadow-xs)] transition hover:bg-[var(--go-hover)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>

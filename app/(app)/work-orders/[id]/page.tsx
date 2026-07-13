@@ -3,13 +3,38 @@
 /** v2 — Work order detail (team, dates, tasks, hours, labour cost). */
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Wrench, FolderKanban, Users, CalendarClock, Clock, DollarSign, Wallet, PackageOpen } from "lucide-react";
+import {
+  ArrowLeft,
+  ClipboardList,
+  FolderKanban,
+  Users,
+  CalendarClock,
+  Clock,
+  DollarSign,
+  Wallet,
+  PackageOpen,
+  Truck,
+  Wrench,
+} from "lucide-react";
 import { getWorkOrderById, deleteWorkOrder } from "@/_actions/workorder";
-import { Page, Card, Btn, thCls, tdCls } from "../../_components/ui";
+import {
+  Page,
+  PageHeader,
+  Card,
+  Btn,
+  Pill,
+  SectionHeader,
+  tblCls,
+  thCls,
+  tdCls,
+  trHover,
+  type PillTone,
+} from "../../_components/ui";
 import DocActions from "../../_components/DocActions";
 import WorkOrderJobPanel from "./WorkOrderJobPanel";
 import { getV2User } from "../../../_lib/session";
 import { can } from "@/_lib/permissions";
+import { workOrderStage } from "@/_lib/workorder-stage";
 import { useT } from "@/_lib/i18n";
 
 const money = (v: unknown) => {
@@ -17,6 +42,16 @@ const money = (v: unknown) => {
   return Number.isFinite(n) ? n.toLocaleString("en-US") : "-";
 };
 const d10 = (v: unknown) => (v ? String(v).slice(0, 10) : "-");
+
+const STAGE_PILL: Record<string, PillTone> = {
+  issued: "blue",
+  accepted: "brand",
+  in_progress: "amber",
+  awaiting_review: "amber",
+  closed: "green",
+  approval_rejected: "red",
+  accept_rejected: "red",
+};
 
 export default function WorkOrderDetailPage() {
   const t = useT();
@@ -45,220 +80,196 @@ export default function WorkOrderDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
+      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--text-mute)]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--brand)]" />
         <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
   if (!w) {
-    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">{t("workorders.notFound", "ບໍ່ພົບໃບງານ")}</div>;
+    return <div className="px-4 py-10 text-center text-[var(--text-mute)]">{t("workorders.notFound", "ບໍ່ພົບໃບງານ")}</div>;
   }
 
   const tasks = Array.isArray(w.tasks) ? w.tasks : [];
   const mats = Array.isArray(w.materials) ? w.materials : [];
+  const isErp = w.src === "erp";
+  const stage = isErp ? null : workOrderStage(w);
+  const statusLabel = isErp ? String(w.status || "-") : stage!.label;
+  const statusTone: PillTone = isErp ? "neutral" : STAGE_PILL[stage!.key] || "neutral";
+
+  const subtitle = [
+    w.project_name,
+    w.technician_name ? `${t("workorders.headCraftsman", "ຊ່າງຫຼັກ")}: ${w.technician_name}` : null,
+    d10(w.work_date),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <Page max="max-w-none">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <button
-          onClick={() => router.push("/work-orders")}
-          className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)] transition-colors"
-        >
-          <ArrowLeft size={14} /> {t("workorders.backToList", "ກັບໄປລາຍການໃບງານ")}
-        </button>
-        {w.src !== "erp" && (
-          <DocActions onDelete={() => deleteWorkOrder(String(id))} afterDelete="/work-orders" label={t("workorders.title", "ໃບງານ")} canDelete={can(user, "work-orders", "delete")} />
-        )}
-      </div>
+    <Page max="max-w-[1100px]">
+      <PageHeader
+        title={w.work_no || "-"}
+        subtitle={subtitle}
+        actions={
+          <>
+            <Pill tone={statusTone}>{statusLabel}</Pill>
+            {!isErp && w.project_id && mats.length > 0 && (
+              <Btn variant="go" onClick={() => router.push(`/projects/${w.project_id}/request/new?wo=${id}`)}>
+                <PackageOpen size={14} /> {t("workorders.createRequisition", "ສ້າງໃບຂໍເບີກ")}
+              </Btn>
+            )}
+            {w.project_id && (
+              <Btn variant="outline" onClick={() => router.push(`/projects/${w.project_id}`)}>
+                <FolderKanban size={14} /> {t("workorders.goToProject", "ໄປໜ້າໂຄງການ")}
+              </Btn>
+            )}
+            <Btn variant="outline" onClick={() => router.push("/work-orders")}>
+              <ArrowLeft size={14} /> {t("workorders.backToList", "ກັບໄປລາຍການໃບງານ")}
+            </Btn>
+            {!isErp && (
+              <DocActions
+                onDelete={() => deleteWorkOrder(String(id))}
+                afterDelete="/work-orders"
+                label={t("workorders.title", "ໃບງານ")}
+                canDelete={can(user, "work-orders", "delete")}
+              />
+            )}
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Main Content Column (Spans 2 columns on large screens) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Hero Banner */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 p-6 text-white shadow-lg shadow-emerald-500/10">
-            {/* Decorative shapes */}
-            <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-            <div className="absolute -left-10 -bottom-10 h-32 w-32 rounded-full bg-emerald-600/20 blur-2xl" />
+      <div className="space-y-5">
+        {/* Mobile head-craftsman lifecycle: approve → accept → check-in → check-out */}
+        <WorkOrderJobPanel wo={w} onChanged={load} />
 
-            <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 shadow-inner backdrop-blur-md">
-                  <Wrench size={30} className="text-white" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-100">{t("workorders.workNo", "ເລກທີໃບງານ")}</span>
-                  <h1 className="font-mono text-2xl font-black leading-none tracking-tight">{w.work_no || "-"}</h1>
-                  <p className="mt-1 truncate text-xs text-white/85 font-medium">
-                    {w.technician_name ? `${t("workorders.headCraftsman", "ຊ່າງຫຼັກ")}: ${w.technician_name}${w.technician_code ? ` (${w.technician_code})` : ""}` : "—"}
-                  </p>
-                </div>
-              </div>
-            </div>
+        {/* Work order info */}
+        <Card className="p-5">
+          <SectionHeader icon={<Wrench size={14} />} title={t("workorders.info", "ຂໍ້ມູນໃບງານ")} tone="brand" />
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+            <InfoItem
+              icon={<Users size={14} />}
+              label={t("workorders.headCraftsman", "ຊ່າງຫຼັກ")}
+              value={w.technician_code ? `${w.technician_name || "-"} (${w.technician_code})` : w.technician_name}
+            />
+            <InfoItem
+              icon={<Users size={14} />}
+              label={t("workorders.helpers", "ຜູ້ຊ່ວຍຊ່າງ")}
+              value={Array.isArray(w.helpers) && w.helpers.length ? w.helpers.join(", ") : "-"}
+            />
+            <InfoItem
+              icon={<Truck size={14} />}
+              label={t("workorders.vehicle", "ລົດຊ່າງ")}
+              value={w.vehicle_plate ? `${w.vehicle_plate}${w.vehicle_name ? ` — ${w.vehicle_name}` : ""}` : w.vehicle_name}
+            />
+            <InfoItem icon={<CalendarClock size={14} />} label={t("workorders.startDate", "ວັນເລີ່ມ")} value={d10(w.work_date)} />
+            <InfoItem icon={<CalendarClock size={14} />} label={t("workorders.endDate", "ວັນຈົບ")} value={d10(w.end_date)} />
+            <InfoItem icon={<Wallet size={14} />} label={t("workorders.ratePerHour", "ອັດຕາ / ຊົ່ວໂມງ")} value={money(w.rate_per_hour)} />
+            <InfoItem icon={<Clock size={14} />} label={t("workorders.totalHours", "ລວມຊົ່ວໂມງ")} value={String(Number(w.total_hours) || 0)} />
+            <InfoItem icon={<DollarSign size={14} />} label={t("workorders.totalLaborCost", "ຄ່າແຮງທັງໝົດ")} value={money(w.labor_cost)} />
           </div>
 
-          {/* Mobile head-craftsman lifecycle: approve → accept → check-in → check-out */}
-          <WorkOrderJobPanel wo={w} onChanged={load} />
-
-          {/* Tasks/Work list Card */}
-          <Card className="overflow-hidden border-t-4 border-t-emerald-500 shadow-sm">
-            <div className="flex items-center justify-between border-b border-[var(--theme-border-subtle)] px-4 py-3 bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded bg-emerald-100 text-emerald-600 text-xs font-bold">
-                  {tasks.length}
-                </span>
-                <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">{t("workorders.tasks", "ໜ້າວຽກ")}</h2>
-              </div>
+          {w.notes && (
+            <div className="mt-5 border-t border-[var(--border-soft)] pt-3">
+              <span className="mb-1 block text-[11px] font-bold tracking-wider text-[var(--text-mute)]">{t("common.note", "ໝາຍເຫດ")}</span>
+              <p className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-2.5 text-[12.5px] leading-relaxed text-[var(--text-soft)]">
+                {w.notes}
+              </p>
             </div>
-            {tasks.length === 0 ? (
-              <div className="px-4 py-10 text-center text-xs text-[var(--theme-text-mute)]">{t("workorders.noTasks", "ບໍ່ມີໜ້າວຽກ")}</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-0 text-[13px]">
-                  <thead>
-                    <tr>
-                      <th className={`${thCls} w-10 text-center pl-4`}>#</th>
-                      <th className={`${thCls} pl-2`}>{t("workorders.tasks", "ໜ້າວຽກ")}</th>
-                      <th className={`${thCls} w-28 text-right pr-4`}>{t("workorders.actualHours", "ຊົ່ວໂມງຈິງ")}</th>
+          )}
+        </Card>
+
+        {/* Tasks */}
+        <Card className="overflow-hidden">
+          <div className="px-5 pt-5">
+            <SectionHeader
+              icon={<ClipboardList size={14} />}
+              title={`${t("workorders.tasks", "ໜ້າວຽກ")} (${tasks.length})`}
+              tone="brand"
+              className="mb-0"
+            />
+          </div>
+          {tasks.length === 0 ? (
+            <div className="px-5 py-10 text-center text-xs text-[var(--text-mute)]">{t("workorders.noTasks", "ບໍ່ມີໜ້າວຽກ")}</div>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className={tblCls}>
+                <thead>
+                  <tr>
+                    <th className={`${thCls} w-12 text-center`}>#</th>
+                    <th className={thCls}>{t("workorders.tasks", "ໜ້າວຽກ")}</th>
+                    <th className={`${thCls} w-32 text-right`}>{t("workorders.actualHours", "ຊົ່ວໂມງຈິງ")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tasks.map((task: any, i: number) => (
+                    <tr key={i} className={trHover}>
+                      <td className={`${tdCls} text-center font-mono text-[11px] text-[var(--text-mute)]`}>{i + 1}</td>
+                      <td className={`${tdCls} font-semibold text-[var(--text)]`}>{task.title || "-"}</td>
+                      <td className={`${tdCls} text-right font-semibold tabular-nums text-[var(--text)]`}>
+                        {Number(task.actual_hours) || 0}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--theme-border-subtle)] bg-white">
-                    {tasks.map((t: any, i: number) => (
-                      <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                        <td className={`${tdCls} text-center pl-4 font-mono text-xs text-[var(--theme-text-mute)]`}>{i + 1}</td>
-                        <td className={`${tdCls} pl-2 font-medium text-[var(--theme-text)]`}>{t.title || "-"}</td>
-                        <td className={`${tdCls} text-right pr-4 font-semibold text-slate-900 tabular-nums`}>
-                          {Number(t.actual_hours) || 0}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-
-          {/* Material template → admin issues the actual ໃບຂໍເບີກ from this (rounds) */}
-          <Card className="overflow-hidden border-t-4 border-t-cyan-500 shadow-sm">
-            <div className="flex items-center justify-between border-b border-[var(--theme-border-subtle)] px-4 py-3 bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded bg-cyan-100 text-cyan-600 text-xs font-bold">{mats.length}</span>
-                <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">{t("workorders.materialsToRequest", "ວັດສະດຸທີ່ຕ້ອງເບີກ (template)")}</h2>
-              </div>
-              {w.src !== "erp" && w.project_id && mats.length > 0 && (
-                <button
-                  onClick={() => router.push(`/projects/${w.project_id}/request/new?wo=${id}`)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-cyan-600 px-3 text-[12px] font-bold text-white shadow-sm hover:bg-cyan-700 transition-colors"
-                >
-                  <PackageOpen size={14} /> {t("workorders.createRequisition", "ສ້າງໃບຂໍເບີກ")}
-                </button>
-              )}
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {mats.length === 0 ? (
-              <div className="px-4 py-8 text-center text-xs text-[var(--theme-text-mute)]">{t("workorders.noMaterials", "ບໍ່ມີວັດສະດຸໃນ template")}</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-0 text-[13px]">
-                  <thead>
-                    <tr>
-                      <th className={`${thCls} pl-4`}>{t("workorders.colItem", "ລາຍການ")}</th>
-                      <th className={`${thCls} w-20 text-center`}>{t("inventory.unit", "ໜ່ວຍ")}</th>
-                      <th className={`${thCls} w-24 text-right pr-4`}>{t("common.qty", "ຈຳນວນ")}</th>
+          )}
+        </Card>
+
+        {/* Material template → admin issues the actual ໃບຂໍເບີກ from this (rounds) */}
+        <Card className="overflow-hidden">
+          <div className="px-5 pt-5">
+            <SectionHeader
+              icon={<PackageOpen size={14} />}
+              title={`${t("workorders.materialsToRequest", "ວັດສະດຸທີ່ຕ້ອງເບີກ (template)")} (${mats.length})`}
+              tone="cyan"
+              className="mb-0"
+            />
+          </div>
+          {mats.length === 0 ? (
+            <div className="px-5 py-8 text-center text-xs text-[var(--text-mute)]">{t("workorders.noMaterials", "ບໍ່ມີວັດສະດຸໃນ template")}</div>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className={tblCls}>
+                <thead>
+                  <tr>
+                    <th className={thCls}>{t("workorders.colItem", "ລາຍການ")}</th>
+                    <th className={`${thCls} w-24 text-center`}>{t("inventory.unit", "ໜ່ວຍ")}</th>
+                    <th className={`${thCls} w-28 text-right`}>{t("common.qty", "ຈຳນວນ")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mats.map((m: any, i: number) => (
+                    <tr key={i} className={trHover}>
+                      <td className={`${tdCls} font-semibold text-[var(--text)]`}>{m.description || m.item_name || m.item_code || "-"}</td>
+                      <td className={`${tdCls} text-center`}>
+                        <Pill tone="neutral">{m.unit || m.unit_code || "-"}</Pill>
+                      </td>
+                      <td className={`${tdCls} text-right font-semibold tabular-nums text-[var(--text)]`}>{money(m.qty)}</td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--theme-border-subtle)] bg-white">
-                    {mats.map((m: any, i: number) => (
-                      <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                        <td className={`${tdCls} pl-4 font-medium text-[var(--theme-text)]`}>{m.description || m.item_name || m.item_code || "-"}</td>
-                        <td className={`${tdCls} text-center`}>
-                          <span className="inline-block rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{m.unit || m.unit_code || "-"}</span>
-                        </td>
-                        <td className={`${tdCls} text-right pr-4 font-semibold text-slate-900 tabular-nums`}>{money(m.qty)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <p className="border-t border-[var(--theme-border-subtle)] px-4 py-1.5 text-[11px] text-[var(--theme-text-mute)]">
-              {t("workorders.materialsNote", "ນີ້ແມ່ນ template ທີ່ຊ່າງຕ້ອງການ — admin ກົດ \"ສ້າງໃບຂໍເບີກ\" ເພື່ອອອກໃບຂໍເບີກຈິງ (ສ້າງໄດ້ຫຼາຍຮອບ).")}
-            </p>
-          </Card>
-        </div>
-
-        {/* Sidebar Column (Spans 1 column on large screens) */}
-        <div className="space-y-6">
-          {/* Metadata Card */}
-          <Card className="p-5 space-y-4 shadow-sm border-t-4 border-t-slate-500">
-            <h3 className="text-sm font-bold text-[var(--theme-text)] border-b border-[var(--theme-border-subtle)] pb-2">
-              {t("workorders.info", "ຂໍ້ມູນໃບງານ")}
-            </h3>
-
-            <div className="space-y-3.5">
-              <SidebarInfo icon={<Users size={15} className="text-emerald-600" />} label={t("workorders.headCraftsman", "ຊ່າງຫຼັກ")} value={w.technician_code ? `${w.technician_name || "-"} (${w.technician_code})` : w.technician_name} />
-              <SidebarInfo
-                icon={<Users size={15} className="text-emerald-600" />}
-                label={t("workorders.helpers", "ຜູ້ຊ່ວຍຊ່າງ")}
-                value={Array.isArray(w.helpers) && w.helpers.length ? w.helpers.join(", ") : "-"}
-              />
-              <SidebarInfo icon={<CalendarClock size={15} className="text-emerald-600" />} label={t("workorders.startDate", "ວັນເລີ່ມ")} value={d10(w.work_date)} />
-              <SidebarInfo icon={<CalendarClock size={15} className="text-emerald-600" />} label={t("workorders.endDate", "ວັນຈົບ")} value={d10(w.end_date)} />
-              <SidebarInfo icon={<Wallet size={15} className="text-emerald-600" />} label={t("workorders.ratePerHour", "ອັດຕາ / ຊົ່ວໂມງ")} value={money(w.rate_per_hour)} />
-              <SidebarInfo icon={<Clock size={15} className="text-emerald-600" />} label={t("workorders.totalHours", "ລວມຊົ່ວໂມງ")} value={String(Number(w.total_hours) || 0)} />
-              <SidebarInfo icon={<DollarSign size={15} className="text-emerald-600" />} label={t("workorders.totalLaborCost", "ຄ່າແຮງທັງໝົດ")} value={money(w.labor_cost)} />
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            {w.notes && (
-              <div className="mt-4 border-t border-[var(--theme-border-subtle)] pt-3">
-                <span className="text-[11px] font-semibold text-[var(--theme-text-mute)] block mb-1">{t("common.note", "ໝາຍເຫດ")}</span>
-                <p className="text-[12.5px] text-[var(--theme-text-soft)] bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed">
-                  {w.notes}
-                </p>
-              </div>
-            )}
-          </Card>
-
-          {/* Quick Actions Card */}
-          <Card className="p-4 shadow-sm bg-slate-50/50">
-            <div className="flex flex-col gap-2.5">
-              {w.project_id && (
-                <button
-                  onClick={() => router.push(`/projects/${w.project_id}`)}
-                  className="flex w-full h-9 items-center justify-center gap-2 rounded-lg bg-white border border-[var(--theme-border-subtle)] text-[12.5px] font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-emerald-600 transition-colors"
-                >
-                  <FolderKanban size={15} />
-                  <span>{t("workorders.goToProject", "ໄປໜ້າໂຄງການ")}</span>
-                </button>
-              )}
-
-              <button
-                onClick={() => router.push("/work-orders")}
-                className="flex w-full h-9 items-center justify-center gap-2 rounded-lg bg-white border border-[var(--theme-border-subtle)] text-[12.5px] font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-emerald-600 transition-colors"
-              >
-                <ArrowLeft size={15} />
-                <span>{t("workorders.backToList", "ກັບໄປລາຍການໃບງານ")}</span>
-              </button>
-            </div>
-          </Card>
-        </div>
+          )}
+          <p className="border-t border-[var(--border-soft)] px-5 py-2 text-[11px] text-[var(--text-mute)]">
+            {t("workorders.materialsNote", "ນີ້ແມ່ນ template ທີ່ຊ່າງຕ້ອງການ — admin ກົດ \"ສ້າງໃບຂໍເບີກ\" ເພື່ອອອກໃບຂໍເບີກຈິງ (ສ້າງໄດ້ຫຼາຍຮອບ).")}
+          </p>
+        </Card>
       </div>
     </Page>
   );
 }
 
-function SidebarInfo({ icon, label, value }: { icon: React.ReactNode; label: string; value: any }) {
+function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: any }) {
   return (
-    <div className="flex items-start gap-3 p-1">
-      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 mt-0.5">
+    <div className="flex items-start gap-2.5">
+      <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] text-[var(--text-mute)]">
         {icon}
-      </div>
+      </span>
       <div className="min-w-0">
-        <span className="text-[11px] font-semibold text-[var(--theme-text-mute)] block mb-0.5">
-          {label}
-        </span>
-        <span className="text-[13px] font-bold text-[var(--theme-text)] block break-words">
-          {value || "-"}
-        </span>
+        <span className="mb-0.5 block text-[11px] font-bold tracking-wider text-[var(--text-mute)]">{label}</span>
+        <span className="block break-words text-[13px] font-semibold text-[var(--text)]">{value || "-"}</span>
       </div>
     </div>
   );

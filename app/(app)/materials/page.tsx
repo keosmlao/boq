@@ -2,10 +2,10 @@
 
 /** Company-wide consolidated materials across all projects (ລວມວັດສະດຸ). */
 import { useEffect, useMemo, useState } from "react";
-import { Boxes, RefreshCw, Search } from "lucide-react";
+import { Boxes, Loader2, RefreshCw, Search } from "lucide-react";
 import { getAllMaterials, getProjectMaterials } from "@/_actions/boq-v2";
 import { getProjects } from "@/_actions/projects";
-import { Page } from "../_components/ui";
+import { Btn, Card, Page, PageHeader, Toolbar, tblCls, tdCls, thCls, trHover } from "../_components/ui";
 import RSelect from "../_components/RSelect";
 import { useT } from "@/_lib/i18n";
 
@@ -48,77 +48,96 @@ export default function MaterialsPage() {
 
   return (
     <Page max="max-w-none w-full">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 pb-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">{t("materials.title", "ລວມວັດສະດຸ (ທຸກໂຄງການ)")}</h1>
-          <p className="mt-1 text-xs font-medium text-slate-400">{t("materials.subtitle", "ຍອດ BOQ ລວມ ທຽບກັບ ຂໍເບີກ / ເບີກແລ້ວ")} · {filtered.length} {t("materials.items", "ລາຍການ")}</p>
+      <PageHeader
+        title={t("materials.title", "ລວມວັດສະດຸ (ທຸກໂຄງການ)")}
+        subtitle={`${t("materials.subtitle", "ຍອດ BOQ ລວມ ທຽບກັບ ຂໍເບີກ / ເບີກແລ້ວ")} · ${filtered.length} ${t("materials.items", "ລາຍການ")}`}
+        actions={
+          <Btn variant="outline" onClick={() => void load(projectId)} disabled={loading}>
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {t("common.reload", "ໂຫຼດໃໝ່")}
+          </Btn>
+        }
+      />
+
+      <Toolbar>
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+          <Search size={15} className="text-[var(--text-mute)]" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("materials.search", "ຄົ້ນຫາ ລະຫັດ/ຊື່...")}
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
+          />
+        </label>
+        <div className="w-64">
+          <RSelect
+            value={projectId}
+            onChange={setProjectId}
+            isClearable
+            placeholder={t("materials.allProjects", "ທຸກໂຄງການ")}
+            options={projects}
+          />
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-60">
-            <RSelect
-              value={projectId}
-              onChange={setProjectId}
-              isClearable
-              placeholder={t("materials.allProjects", "ທຸກໂຄງການ")}
-              options={projects}
-            />
-          </div>
-          <div className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5">
-            <Search size={14} className="text-slate-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("materials.search", "ຄົ້ນຫາ ລະຫັດ/ຊື່...")} className="w-48 bg-transparent text-xs font-semibold outline-none" />
-          </div>
-          <button onClick={() => void load(projectId)} disabled={loading} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-60">
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          </button>
-        </div>
-      </div>
+      </Toolbar>
 
       {loading ? (
-        <div className="flex h-48 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" /></div>
+        <Card className="flex h-48 items-center justify-center gap-2 text-[var(--text-mute)]">
+          <Loader2 size={18} className="animate-spin" />
+          <span className="text-[12.5px] font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
+        </Card>
       ) : filtered.length === 0 ? (
-        <div className="flex h-56 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 text-slate-400">
+        <Card className="flex h-56 flex-col items-center justify-center gap-2 text-[var(--text-mute)]">
           <Boxes className="h-9 w-9 opacity-40" />
-          <span className="text-sm font-semibold">{t("materials.empty", "ບໍ່ມີວັດສະດຸ")}</span>
-        </div>
+          <span className="text-[12.5px] font-semibold">{t("materials.empty", "ບໍ່ມີວັດສະດຸ")}</span>
+        </Card>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="min-w-full text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                <th className="px-4 py-3 text-left">{t("materials.col.item", "ລາຍການ")}</th>
-                <th className="px-4 py-3 text-left">{t("common.unit", "ໜ່ວຍ")}</th>
-                <th className="px-4 py-3 text-right">{t("materials.col.boq", "ຍອດ BOQ")}</th>
-                <th className="px-4 py-3 text-right">{t("materials.col.requested", "ຂໍເບີກ")}</th>
-                <th className="px-4 py-3 text-right">{t("materials.col.withdrawn", "ເບີກແລ້ວ")}</th>
-                <th className="px-4 py-3 text-right">{t("materials.col.remaining", "ຄົງເຫຼືອ")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map((r, i) => (
-                <tr key={i} className="hover:bg-slate-50/50">
-                  <td className="px-4 py-2.5 font-bold text-slate-900">
-                    <div>{r.description || r.item_code || "-"}</div>
-                    {r.item_code && <div className="mt-0.5 font-mono text-[10.5px] font-medium text-slate-400">{r.item_code}</div>}
-                  </td>
-                  <td className="px-4 py-2.5 text-slate-500">{r.unit || "-"}</td>
-                  <td className="px-4 py-2.5 text-right font-mono text-slate-700">{n(r.boq_qty)}</td>
-                  <td className="px-4 py-2.5 text-right font-mono font-semibold text-amber-600">{n(r.request_qty)}</td>
-                  <td className="px-4 py-2.5 text-right font-mono font-semibold text-emerald-600">{n(r.withdraw_qty)}</td>
-                  <td className={`px-4 py-2.5 text-right font-mono font-bold ${Number(r.remaining) > 0 ? "text-slate-900" : "text-slate-400"}`}>{n(r.remaining)}</td>
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className={tblCls}>
+              <thead>
+                <tr>
+                  <th className={thCls}>{t("materials.col.item", "ລາຍການ")}</th>
+                  <th className={`${thCls} w-20`}>{t("common.unit", "ໜ່ວຍ")}</th>
+                  <th className={`${thCls} w-32 text-right`}>{t("materials.col.boq", "ຍອດ BOQ")}</th>
+                  <th className={`${thCls} w-32 text-right`}>{t("materials.col.requested", "ຂໍເບີກ")}</th>
+                  <th className={`${thCls} w-32 text-right`}>{t("materials.col.withdrawn", "ເບີກແລ້ວ")}</th>
+                  <th className={`${thCls} w-32 text-right`}>{t("materials.col.remaining", "ຄົງເຫຼືອ")}</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-slate-200 bg-slate-50/60 font-bold">
-                <td className="px-4 py-3 text-slate-900" colSpan={2}>{t("common.total", "ລວມ")}</td>
-                <td className="px-4 py-3 text-right font-mono text-slate-700">{n(sum("boq_qty"))}</td>
-                <td className="px-4 py-3 text-right font-mono text-amber-600">{n(sum("request_qty"))}</td>
-                <td className="px-4 py-3 text-right font-mono text-emerald-600">{n(sum("withdraw_qty"))}</td>
-                <td className="px-4 py-3 text-right font-mono text-blue-600">{n(sum("remaining"))}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.map((r, i) => (
+                  <tr key={i} className={trHover}>
+                    <td className={tdCls}>
+                      <div className="font-semibold text-[var(--text)]">{r.description || r.item_code || "-"}</div>
+                      {r.item_code && <div className="mt-0.5 font-mono text-[10.5px] text-[var(--text-mute)]">{r.item_code}</div>}
+                    </td>
+                    <td className={`${tdCls} text-[var(--text-mute)]`}>{r.unit || "-"}</td>
+                    <td className={`${tdCls} text-right font-mono tabular-nums`}>{n(r.boq_qty)}</td>
+                    <td className={`${tdCls} text-right font-mono font-semibold tabular-nums text-[var(--warning)]`}>{n(r.request_qty)}</td>
+                    <td className={`${tdCls} text-right font-mono font-semibold tabular-nums text-[var(--success)]`}>{n(r.withdraw_qty)}</td>
+                    <td
+                      className={`${tdCls} text-right font-mono font-bold tabular-nums ${
+                        Number(r.remaining) > 0 ? "text-[var(--text)]" : "text-[var(--text-mute)]"
+                      }`}
+                    >
+                      {n(r.remaining)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-[var(--surface-sunken)] font-bold">
+                  <td className="border-t border-[var(--border)] px-4 py-3 text-[var(--text)]" colSpan={2}>
+                    {t("common.total", "ລວມ")}
+                  </td>
+                  <td className="border-t border-[var(--border)] px-4 py-3 text-right font-mono tabular-nums text-[var(--text)]">{n(sum("boq_qty"))}</td>
+                  <td className="border-t border-[var(--border)] px-4 py-3 text-right font-mono tabular-nums text-[var(--warning)]">{n(sum("request_qty"))}</td>
+                  <td className="border-t border-[var(--border)] px-4 py-3 text-right font-mono tabular-nums text-[var(--success)]">{n(sum("withdraw_qty"))}</td>
+                  <td className="border-t border-[var(--border)] px-4 py-3 text-right font-mono tabular-nums text-[var(--info)]">{n(sum("remaining"))}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
       )}
     </Page>
   );

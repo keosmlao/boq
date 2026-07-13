@@ -2,7 +2,8 @@
 
 import { query, withTransaction } from "@/_lib/db";
 import { cached, invalidate } from "@/_lib/cache";
-import { requirePermission } from "@/_lib/server-auth";
+import { requirePermission, requireUser } from "@/_lib/server-auth";
+import { can } from "@/_lib/permissions";
 import { logActivity } from "./chatter";
 import { ensureProjectTaskSchema } from "@/_lib/schemas/tasks";
 import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
@@ -152,6 +153,13 @@ export async function saveTaskPlan(
   tasks: any[],
 ): Promise<{ success: true; count: number } | Fail> {
   try {
+    // The task plan is owned by the "schedule" module (ກຳນົດໜ້າວຽກ) — same as
+    // deleteTaskPlan. This one action both creates and replaces a plan, so either
+    // schedule.create or schedule.edit is enough (admins pass via `can`).
+    const user = await requireUser();
+    if (!can(user, "schedule", "create") && !can(user, "schedule", "edit")) {
+      return fail("ບໍ່ມີສິດດຳເນີນການນີ້");
+    }
     await ensureProjectTaskSchema();
     const valid = (Array.isArray(tasks) ? tasks : []).filter((t) => String(t?.title || "").trim());
     await withTransaction(async (client) => {

@@ -12,6 +12,22 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { MapPin } from "lucide-react";
+import { Card } from "../_components/ui";
+
+/**
+ * Leaflet paints its popup chrome with its own stylesheet (hard white). Re-point
+ * that chrome at the design tokens so popups follow light/dark like every other
+ * surface. Scoped to this map only.
+ */
+const POPUP_THEME_CSS = `
+.odg-map .leaflet-popup-content-wrapper,
+.odg-map .leaflet-popup-tip {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+.odg-map .leaflet-popup-close-button { color: var(--text-mute); }
+`;
 
 const ICON_BASE = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images";
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: () => string })._getIconUrl;
@@ -90,19 +106,20 @@ export default function ProjectsMap({
   const missing = rows.length - pins.length;
 
   return (
-    <div className="border border-slate-200/80 rounded-xl bg-white overflow-hidden shadow-2xs">
-      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5 text-[11px] font-medium text-slate-500">
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-4 py-2.5 text-[11px] font-medium text-[var(--text-soft)]">
         <span className="inline-flex items-center gap-1.5">
-          <MapPin size={13} className="text-blue-600" />
+          <MapPin size={13} className="text-[var(--brand)]" />
           {pins.length} {t("projects.map.onMap", "ໂຄງການມີພິກັດ")}
         </span>
         {missing > 0 && (
-          <span className="text-amber-600">
+          <span className="text-[var(--warning)]">
             {missing} {t("projects.map.noCoords", "ບໍ່ມີພິກັດ")}
           </span>
         )}
       </div>
-      <MapContainer center={LAOS_CENTER} zoom={6} style={{ height: 560, width: "100%" }} scrollWheelZoom>
+      <style>{POPUP_THEME_CSS}</style>
+      <MapContainer className="odg-map" center={LAOS_CENTER} zoom={6} style={{ height: 560, width: "100%" }} scrollWheelZoom>
         <TileLayer
           attribution='&copy; OpenStreetMap'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -112,13 +129,13 @@ export default function ProjectsMap({
           <Marker key={p.id} position={p.pos}>
             <Popup>
               <div className="space-y-1.5 min-w-[160px]">
-                <div className="font-bold text-slate-800 text-[13px] leading-tight">{p.name}</div>
-                {p.customer && <div className="text-[11px] text-slate-500">{p.customer}</div>}
-                <div className="text-[11px] text-slate-600">{p.status}</div>
-                {p.place && <div className="text-[11px] text-slate-400">{p.place}</div>}
+                <div className="text-[13px] font-bold leading-tight text-[var(--text)]">{p.name}</div>
+                {p.customer && <div className="text-[11px] text-[var(--text-soft)]">{p.customer}</div>}
+                <div className="text-[11px] text-[var(--text-soft)]">{p.status}</div>
+                {p.place && <div className="text-[11px] text-[var(--text-mute)]">{p.place}</div>}
                 <button
                   onClick={() => onOpen(p.id)}
-                  className="mt-1 inline-flex h-7 items-center rounded-md bg-blue-600 px-3 text-[11px] font-semibold text-white hover:bg-blue-700 cursor-pointer"
+                  className="mt-1 inline-flex h-7 cursor-pointer items-center rounded-md bg-[var(--brand)] px-3 text-[11px] font-semibold text-white transition-colors hover:bg-[var(--brand-hover)]"
                 >
                   {t("projects.map.open", "ເປີດໂຄງການ")}
                 </button>
@@ -127,6 +144,6 @@ export default function ProjectsMap({
           </Marker>
         ))}
       </MapContainer>
-    </div>
+    </Card>
   );
 }

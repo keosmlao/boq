@@ -552,14 +552,25 @@ export async function createRequest(body: any): Promise<{ success: true; data: a
       }
       // Pulled from an app request → mark it converted so it leaves the pending
       // queue and stops drawing down BOQ (this new RQ now counts instead).
+      // This flip is part of THIS transaction on purpose: if it fails (or the row
+      // was already pulled by someone else), the requisition insert + SML mirror
+      // roll back with it. Doing it outside — or swallowing the error — would
+      // leave the app request 'approved' and pullable a second time = the same
+      // BOQ materials drawn down twice.
       if (body.from_app_id) {
         const realAppId = String(body.from_app_id).startsWith("app-") ? String(body.from_app_id).slice(4) : String(body.from_app_id);
-        try {
-          await client.query(
-            `UPDATE odg_wo_material_request SET status = 'converted', approver = $2, status_at = now(), status_note = $3 WHERE id = $1`,
-            [realAppId, body.requester || null, `ດຶງເປັນ ${reqNo}`],
-          );
-        } catch {/* app request table/row issue — RQ still created */}
+        if (!/^\d+$/.test(realAppId)) throw new Error("ໃບຂໍເບີກຈາກແອັບບໍ່ຖືກຕ້ອງ");
+        // Guarded by status='approved': a concurrent pull blocks on this row and
+        // then updates 0 rows → we abort instead of double-drawing.
+        const flip = await client.query(
+          `UPDATE odg_wo_material_request
+              SET status = 'converted', approver = $2, status_at = now(), status_note = $3
+            WHERE id = $1 AND status = 'approved'`,
+          [realAppId, body.requester || null, `ດຶງເປັນ ${reqNo}`],
+        );
+        if (!flip.rowCount) {
+          throw new Error("ໃບຂໍເບີກຈາກແອັບນີ້ຖືກດຶງ ຫຼື ປ່ຽນສະຖານະໄປແລ້ວ — ກະລຸນາໂຫຼດໜ້ານີ້ໃໝ່");
+        }
       }
     });
     invalidate("req:");
@@ -571,26 +582,40 @@ export async function createRequest(body: any): Promise<{ success: true; data: a
   }
 }
 
-/** status: requested | withdrawn | rejected */
-export async function setRequestStatus(id: string, status: string): Promise<{ success: true } | Fail> {
+/**
+ * Close out a v2 requisition (odg_request): requested → withdrawn (ເບີກແລ້ວ) or
+ * → rejected (ປະຕິເສດ). Called from the request detail page header.
+ * status: requested | withdrawn | rejected. `note` (a rejection reason) is kept
+ * on the activity feed — odg_request carries no status_note column.
+ */
+export async function setRequestStatus(id: string, status: string, note?: string): Promise<{ success: true } | Fail> {
   try {
     await requirePermission("requests", "approve");
     if (!REQUEST_STATUSES.has(status)) return fail("ສະຖານະບໍ່ຖືກຕ້ອງ");
     await ensureRequestSchema();
+    // Only v2 requests (odg_request) carry an editable status. A legacy ERP
+    // request derives "ເບີກແລ້ວ" from a real ic_trans withdrawal instead.
+    if (!isV2Id(id)) return fail("ໃບເບີກນີ້ບໍ່ຮອງຮັບການປ່ຽນສະຖານະ");
+    const cur = await query(`SELECT status, items, substitute_approved FROM odg_request WHERE id = $1 LIMIT 1`, [id]);
+    const row: any = cur.rows[0];
+    if (!row) return fail("Request not found");
     // A request with substitute lines may not be withdrawn until the
     // substitution is approved (requests.approve_substitute).
-    if (status === "withdrawn" && isV2Id(id)) {
-      const cur = await query(`SELECT items, substitute_approved FROM odg_request WHERE id = $1 LIMIT 1`, [id]);
-      const row: any = cur.rows[0];
-      const items = Array.isArray(row?.items) ? row.items : [];
-      if (items.some(isSubstituteLine) && !row?.substitute_approved) {
+    if (status === "withdrawn") {
+      const items = Array.isArray(row.items) ? row.items : [];
+      if (items.some(isSubstituteLine) && !row.substitute_approved) {
         return fail("ໃບເບີກນີ້ມີການປ່ຽນສິນຄ້າ — ຕ້ອງໃຫ້ຜູ້ມີສິດອະນຸມັດການປ່ຽນແທນກ່ອນຈຶ່ງເບີກໄດ້");
       }
     }
-    const r = await query(`UPDATE odg_request SET status = $2, updated_at = now() WHERE id = $1 RETURNING id`, [id, status]);
-    if (!r.rows.length) return fail("Request not found");
+    // Only an OPEN (requested) requisition may be closed out — the guarded UPDATE
+    // also makes two people doing it at once safe (the loser updates 0 rows).
+    const r = await query(
+      `UPDATE odg_request SET status = $2, updated_at = now() WHERE id = $1 AND status = 'requested' RETURNING id`,
+      [id, status],
+    );
+    if (!r.rowCount) return fail("ໃບຂໍເບີກນີ້ດຳເນີນການໄປແລ້ວ — ກະລຸນາໂຫຼດໜ້ານີ້ໃໝ່");
     invalidate("req:");
-    await logActivity("request", id, "ປ່ຽນສະຖານະ", status);
+    await logActivity("request", id, "ປ່ຽນສະຖານະ", note ? `${status} · ${note}` : status);
     return { success: true };
   } catch (e) {
     return fail((e as Error).message);

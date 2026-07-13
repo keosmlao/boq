@@ -178,12 +178,12 @@ export default function MapPicker({
   );
 
   return (
-    <div className="relative w-full overflow-hidden rounded-md border border-[var(--theme-border)] bg-white">
+    <div className="relative w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
       {/* Search + GPS toolbar */}
       <div className="absolute left-3 right-3 top-3 z-[1000] flex items-center gap-2">
         <div className="relative flex-1">
-          <div className="flex h-9 items-center gap-2 rounded-md border border-[var(--theme-border)] bg-white px-2.5 shadow-sm focus-within:border-[var(--theme-primary)] focus-within:ring-2 focus-within:ring-[rgba(113,75,103,0.14)]">
-            <Search size={14} className="text-[var(--theme-text-mute)]" />
+          <div className="flex h-9 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 shadow-[var(--shadow-xs)] focus-within:border-[var(--brand)] focus-within:ring-2 focus-within:ring-[var(--brand-ring)]">
+            <Search size={14} className="text-[var(--text-mute)]" />
             <input
               type="text"
               value={query}
@@ -191,7 +191,7 @@ export default function MapPicker({
               onKeyDown={onSearchKey}
               placeholder={placeholder}
               disabled={disabled}
-              className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--theme-text)] outline-none placeholder:text-[var(--theme-text-mute)] disabled:opacity-50"
+              className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)] disabled:opacity-50"
             />
             {query && (
               <button
@@ -201,26 +201,26 @@ export default function MapPicker({
                   setResults([]);
                   setShowResults(false);
                 }}
-                className="text-[var(--theme-text-mute)] hover:text-[var(--theme-text)]"
+                className="text-[var(--text-mute)] hover:text-[var(--text)]"
                 aria-label="Clear"
               >
                 <X size={13} />
               </button>
             )}
             {searching && (
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--theme-primary)] border-t-transparent" />
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--brand)] border-t-transparent" />
             )}
           </div>
           {showResults && results.length > 0 && (
-            <ul className="absolute left-0 right-0 top-10 max-h-64 overflow-y-auto rounded-md border border-[var(--theme-border)] bg-white shadow-lg">
+            <ul className="absolute left-0 right-0 top-10 max-h-64 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
               {results.map((r, i) => (
                 <li key={i}>
                   <button
                     type="button"
                     onClick={() => pickResult(r)}
-                    className="flex w-full items-start gap-2 px-3 py-2 text-left text-[12px] text-[var(--theme-text)] transition hover:bg-[var(--theme-primary-tint)]"
+                    className="flex w-full items-start gap-2 px-3 py-2 text-left text-[12px] text-[var(--text)] transition hover:bg-[var(--brand-tint)]"
                   >
-                    <MapPin size={12} className="mt-0.5 flex-shrink-0 text-[var(--theme-primary)]" />
+                    <MapPin size={12} className="mt-0.5 flex-shrink-0 text-[var(--brand)]" />
                     <span className="min-w-0 flex-1 truncate">{r.display_name}</span>
                   </button>
                 </li>
@@ -228,7 +228,7 @@ export default function MapPicker({
             </ul>
           )}
           {showResults && !searching && results.length === 0 && (
-            <div className="absolute left-0 right-0 top-10 rounded-md border border-[var(--theme-border)] bg-white px-3 py-2 text-[12px] text-[var(--theme-text-mute)] shadow-lg">
+            <div className="absolute left-0 right-0 top-10 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[12px] text-[var(--text-mute)] shadow-[var(--shadow-lg)]">
               ບໍ່ພົບສະຖານທີ່
             </div>
           )}
@@ -239,7 +239,7 @@ export default function MapPicker({
           onClick={goToMyLocation}
           disabled={disabled}
           title="ໃຊ້ຕຳແໜ່ງປັດຈຸບັນ"
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--theme-border)] bg-white text-[var(--theme-text-soft)] shadow-sm transition hover:border-[var(--theme-primary-soft)] hover:bg-[var(--theme-primary-tint)] hover:text-[var(--theme-primary)] disabled:opacity-50"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] shadow-[var(--shadow-xs)] transition hover:border-[var(--brand)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand)] disabled:opacity-50"
           aria-label="My location"
         >
           <Crosshair size={14} />
@@ -248,8 +248,8 @@ export default function MapPicker({
 
       {/* Selected coords pill */}
       {marker && (
-        <div className="absolute bottom-3 left-3 z-[1000] inline-flex items-center gap-1.5 rounded border border-[var(--theme-border)] bg-white px-2 py-1 font-mono text-[10.5px] text-[var(--theme-text)] shadow-sm">
-          <MapPin size={11} className="text-[var(--theme-primary)]" />
+        <div className="absolute bottom-3 left-3 z-[1000] inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1 font-mono text-[10.5px] text-[var(--text)] shadow-[var(--shadow-xs)]">
+          <MapPin size={11} className="text-[var(--brand)]" />
           {(marker as [number, number])[0].toFixed(6)}, {(marker as [number, number])[1].toFixed(6)}
         </div>
       )}

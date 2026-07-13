@@ -20,6 +20,22 @@ export type Stage = { key: StageKey; label: string; tone: StageTone };
 
 const has = (v: unknown) => v !== null && v !== undefined && String(v) !== "";
 
+/**
+ * May this work order still be EDITED? Only while it has not entered the flow:
+ *   • issued (ອອກໃບງານ) and still awaiting the manager's approval, or
+ *   • approval_rejected (ບໍ່ອະນຸມັດ) — fix it and it goes back for approval.
+ * Once it is approved, accepted, checked in/out or closed it is in flight and is
+ * frozen. Legacy ERP work orders (id "erp-…") have no v2 edit path.
+ * Enforced again server-side in updateWorkOrder().
+ */
+export function canEditWorkOrder(w: any): boolean {
+  if (!w) return false;
+  if (String(w.id ?? "").startsWith("erp-") || w.src === "erp") return false;
+  const stage = workOrderStage(w);
+  if (stage.key === "approval_rejected") return true;
+  return stage.key === "issued" && String(w.approval_status ?? "pending") !== "approved";
+}
+
 export function workOrderStage(w: any): Stage {
   if (w?.approval_status === "rejected") return { key: "approval_rejected", label: "ບໍ່ອະນຸມັດ", tone: "red" };
   if (w?.accept_status === "rejected") return { key: "accept_rejected", label: "ຊ່າງປະຕິເສດ", tone: "red" };

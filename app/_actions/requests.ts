@@ -145,6 +145,7 @@ export async function getRequests(opts: { status?: string; projectId?: string } 
 
 export async function createRequest(body: any): Promise<{ success: true; doc_no: string; data: { doc_no: string } } | Fail> {
   try {
+    await requirePermission("requests", "create");
     await ensureRequestsSchema();
     const items: any[] = Array.isArray(body?.items) ? body.items : [];
     if (items.length === 0) return fail("At least one item is required");
@@ -206,6 +207,7 @@ export async function createRequest(body: any): Promise<{ success: true; doc_no:
 /** Edit a legacy request in place (preserve doc_no, re-sync ic_trans). Blocks if already withdrawn. */
 export async function updateRequest(docNo: string, body: any): Promise<{ success: true; doc_no: string } | Fail> {
   try {
+    await requirePermission("requests", "edit");
     await ensureRequestsSchema();
     const decoded = decodeURIComponent(docNo);
     const ex = await query(
@@ -280,6 +282,7 @@ export async function deleteRequest(docNo: string): Promise<{ success: true; mes
 // Spare-part request: same as createRequest but accepts the BoqRequestModal payload shape
 export async function createSparepartRequest(body: any): Promise<{ success: true; doc_no: string } | Fail> {
   try {
+    await requirePermission("requests", "create");
     await ensureRequestsSchema();
     const items: any[] = Array.isArray(body?.items) ? body.items : [];
     if (items.length === 0) return fail("At least one item is required");

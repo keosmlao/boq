@@ -82,6 +82,7 @@ export async function getAllContractsForList(): Promise<{ success: true; data: a
  */
 export async function createContract(body: any, opts: { fromQuotation?: string } = {}): Promise<{ success: true; data: unknown } | Fail> {
   try {
+    await requirePermission("contracts", "create");
     let items: any[] = [];
     if (opts.fromQuotation) {
       const q = await query(`SELECT * FROM odg_quotation WHERE id = $1`, [opts.fromQuotation]);
@@ -339,6 +340,7 @@ export async function setContractApproval(
   approver?: string,
 ): Promise<{ success: true } | Fail> {
   try {
+    await requirePermission("contracts", "approve");
     await ensureContractSchema();
     // Enforce step order: accounting can only approve after sales has approved.
     if (which === "accounting" && approved) {

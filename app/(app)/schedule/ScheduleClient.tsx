@@ -9,8 +9,8 @@
  *  still re-pulls via /api/schedule on demand. */
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, RefreshCw, Wrench, CalendarRange, FolderKanban } from "lucide-react";
-import { Page, PageHeader, Card, Btn, Pill } from "../_components/ui";
+import { Search, RefreshCw, Loader2, Wrench, CalendarRange, FolderKanban } from "lucide-react";
+import { Page, PageHeader, Card, Btn, Pill, Toolbar, tblCls, thCls, tdCls, trHover } from "../_components/ui";
 import { useT } from "@/_lib/i18n";
 
 const d10 = (v: unknown) => (v ? String(v).slice(0, 10) : "?");
@@ -48,147 +48,116 @@ export default function ScheduleClient({ initialRows }: { initialRows: any[] }) 
         title={t("schedule.title", "ກຳນົດໜ້າວຽກ")}
         subtitle={`${filtered.length} ${t("installTracking.colProject", "ໂຄງການ")}`}
         actions={
-          <Btn variant="outline" onClick={() => void refresh()} disabled={loading} className="hover:bg-slate-50 transition-colors">
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          <Btn variant="outline" onClick={() => void refresh()} disabled={loading}>
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {t("common.reload", "ໂຫຼດໃໝ່")}
           </Btn>
         }
       />
 
-      {/* Styled Search Input */}
-      <div className="mb-6 flex">
-        <div className="relative flex h-10 w-full max-w-[360px] items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all duration-150 focus-within:border-blue-500 focus-within:ring-3 focus-within:ring-blue-500/15">
-          <Search className="h-4 w-4 text-slate-400" />
+      <Toolbar>
+        <label className="flex h-9 min-w-[240px] max-w-[360px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+          <Search size={15} className="text-[var(--text-mute)]" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t("schedule.searchPlaceholder", "ຄົ້ນຫາໂຄງການ...")}
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-slate-800 placeholder-slate-400 outline-none"
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
           />
-        </div>
-      </div>
+        </label>
+      </Toolbar>
 
       {loading ? (
-        <div className="flex h-56 items-center justify-center gap-3 text-[var(--theme-text-mute)]">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
+        <Card className="flex h-56 items-center justify-center gap-2 text-[var(--text-mute)]">
+          <Loader2 size={18} className="animate-spin" />
           <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
-        </div>
+        </Card>
       ) : filtered.length === 0 ? (
-        <Card className="flex h-56 flex-col items-center justify-center gap-2 text-[var(--theme-text-mute)]">
+        <Card className="flex h-56 flex-col items-center justify-center gap-2 text-[var(--text-mute)]">
           <CalendarRange className="h-8 w-8 opacity-40" />
           <span className="text-sm">{t("schedule.noTasks", "ຍັງບໍ່ມີໜ້າວຽກ")}</span>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {filtered.map((g) => {
-            const totalHours = g.tasks.reduce((s: number, t: any) => s + (Number(t.est_hours) || 0), 0);
+            const totalHours = g.tasks.reduce((s: number, task: any) => s + (Number(task.est_hours) || 0), 0);
             return (
-              <Card key={g.project_id} className="overflow-hidden border-t-2 border-t-teal-500 shadow-sm hover:shadow-md transition-all duration-200">
-                {/* Project Header section */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/50 px-4 py-3.5">
+              <Card key={g.project_id} className="overflow-hidden">
+                {/* Project header */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-4 py-3">
                   <button
                     onClick={() => g.project_id && router.push(`/projects/${g.project_id}`)}
-                    className="group flex min-w-0 flex-1 items-center gap-2.5 text-left transition-colors"
+                    className="group flex min-w-0 flex-1 items-center gap-2.5 text-left"
                   >
-                    <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 border border-teal-100/70 transition-transform duration-200 group-hover:scale-105">
+                    <span className="flex h-7.5 w-7.5 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                       <FolderKanban size={14} />
                     </span>
-                    <span className="font-display truncate text-[14px] font-black text-slate-800 group-hover:text-blue-600 transition-colors">
+                    <span className="truncate text-[14px] font-black text-[var(--text)] transition-colors group-hover:text-[var(--brand)]">
                       {g.project_name}
                     </span>
                   </button>
 
                   <div className="flex items-center gap-3">
-                    {/* Stats pills */}
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-600">
-                        {g.tasks.length} {t("schedule.tasksUnit", "ໜ້າວຽກ")}
-                      </span>
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-600">
-                        {totalHours} {t("installTracking.hoursUnit", "ຊມ")}
-                      </span>
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-600 font-mono">
-                        {g.wo_count || 0} {t("tracking.workNo", "ໃບງານ")}
-                      </span>
+                    <div className="flex items-center gap-1.5">
+                      <Pill tone="neutral">{g.tasks.length} {t("schedule.tasksUnit", "ໜ້າວຽກ")}</Pill>
+                      <Pill tone="neutral">{totalHours} {t("installTracking.hoursUnit", "ຊມ")}</Pill>
+                      <Pill tone="neutral">{g.wo_count || 0} {t("tracking.workNo", "ໃບງານ")}</Pill>
                     </div>
 
-                    <button
-                      onClick={() => router.push(`/projects/${g.project_id}/workorder/new`)}
-                      className="group inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[11px] font-extrabold text-white shadow-sm shadow-blue-600/15 hover:bg-blue-700 hover:shadow-md transition-all active:scale-[0.97]"
-                    >
-                      <Wrench size={12} className="group-hover:rotate-12 transition-transform duration-150" />
-                      <span>{t("schedule.createWorkOrder", "ສ້າງໃບງານ")}</span>
-                    </button>
+                    <Btn variant="go" onClick={() => router.push(`/projects/${g.project_id}/workorder/new`)}>
+                      <Wrench size={13} /> {t("schedule.createWorkOrder", "ສ້າງໃບງານ")}
+                    </Btn>
                   </div>
                 </div>
 
-                {/* Tasks Table */}
+                {/* Tasks table */}
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
+                  <table className={tblCls}>
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50/30 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left">{t("schedule.tasksUnit", "ໜ້າວຽກ")}</th>
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-center w-28">{t("schedule.colPhase", "ໄລຍະ")}</th>
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left w-44">{t("schedule.colTechnician", "ຊ່າງ / ທີມ")}</th>
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-left w-52">{t("schedule.colDays", "ວັນ (ເຂົ້າເຮັດ)")}</th>
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-right w-24">{t("schedule.colHours", "ຊົ່ວໂມງ")}</th>
-                        <th className="sticky top-0 z-10 border-b border-slate-200 px-4 py-3 text-center w-28">{t("common.status", "ສະຖານະ")}</th>
+                      <tr>
+                        <th className={thCls}>{t("schedule.tasksUnit", "ໜ້າວຽກ")}</th>
+                        <th className={`${thCls} w-28 text-center`}>{t("schedule.colPhase", "ໄລຍະ")}</th>
+                        <th className={`${thCls} w-44`}>{t("schedule.colTechnician", "ຊ່າງ / ທີມ")}</th>
+                        <th className={`${thCls} w-52`}>{t("schedule.colDays", "ວັນ (ເຂົ້າເຮັດ)")}</th>
+                        <th className={`${thCls} w-24 text-right`}>{t("schedule.colHours", "ຊົ່ວໂມງ")}</th>
+                        <th className={`${thCls} w-28 text-center`}>{t("common.status", "ສະຖານະ")}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody>
                       {g.tasks.map((tk: any, i: number) => {
                         const done = tk.status === "done";
                         return (
-                          <tr key={tk.id ?? i} className="group transition-colors duration-150 hover:bg-blue-50/20">
-                            <td className="px-4 py-3.5 align-middle font-semibold text-slate-800">
-                              {tk.title}
+                          <tr key={tk.id ?? i} className={trHover}>
+                            <td className={`${tdCls} font-semibold text-[var(--text)]`}>{tk.title}</td>
+                            <td className={`${tdCls} text-center`}>
+                              <Pill tone="neutral">{tk.phase || "-"}</Pill>
                             </td>
-                            <td className="px-4 py-3.5 align-middle text-center">
-                              <span className="inline-flex items-center rounded border border-slate-200/50 bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
-                                {tk.phase || "-"}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3.5 align-middle">
+                            <td className={tdCls}>
                               {tk.technician_name ? (
-                                <span className="inline-flex items-center gap-1.5 font-bold text-slate-700">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-teal-500 shadow-[0_0_4px_rgba(20,184,166,0.5)]" />
+                                <span className="inline-flex items-center gap-1.5 font-bold text-[var(--text)]">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)]" />
                                   {tk.technician_name}
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center rounded-md border border-slate-200/40 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-400 italic">
+                                <span className="text-[11px] font-medium italic text-[var(--text-mute)]">
                                   {t("schedule.unassigned", "ຍັງບໍ່ມອບໝາຍ")}
                                 </span>
                               )}
                             </td>
-                            <td className="px-4 py-3.5 align-middle">
+                            <td className={tdCls}>
                               {tk.planned_start || tk.planned_end ? (
-                                <span className="inline-flex items-center font-mono text-[11px] font-bold text-slate-600 bg-slate-50/70 border border-slate-200 px-2 py-0.5 rounded-md">
-                                  {d10(tk.planned_start)} <span className="text-slate-400 mx-1">→</span> {d10(tk.planned_end)}
+                                <span className="inline-flex items-center rounded-md border border-[var(--border)] bg-[var(--surface-sunken)] px-2 py-0.5 font-mono text-[11px] font-bold text-[var(--text-soft)]">
+                                  {d10(tk.planned_start)} <span className="mx-1 text-[var(--text-mute)]">→</span> {d10(tk.planned_end)}
                                 </span>
                               ) : (
-                                <span className="text-slate-300">—</span>
+                                <span className="text-[var(--text-mute)]">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-3.5 align-middle text-right font-mono font-bold text-slate-900 tabular-nums text-[13px]">
+                            <td className={`${tdCls} text-right font-mono text-[13px] font-bold tabular-nums text-[var(--text)]`}>
                               {Number(tk.est_hours) || 0}
                             </td>
-                            <td className="px-4 py-3.5 align-middle text-center">
+                            <td className={`${tdCls} text-center`}>
                               <Pill tone={done ? "green" : "amber"}>
-                                <span className="flex items-center gap-1.5">
-                                  <span className="relative flex h-1.5 w-1.5">
-                                    {done ? (
-                                      <>
-                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
-                                      </>
-                                    )}
-                                  </span>
-                                  {done ? t("schedule.done", "ສຳເລັດ") : t("schedule.planned", "ວາງແຜນ")}
-                                </span>
+                                {done ? t("schedule.done", "ສຳເລັດ") : t("schedule.planned", "ວາງແຜນ")}
                               </Pill>
                             </td>
                           </tr>

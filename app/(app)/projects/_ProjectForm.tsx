@@ -26,7 +26,7 @@ import CustomerPicker, { type PickedCustomer } from "../_components/CustomerPick
 const MapPicker = dynamic(() => import("@/_components/MapPicker"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[300px] items-center justify-center rounded-md border border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)] text-[12px] text-[var(--theme-text-mute)]">
+    <div className="flex h-[300px] items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] text-[12px] text-[var(--text-mute)]">
       ກຳລັງໂຫຼດແຜນທີ່...
     </div>
   ),
@@ -264,43 +264,52 @@ export default function ProjectForm({
 
   return (
     <Page max="max-w-none">
-      <button
-        onClick={() => router.push(backHref)}
-        className="mb-2 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]"
-      >
-        <ArrowLeft size={14} /> {mode === "edit" ? "ກັບໄປໂຄງການ" : "ກັບໄປລາຍການໂຄງການ"}
-      </button>
-
-      {/* Colourful hero */}
-      <div className="mb-4 flex items-center gap-3 rounded-xl bg-gradient-to-r from-[var(--theme-primary)] to-blue-400 p-4 text-white shadow-[var(--theme-shadow)]">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur">
-          <FolderKanban size={24} />
-        </div>
-        <div>
-          <h1 className="text-[18px] font-bold leading-tight">
-            {mode === "edit" ? "ແກ້ໄຂໂຄງການ" : "ລົງທະບຽນໂຄງການ"}
-          </h1>
-          <p className="text-[12px] text-white/85">
-            {mode === "edit" ? "ແກ້ໄຂຂໍ້ມູນ ແລະ ສະຖານທີ່ໂຄງການ" : "ເລືອກລູກຄ້າ → ດຶງເບີໂທ/ສະຖານທີ່ມາໃຫ້ → ຕື່ມຊື່ໂຄງການ"}
-          </p>
-        </div>
-      </div>
-
       <form onSubmit={submit}>
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => router.push(backHref)}
+              className="mb-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--text-mute)] transition-colors hover:text-[var(--brand)]"
+            >
+              <ArrowLeft size={14} /> {mode === "edit" ? "ກັບໄປໂຄງການ" : "ກັບໄປລາຍການໂຄງການ"}
+            </button>
+            <h1 className="flex items-center gap-2.5 text-[19px] font-black leading-tight tracking-tight text-[var(--text)]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+                <FolderKanban size={16} />
+              </span>
+              {mode === "edit" ? "ແກ້ໄຂໂຄງການ" : "ລົງທະບຽນໂຄງການ"}
+            </h1>
+            <p className="mt-1.5 text-[12px] text-[var(--text-mute)]">
+              {mode === "edit" ? "ແກ້ໄຂຂໍ້ມູນ ແລະ ສະຖານທີ່ໂຄງການ" : "ເລືອກລູກຄ້າ → ດຶງເບີໂທ/ສະຖານທີ່ມາໃຫ້ → ຕື່ມຊື່ໂຄງການ"}
+              {customer?.name ? ` · ${customer.name}` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Btn type="button" variant="outline" onClick={() => router.push(backHref)}>
+              ຍົກເລີກ
+            </Btn>
+            <Btn type="submit" variant="go" disabled={saving}>
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {saving ? "ກຳລັງບັນທຶກ..." : mode === "edit" ? "ບັນທຶກການແກ້ໄຂ" : "ບັນທຶກ ແລະ ໄປສຳຫຼວດ"}
+            </Btn>
+          </div>
+        </div>
+
         {error && (
-          <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">
+          <div className="mb-4 rounded-xl border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">
             {error}
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <Card className="border-t-2 border-t-blue-400 p-4 lg:col-span-2">
-            <SectionHeader icon={<FolderKanban size={15} />} title="ຂໍ້ມູນໂຄງການ" tone="blue" />
+          <Card className="p-4 lg:col-span-2">
+            <SectionHeader icon={<FolderKanban size={15} />} title="ຂໍ້ມູນໂຄງການ" tone="brand" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="ລູກຄ້າ" required className="sm:col-span-2">
                 <CustomerPicker value={customer} onChange={applyCustomer} />
                 {customer?.address && (
-                  <p className="mt-1 flex items-center gap-1 text-[11px] text-[var(--theme-text-mute)]">
+                  <p className="mt-1 flex items-center gap-1 text-[11px] text-[var(--text-mute)]">
                     <MapPin size={11} /> {customer.address}
                   </p>
                 )}
@@ -323,26 +332,26 @@ export default function ProjectForm({
             </div>
           </Card>
 
-          <Card className="border-t-2 border-t-amber-400 p-4">
+          <Card className="p-4">
             <SectionHeader icon={<ImagePlus size={15} />} title="ຮູບພາບໂຄງການ" tone="amber" />
             {imagePreview ? (
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={imagePreview} alt="preview" onError={() => setImagePreview("")} className="h-44 w-full rounded-md object-cover ring-1 ring-[var(--theme-border-subtle)]" />
+                <img src={imagePreview} alt="preview" onError={() => setImagePreview("")} className="h-44 w-full rounded-xl object-cover ring-1 ring-[var(--border)]" />
                 <button type="button" onClick={clearImage} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80">
                   <X size={14} />
                 </button>
               </div>
             ) : (
-              <label className="flex h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-[var(--theme-border-subtle)] bg-[var(--theme-bg-muted)]/40 text-[var(--theme-text-mute)] transition hover:border-[var(--theme-primary)] hover:text-[var(--theme-primary)]">
+              <label className="flex h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-sunken)] text-[var(--text-mute)] transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]">
                 <ImagePlus size={26} />
-                <span className="text-[12px]">ກົດເພື່ອອັບໂຫຼດຮູບ</span>
+                <span className="text-[12px] font-semibold">ກົດເພື່ອອັບໂຫຼດຮູບ</span>
                 <input type="file" accept="image/*" className="hidden" onChange={onPickImage} />
               </label>
             )}
           </Card>
 
-          <Card className="border-t-2 border-t-violet-400 p-4 lg:col-span-3">
+          <Card className="p-4 lg:col-span-3">
             <SectionHeader icon={<Tags size={15} />} title="ການຈັດປະເພດ" tone="violet" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Field label="ປະເພດທຸລະກິດ">
@@ -360,11 +369,11 @@ export default function ProjectForm({
             </div>
           </Card>
 
-          <Card className="border-t-2 border-t-emerald-400 p-4 lg:col-span-3">
+          <Card className="p-4 lg:col-span-3">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <SectionHeader icon={<MapPin size={15} />} title="ສະຖານທີ່ໂຄງການ" tone="emerald" className="mb-0" />
               {fromCustomer && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10.5px] font-bold text-emerald-700 ring-1 ring-emerald-100">
+                <span className="inline-flex items-center gap-1 rounded-md border border-[var(--success-soft)] bg-[var(--success-soft)] px-2.5 py-1 text-[10.5px] font-extrabold text-[var(--success)]">
                   <Check size={11} /> ດຶງຈາກລູກຄ້າ — ປ່ຽນໄດ້
                 </span>
               )}
@@ -381,27 +390,17 @@ export default function ProjectForm({
               </Field>
             </div>
             <div className="mt-3">
-              <div className="mb-1 flex items-center gap-1.5 text-[11.5px] font-medium text-[var(--theme-text-soft)]">
+              <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-[var(--text-mute)]">
                 <MapPin size={13} /> ປັກໝຸດທີ່ຕັ້ງໂຄງການ (ກົດເທິງແຜນທີ່ ຫຼື ຄົ້ນຫາ)
               </div>
               <MapPicker value={coord} onChange={setCoord} height={300} />
               {coord && (
-                <div className="mt-1 font-mono text-[10.5px] text-[var(--theme-text-mute)]">
+                <div className="mt-1 text-[10.5px] tabular-nums text-[var(--text-mute)]">
                   {coord.lat.toFixed(6)}, {coord.lng.toFixed(6)}
                 </div>
               )}
             </div>
           </Card>
-        </div>
-
-        <div className="mt-4 flex justify-end gap-2">
-          <Btn type="button" variant="outline" onClick={() => router.push(backHref)}>
-            ຍົກເລີກ
-          </Btn>
-          <Btn type="submit" disabled={saving}>
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? "ກຳລັງບັນທຶກ..." : mode === "edit" ? "ບັນທຶກການແກ້ໄຂ" : "ບັນທຶກ ແລະ ໄປສຳຫຼວດ"}
-          </Btn>
         </div>
       </form>
     </Page>
@@ -454,28 +453,28 @@ function SearchableSelect({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className={`${inputCls} flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:bg-[var(--theme-bg-muted)] disabled:opacity-60`}
+        className={`${inputCls} flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:bg-[var(--surface-sunken)] disabled:opacity-60`}
       >
-        <span className={`truncate ${selected ? "" : "text-slate-400"}`}>
+        <span className={`truncate ${selected ? "" : "text-[var(--text-mute)]"}`}>
           {selected ? selected.label : placeholder}
         </span>
-        <ChevronDown size={15} className="shrink-0 text-slate-400" />
+        <ChevronDown size={15} className="shrink-0 text-[var(--text-mute)]" />
       </button>
 
       {open && !disabled && (
-        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-md border border-[var(--theme-border-subtle)] bg-white shadow-[var(--theme-shadow-lg)]">
-          <div className="border-b border-[var(--theme-border-subtle)] p-2">
-            <div className="flex h-8 items-center gap-2 rounded-md border border-[var(--theme-border-subtle)] px-2">
-              <Search size={13} className="text-[var(--theme-text-mute)]" />
+        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
+          <div className="border-b border-[var(--border)] p-2">
+            <div className="flex h-8 items-center gap-2 rounded-lg border border-[var(--border)] px-2">
+              <Search size={13} className="text-[var(--text-mute)]" />
               <input
                 autoFocus
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="ຄົ້ນຫາຊື່ / ລະຫັດ..."
-                className="h-full w-full bg-transparent text-[13px] outline-none"
+                className="h-full w-full bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
               />
               {q && (
-                <button type="button" onClick={() => setQ("")} className="text-[var(--theme-text-mute)] hover:text-rose-600">
+                <button type="button" onClick={() => setQ("")} className="text-[var(--text-mute)] transition-colors hover:text-[var(--danger)]">
                   <X size={13} />
                 </button>
               )}
@@ -483,7 +482,7 @@ function SearchableSelect({
           </div>
           <div className="max-h-56 overflow-y-auto">
             {filtered.length === 0 ? (
-              <div className="px-3 py-3 text-center text-[12px] text-[var(--theme-text-mute)]">ບໍ່ພົບ</div>
+              <div className="px-3 py-3 text-center text-[12px] text-[var(--text-mute)]">ບໍ່ພົບ</div>
             ) : (
               filtered.map((o) => (
                 <button
@@ -494,14 +493,14 @@ function SearchableSelect({
                     setOpen(false);
                     setQ("");
                   }}
-                  className={`flex w-full items-center justify-between gap-2 border-b border-[var(--theme-border-subtle)] px-3 py-2 text-left text-[12.5px] last:border-0 hover:bg-[var(--theme-bg-muted)] ${
+                  className={`flex w-full items-center justify-between gap-2 border-b border-[var(--border-soft)] px-3 py-2 text-left text-[12.5px] transition-colors last:border-0 hover:bg-[var(--surface-sunken)] ${
                     o.value === value
-                      ? "bg-[var(--theme-primary-tint)] font-medium text-[var(--theme-primary)]"
-                      : "text-[var(--theme-text)]"
+                      ? "bg-[var(--brand-tint)] font-bold text-[var(--brand)]"
+                      : "text-[var(--text)]"
                   }`}
                 >
                   <span className="truncate">{o.label}</span>
-                  {o.value === value && <Check size={14} className="shrink-0 text-[var(--theme-primary)]" />}
+                  {o.value === value && <Check size={14} className="shrink-0 text-[var(--brand)]" />}
                 </button>
               ))
             )}

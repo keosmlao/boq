@@ -7,8 +7,8 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Boxes, Loader2, Package, Layers, Ruler, Warehouse, MapPin } from "lucide-react";
-import { Page } from "../../_components/ui";
+import { ArrowLeft, Boxes, Loader2, Layers, Ruler, Warehouse, MapPin } from "lucide-react";
+import { Page, PageHeader, Card, Btn, Pill, SectionHeader, tblCls, thCls, tdCls, trHover } from "../../_components/ui";
 import { getStockBalance } from "@/_actions/lookups";
 import { useT } from "@/_lib/i18n";
 
@@ -72,103 +72,114 @@ export default function InventoryDetailPage() {
   }, [rows]);
 
   const negative = summary.total < 0;
+  const inStock = summary.total > 0;
+  const subtitle = [code, summary.unit ? `${t("inventory.unit", "ໜ່ວຍ")}: ${summary.unit}` : ""].filter(Boolean).join(" · ");
 
   return (
-    <Page max="max-w-[820px]">
-      <button
-        onClick={() => router.push("/inventory")}
-        className="mb-4 inline-flex items-center gap-1.5 text-[12px] font-bold text-slate-500 transition hover:text-blue-600"
-      >
-        <ArrowLeft size={15} /> {t("inventory.backToList", "ກັບໄປລາຍການສິນຄ້າ")}
-      </button>
+    <Page max="max-w-[1100px]">
+      <PageHeader
+        title={summary.name || code || t("inventory.noName", "(ບໍ່ມີຊື່)")}
+        subtitle={subtitle || undefined}
+        actions={
+          <>
+            {!loading && !error && rows.length > 0 && (
+              <Pill tone={negative ? "red" : inStock ? "green" : "neutral"}>
+                {inStock ? t("inventory.filterInStock", "ມີສະຕັອກ") : t("inventory.filterOutOfStock", "ໝົດສະຕັອກ")}
+              </Pill>
+            )}
+            <Btn variant="outline" onClick={() => router.push("/inventory")}>
+              <ArrowLeft size={14} /> {t("inventory.backToList", "ກັບໄປລາຍການສິນຄ້າ")}
+            </Btn>
+          </>
+        }
+      />
 
       {loading ? (
-        <div className="flex h-64 items-center justify-center text-slate-400">
-          <Loader2 size={22} className="animate-spin" />
-        </div>
+        <Card className="flex h-64 items-center justify-center gap-2.5 text-[var(--text-mute)]">
+          <Loader2 size={20} className="animate-spin" />
+          <span className="text-[13px] font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
+        </Card>
       ) : error ? (
-        <div className="flex h-64 flex-col items-center justify-center gap-2 rounded-3xl border border-rose-200 bg-white px-6 text-center text-xs font-semibold text-rose-600">
-          <Boxes size={32} className="text-rose-300" />
-          <span>{t("inventory.cannotLoadBalance", "ບໍ່ສາມາດໂຫຼດຍອດຄົງເຫຼືອໄດ້")}</span>
-          <span className="font-mono text-[11px] font-medium text-rose-400">{error}</span>
-        </div>
+        <Card className="flex h-64 flex-col items-center justify-center gap-2 px-6 text-center">
+          <Boxes size={32} className="text-[var(--danger)]" />
+          <span className="text-[12.5px] font-semibold text-[var(--danger)]">{t("inventory.cannotLoadBalance", "ບໍ່ສາມາດໂຫຼດຍອດຄົງເຫຼືອໄດ້")}</span>
+          <span className="font-mono text-[11px] text-[var(--text-mute)]">{error}</span>
+        </Card>
       ) : rows.length === 0 ? (
-        <div className="flex h-64 flex-col items-center justify-center gap-2 rounded-3xl border border-slate-200 bg-white text-xs font-semibold text-slate-400">
-          <Boxes size={32} className="text-slate-300" />
-          {t("inventory.noBalanceFor", "ບໍ່ພົບຂໍ້ມູນຄงเหลือ ສຳລับ")} &quot;{code}&quot;
-        </div>
+        <Card className="flex h-64 flex-col items-center justify-center gap-2 text-[12.5px] font-semibold text-[var(--text-mute)]">
+          <Boxes size={32} className="text-[var(--text-mute)]" />
+          {t("inventory.noBalanceFor", "ບໍ່ພົບຂໍ້ມູນຄົງເຫຼືອ ສຳລັບ")} &quot;{code}&quot;
+        </Card>
       ) : (
         <>
-          {/* Header */}
-          <div className="mb-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-            <div className="flex items-start gap-4">
-              <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-                <Package size={26} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <span className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[12px] font-bold text-slate-700">{code}</span>
-                <h1 className="mt-2 text-lg font-black leading-snug text-slate-900">{summary.name || t("inventory.noName", "(ບໍ່ມີຊື່)")}</h1>
-                {summary.unit && (
-                  <p className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold text-slate-400">
-                    <Ruler size={13} /> {t("inventory.unit", "ໜ່ວຍ")}: <span className="text-slate-600">{summary.unit}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Total balance */}
-          <div className="mb-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-            <div className="mb-4 flex items-center gap-2 text-[13px] font-black text-slate-800">
-              <Layers size={16} className="text-emerald-600" /> {t("inventory.totalOnHand", "ສິນຄ້າຄົງເຫຼືອ (ລວມທຸກคลัง)")}
+          <Card className="mb-4 p-5">
+            <SectionHeader icon={<Layers size={14} />} title={t("inventory.totalOnHand", "ສິນຄ້າຄົງເຫຼືອ (ລວມທຸກສາງ)")} tone="emerald" />
+            <div className="flex items-end gap-2">
+              <span
+                className={`text-4xl font-black leading-none tabular-nums tracking-tight ${
+                  negative ? "text-[var(--danger)]" : "text-[var(--text)]"
+                }`}
+              >
+                {qtyFmt(summary.total)}
+              </span>
+              {summary.unit && (
+                <span className="mb-1 inline-flex items-center gap-1 text-[12.5px] font-bold text-[var(--text-mute)]">
+                  <Ruler size={13} /> {summary.unit}
+                </span>
+              )}
             </div>
-            <div className={`flex items-end gap-2 ${negative ? "text-rose-600" : "text-slate-900"}`}>
-              <span className="font-display text-5xl font-bold leading-none tabular-nums tracking-tight">{qtyFmt(summary.total)}</span>
-              <span className="mb-1 text-base font-bold text-slate-400">{summary.unit}</span>
-            </div>
-          </div>
+          </Card>
 
           {/* Breakdown by warehouse / location */}
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-            <div className="border-b border-slate-100 px-5 py-3.5">
-              <h2 className="text-[12.5px] font-black text-slate-800">{t("inventory.breakdownByWarehouse", "ແຍກຕາມຄลัง / ที่เก็บ")}</h2>
+          <Card className="overflow-hidden">
+            <div className="border-b border-[var(--border-soft)] px-5 pt-5">
+              <SectionHeader icon={<Warehouse size={14} />} title={t("inventory.breakdownByWarehouse", "ແຍກຕາມສາງ / ທີ່ເກັບ")} tone="brand" />
             </div>
             {summary.breakdown.length === 0 ? (
-              <div className="px-5 py-10 text-center text-xs font-semibold text-slate-400">{t("inventory.noBalanceAnyWarehouse", "ບໍ່ມีຍอดຄงเหลือในคลังใด")}</div>
+              <div className="px-5 py-10 text-center text-[12.5px] font-semibold text-[var(--text-mute)]">
+                {t("inventory.noBalanceAnyWarehouse", "ບໍ່ມີຍອດຄົງເຫຼືອໃນສາງໃດ")}
+              </div>
             ) : (
-              <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
-                <thead>
-                  <tr>
-                    <th className="border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{t("inventory.warehouse", "ຄลัง")}</th>
-                    <th className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{t("inventory.location", "ที่เก็บ")}</th>
-                    <th className="border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-right text-[10px] font-extrabold uppercase tracking-wider text-slate-500">{t("inventory.balance", "ຄงเหลือ")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summary.breakdown.map((r, i) => {
-                    const neg = Number(r.balance_qty) < 0;
-                    return (
-                      <tr key={i} className="transition-colors odd:bg-white even:bg-slate-50/40 hover:bg-blue-50/40">
-                        <td className="border-b border-slate-100 px-5 py-2.5 font-semibold text-slate-700">
-                          <span className="inline-flex items-center gap-1.5">
-                            <Warehouse size={13} className="text-slate-400" /> {r.wherehouse || "-"}
-                          </span>
-                        </td>
-                        <td className="border-b border-slate-100 px-4 py-2.5 text-slate-500">
-                          <span className="inline-flex items-center gap-1.5">
-                            <MapPin size={12} className="text-slate-300" /> {r.colation || "-"}
-                          </span>
-                        </td>
-                        <td className={`border-b border-slate-100 px-5 py-2.5 text-right font-black tabular-nums ${neg ? "text-rose-600" : "text-slate-900"}`}>
-                          {qtyFmt(r.balance_qty)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className={tblCls}>
+                  <thead>
+                    <tr>
+                      <th className={`${thCls} pl-5`}>{t("inventory.warehouse", "ສາງ")}</th>
+                      <th className={thCls}>{t("inventory.location", "ທີ່ເກັບ")}</th>
+                      <th className={`${thCls} w-36 pr-5 text-right`}>{t("inventory.balance", "ຄົງເຫຼືອ")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.breakdown.map((r, i) => {
+                      const neg = Number(r.balance_qty) < 0;
+                      return (
+                        <tr key={i} className={trHover}>
+                          <td className={`${tdCls} pl-5 font-semibold text-[var(--text)]`}>
+                            <span className="inline-flex items-center gap-1.5">
+                              <Warehouse size={13} className="text-[var(--text-mute)]" /> {r.wherehouse || "-"}
+                            </span>
+                          </td>
+                          <td className={tdCls}>
+                            <span className="inline-flex items-center gap-1.5">
+                              <MapPin size={12} className="text-[var(--text-mute)]" /> {r.colation || "-"}
+                            </span>
+                          </td>
+                          <td
+                            className={`${tdCls} pr-5 text-right font-bold tabular-nums ${
+                              neg ? "text-[var(--danger)]" : "text-[var(--text)]"
+                            }`}
+                          >
+                            {qtyFmt(r.balance_qty)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
+          </Card>
         </>
       )}
     </Page>

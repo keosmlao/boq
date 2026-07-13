@@ -30,7 +30,15 @@ function makeRelTime(t: ReturnType<typeof useT>) {
   };
 }
 
-const AVATAR_TONES = ["bg-blue-100 text-blue-700", "bg-violet-100 text-violet-700", "bg-emerald-100 text-emerald-700", "bg-amber-100 text-amber-700", "bg-rose-100 text-rose-700", "bg-cyan-100 text-cyan-700"];
+/** Avatar tints — token-driven so they read correctly in light and dark. */
+const AVATAR_TONES = [
+  "bg-[var(--brand-soft)] text-[var(--brand-strong)]",
+  "bg-[var(--info-soft)] text-[var(--info)]",
+  "bg-[var(--success-soft)] text-[var(--success)]",
+  "bg-[var(--warning-soft)] text-[var(--warning)]",
+  "bg-[var(--danger-soft)] text-[var(--danger)]",
+  "bg-[var(--surface-sunken)] text-[var(--text-soft)]",
+];
 const toneFor = (s: string) => AVATAR_TONES[[...(s || "?")].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_TONES.length];
 
 export default function ActivityFeed({
@@ -101,12 +109,12 @@ export default function ActivityFeed({
   return (
     <div className="grid items-start gap-4 lg:grid-cols-2 xl:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
       <ActivitiesPanel entityType={entityType} entityId={id} />
-      <div className="rounded-3xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
-        <MessageSquare size={16} className="text-blue-600" />
-        <h2 className="text-[13px] font-black text-slate-800">{titleText}</h2>
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]">
+      <div className="flex items-center gap-2 border-b border-[var(--border-soft)] px-5 py-3.5">
+        <MessageSquare size={16} className="text-[var(--brand)]" />
+        <h2 className="text-[13px] font-black text-[var(--text)]">{titleText}</h2>
         {items.length > 0 && (
-          <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">{items.length}</span>
+          <span className="rounded-md bg-[var(--surface-sunken)] px-2 py-0.5 text-[11px] font-bold text-[var(--text-soft)]">{items.length}</span>
         )}
         <div className="ml-auto">
           <Followers entityType={entityType} entityId={id} />
@@ -116,48 +124,48 @@ export default function ActivityFeed({
       {/* Timeline */}
       <div className="max-h-[460px] space-y-1 overflow-y-auto px-3 py-3">
         {loading && items.length === 0 ? (
-          <div className="flex h-24 items-center justify-center text-slate-300">
+          <div className="flex h-24 items-center justify-center text-[var(--text-mute)]">
             <Loader2 size={18} className="animate-spin" />
           </div>
         ) : items.length === 0 ? (
-          <div className="flex h-24 flex-col items-center justify-center gap-1.5 text-[12px] font-semibold text-slate-400">
-            <MessageSquare size={24} className="text-slate-200" />
+          <div className="flex h-24 flex-col items-center justify-center gap-1.5 text-[12px] font-semibold text-[var(--text-mute)]">
+            <MessageSquare size={24} className="opacity-40" />
             {t("components.activityFeed.empty", "ຍັງບໍ່ມີຂໍ້ຄວາມ — ເລີ່ມການສົນທະນາ")}
           </div>
         ) : (
           items.map((it) =>
             it.kind === "activity" ? (
-              <div key={it.id} className="flex items-center gap-2.5 px-2 py-1.5 text-[11.5px] text-slate-400">
-                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+              <div key={it.id} className="flex items-center gap-2.5 px-2 py-1.5 text-[11.5px] text-[var(--text-mute)]">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[var(--text-mute)]">
                   <Activity size={12} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="font-bold text-slate-600">{it.user_name || t("components.activityFeed.system", "ລະບົບ")}</span>{" "}
+                  <span className="font-bold text-[var(--text-soft)]">{it.user_name || t("components.activityFeed.system", "ລະບົບ")}</span>{" "}
                   {it.action || t("components.activityFeed.acted", "ດຳເນີນການ")}
-                  {it.body ? <span className="text-slate-400"> — {it.body}</span> : null}
+                  {it.body ? <span className="text-[var(--text-mute)]"> — {it.body}</span> : null}
                 </span>
-                <span className="flex-shrink-0 text-[10.5px] text-slate-300">{relTime(it.created_at)}</span>
+                <span className="flex-shrink-0 text-[10.5px] text-[var(--text-mute)]">{relTime(it.created_at)}</span>
               </div>
             ) : (
-              <div key={it.id} className="group flex gap-2.5 rounded-2xl px-2 py-2 hover:bg-slate-50">
+              <div key={it.id} className="group flex gap-2.5 rounded-xl px-2 py-2 transition-colors hover:bg-[var(--surface-sunken)]">
                 <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-[12px] font-black ${toneFor(it.username || it.user_name || "?")}`}>
                   {initial(it.user_name || it.username || "?")}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-[12.5px] font-bold text-slate-800">{it.user_name || it.username || t("components.activityFeed.unknownUser", "ບໍ່ຮູ້ຊື່")}</span>
-                    <span className="flex-shrink-0 text-[10.5px] font-medium text-slate-400">{relTime(it.created_at)}</span>
+                    <span className="truncate text-[12.5px] font-bold text-[var(--text)]">{it.user_name || it.username || t("components.activityFeed.unknownUser", "ບໍ່ຮູ້ຊື່")}</span>
+                    <span className="flex-shrink-0 text-[10.5px] font-medium text-[var(--text-mute)]">{relTime(it.created_at)}</span>
                     {it.username && it.username === me.current && (
                       <button
                         onClick={() => remove(it.id)}
-                        className="ml-auto flex-shrink-0 rounded-md p-1 text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100"
+                        className="ml-auto flex-shrink-0 rounded-md p-1 text-[var(--text-mute)] opacity-0 transition hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] group-hover:opacity-100"
                         title={t("common.delete", "ລຶບ")}
                       >
                         <Trash2 size={13} />
                       </button>
                     )}
                   </div>
-                  <p className="mt-0.5 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-slate-600">{it.body}</p>
+                  <p className="mt-0.5 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-[var(--text-soft)]">{it.body}</p>
                 </div>
               </div>
             ),
@@ -166,7 +174,7 @@ export default function ActivityFeed({
       </div>
 
       {/* Composer */}
-      <div className="flex items-end gap-2 border-t border-slate-100 px-3 py-3">
+      <div className="flex items-end gap-2 border-t border-[var(--border-soft)] px-3 py-3">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -178,12 +186,12 @@ export default function ActivityFeed({
           }}
           rows={1}
           placeholder={t("components.activityFeed.composerPlaceholder", "ຂຽນຂໍ້ຄວາມ... (Ctrl/⌘ + Enter ສົ່ງ)")}
-          className="max-h-28 min-h-[40px] flex-1 resize-y rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] text-slate-800 outline-none transition focus:border-blue-500 focus:ring-3 focus:ring-blue-500/15"
+          className="max-h-28 min-h-[40px] flex-1 resize-y rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-[13px] text-[var(--text)] outline-none transition placeholder:text-[var(--text-mute)] focus:border-[var(--brand)] focus:ring-3 focus:ring-[var(--brand-ring)]"
         />
         <button
           onClick={submit}
           disabled={!text.trim() || sending}
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--ink)] text-[var(--ink-text)] shadow-[var(--shadow-xs)] transition hover:bg-[var(--ink-hover)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
         </button>

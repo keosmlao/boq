@@ -6,13 +6,13 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Save, Plus, Trash2, FileDown, Upload, FileText } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Plus, Trash2, FileDown, Upload, FileText, Calculator } from "lucide-react";
 import * as XLSX from "xlsx";
 import { getProjectBasic } from "@/_actions/projects";
 import { createQuotation, getQuotations, getQuotation, updateQuotation } from "@/_actions/quotations";
 import { getSurveys } from "@/_actions/survey";
 import { getCustomer } from "@/_actions/customers";
-import { Page, Card, Btn, Field, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
+import { Page, Card, Btn, Field, SectionHeader, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
 import InventoryPicker from "../../../../_components/InventoryPicker";
 import RSelect from "../../../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
@@ -256,8 +256,8 @@ export default function CreateQuotationPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
+      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--text-mute)]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--brand)]" />
         <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
@@ -266,9 +266,9 @@ export default function CreateQuotationPage() {
   if (hasQuotation) {
     return (
       <Page max="max-w-[700px]">
-        <Card className="border-t-2 border-t-amber-400 p-6 text-center">
-          <p className="text-[13px] text-[var(--theme-text-soft)]">
-            {t("quotationNew.alreadyHasPrefix", "ໂຄງການນີ້")} <b>{t("quotationNew.alreadyHasQuotation", "ມີໃບສະເໜີລາຄາແລ້ວ")}</b> {t("quotationNew.oneProjectOneQuotation", "— 1 ໂຄງການ ມີ 1 ໃບສະເໜີ.")}
+        <Card className="p-6 text-center">
+          <p className="text-[13px] text-[var(--text-soft)]">
+            {t("quotationNew.alreadyHasPrefix", "ໂຄງການນີ້")} <b className="text-[var(--text)]">{t("quotationNew.alreadyHasQuotation", "ມີໃບສະເໜີລາຄາແລ້ວ")}</b> {t("quotationNew.oneProjectOneQuotation", "— 1 ໂຄງການ ມີ 1 ໃບສະເໜີ.")}
           </p>
           <div className="mt-4 flex justify-center">
             <Btn onClick={() => router.push(`/projects/${id}`)}>{t("quotationNew.backToViewQuotation", "ກັບໄປເບິ່ງໃບສະເໜີ")}</Btn>
@@ -282,24 +282,24 @@ export default function CreateQuotationPage() {
     <Page max="max-w-none">
       <form onSubmit={submit}>
         {/* Header bar */}
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <button
               type="button"
               onClick={() => router.push(`/projects/${id}`)}
-              className="mb-1 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]"
+              className="mb-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--text-mute)] transition-colors hover:text-[var(--brand)]"
             >
               <ArrowLeft size={14} /> {t("quotationNew.toProject", "ໄປໂຄງການ")}
             </button>
-            <h1 className="flex items-center gap-2 text-[19px] font-bold leading-tight text-[var(--theme-text)]">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <h1 className="flex items-center gap-2.5 text-[19px] font-black leading-tight tracking-tight text-[var(--text)]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                 <FileText size={16} />
               </span>
               {editId ? t("quotationNew.editQuotation", "ແກ້ໄຂໃບສະເໜີລາຄາ") : t("quotationNew.createQuotation", "ສ້າງໃບສະເໜີລາຄາ")}
             </h1>
             {(cust.name || project?.project_name) && (
-              <p className="text-[12px] text-[var(--theme-text-mute)]">
-                {cust.name && <span className="font-medium text-[var(--theme-text-soft)]">{t("quotationNew.customerLabel", "ລູກຄ້າ")}: {cust.name}</span>}
+              <p className="mt-1.5 text-[12px] text-[var(--text-mute)]">
+                {cust.name && <span className="font-semibold text-[var(--text-soft)]">{t("quotationNew.customerLabel", "ລູກຄ້າ")}: {cust.name}</span>}
                 {cust.name && project?.project_name && " · "}
                 {project?.project_name && <>{t("quotationNew.projectLabel", "ໂຄງການ")}: {project.project_name}</>}
               </p>
@@ -309,7 +309,7 @@ export default function CreateQuotationPage() {
             <Btn type="button" variant="outline" onClick={() => router.push(`/projects/${id}`)}>
               {t("quotationNew.skipForNow", "ຂ້າມໄປກ່ອນ")}
             </Btn>
-            <Btn type="submit" disabled={saving}>
+            <Btn type="submit" variant="go" disabled={saving}>
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("quotationNew.saveQuotation", "ບັນທຶກໃບສະເໜີ")}
             </Btn>
@@ -317,18 +317,19 @@ export default function CreateQuotationPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">
+          <div className="mb-4 rounded-xl border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">
             {error}
           </div>
         )}
 
-        <Card className="mb-4 border-t-2 border-t-blue-400 p-4">
+        <Card className="mb-4 p-4">
+          <SectionHeader icon={<FileText size={15} />} title={t("quotationNew.headerSection", "ຂໍ້ມູນໃບສະເໜີ")} tone="brand" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
             <Field label={t("quotationNew.customerName", "ຊື່ລູກຄ້າ")} className="lg:col-span-2">
-              <input value={cust.name} readOnly className={`${inputCls} cursor-default bg-[var(--theme-bg-muted)] text-[var(--theme-text-soft)] focus:border-slate-200 focus:ring-0`} placeholder={t("quotationNew.customerName", "ຊື່ລູກຄ້າ")} />
+              <input value={cust.name} readOnly className={`${inputCls} cursor-default bg-[var(--surface-sunken)] text-[var(--text-soft)] hover:border-[var(--border)] focus:border-[var(--border)] focus:ring-0`} placeholder={t("quotationNew.customerName", "ຊື່ລູກຄ້າ")} />
             </Field>
             <Field label={t("quotationNew.phone", "ເບີໂທ")}>
-              <input value={cust.phone} readOnly className={`${inputCls} cursor-default bg-[var(--theme-bg-muted)] text-[var(--theme-text-soft)] focus:border-slate-200 focus:ring-0`} placeholder="020..." />
+              <input value={cust.phone} readOnly className={`${inputCls} cursor-default bg-[var(--surface-sunken)] text-[var(--text-soft)] hover:border-[var(--border)] focus:border-[var(--border)] focus:ring-0`} placeholder="020..." />
             </Field>
             <Field label={t("common.date", "ວັນທີ")}>
               <input type="date" value={quotationDate} onChange={(e) => setQuotationDate(e.target.value)} className={inputCls} />
@@ -349,15 +350,15 @@ export default function CreateQuotationPage() {
               />
             </Field>
             <Field label={t("quotationNew.customerAddress", "ທີ່ຢູ່ລູກຄ້າ")} className="sm:col-span-2 lg:col-span-6">
-              <input value={cust.address} readOnly className={`${inputCls} cursor-default bg-[var(--theme-bg-muted)] text-[var(--theme-text-soft)] focus:border-slate-200 focus:ring-0`} placeholder={t("quotationNew.address", "ທີ່ຢູ່")} />
+              <input value={cust.address} readOnly className={`${inputCls} cursor-default bg-[var(--surface-sunken)] text-[var(--text-soft)] hover:border-[var(--border)] focus:border-[var(--border)] focus:ring-0`} placeholder={t("quotationNew.address", "ທີ່ຢູ່")} />
             </Field>
           </div>
         </Card>
 
         {/* Line items */}
-        <Card className="mb-4 overflow-hidden border-t-2 border-t-amber-400">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--theme-border-subtle)] px-3 py-2">
-            <h2 className="text-[13px] font-bold text-[var(--theme-text)]">{t("quotationNew.items", "ລາຍການ")}</h2>
+        <Card className="mb-4 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2.5">
+            <h2 className="text-[11px] font-black tracking-wider text-[var(--text)]">{t("quotationNew.items", "ລາຍການ")}</h2>
             <div className="flex flex-wrap items-center gap-2">
               <Btn type="button" variant="outline" onClick={downloadTemplate}>
                 <FileDown size={14} /> Template
@@ -387,7 +388,7 @@ export default function CreateQuotationPage() {
               <tbody>
                 {lines.map((l, i) => (
                   <tr key={i}>
-                    <td className={`${tdCls} text-[11px] text-[var(--theme-text-mute)]`}>{i + 1}</td>
+                    <td className={`${tdCls} text-[11px] text-[var(--text-mute)]`}>{i + 1}</td>
                     <td className={tdCls}>
                       <InventoryPicker
                         value={l.description}
@@ -411,12 +412,12 @@ export default function CreateQuotationPage() {
                     <td className={tdCls}>
                       <input type="number" min="0" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} className={`${inputCls} h-8 text-right`} />
                     </td>
-                    <td className={`${tdCls} text-right font-mono tabular-nums`}>
+                    <td className={`${tdCls} text-right font-semibold tabular-nums text-[var(--text)]`}>
                       {money((Number(l.qty) || 0) * (Number(l.unitPrice) || 0))}
                     </td>
                     <td className={tdCls}>
                       {lines.length > 1 && (
-                        <button type="button" onClick={() => removeLine(i)} className="text-rose-500 hover:text-rose-700">
+                        <button type="button" onClick={() => removeLine(i)} className="text-[var(--danger)] transition-opacity hover:opacity-70">
                           <Trash2 size={15} />
                         </button>
                       )}
@@ -430,36 +431,34 @@ export default function CreateQuotationPage() {
 
         {/* Notes (2/3) + Totals summary (1/3) */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <Card className="border-t-2 border-t-slate-300 p-4 lg:col-span-2">
+          <Card className="p-4 lg:col-span-2">
             <Field label={t("quotationNew.notesAndTerms", "ໝາຍເຫດ / ເງື່ອນໄຂ")}>
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={8} className={`${inputCls} h-auto py-2`} placeholder={t("quotationNew.notesPlaceholder", "ໝາຍເຫດ, ເງື່ອນໄຂການຊຳລະ, ການຮັບປະກັນ...")} />
             </Field>
           </Card>
 
-          <Card className="border-t-2 border-t-emerald-400 p-4">
-            <div className="mb-3 flex items-center gap-2 text-[13px] font-bold text-[var(--theme-text)]">
-              <span className="h-4 w-1 rounded bg-emerald-500" /> {t("quotationNew.moneySummary", "ສະຫຼຸບເງິນ")}
-            </div>
+          <Card className="p-4">
+            <SectionHeader icon={<Calculator size={15} />} title={t("quotationNew.moneySummary", "ສະຫຼຸບເງິນ")} tone="emerald" />
             <div className="grid grid-cols-2 items-center gap-x-3 gap-y-2.5 text-[13px]">
-              <span className="text-[var(--theme-text-mute)]">{t("quotationNew.subtotal", "ລວມຍ່ອຍ")}</span>
-              <span className="text-right font-mono tabular-nums">{money(subtotal)}</span>
-              <span className="text-[var(--theme-text-mute)]">{t("quotationNew.discount", "ສ່ວນຫຼຸດ")}</span>
+              <span className="text-[var(--text-mute)]">{t("quotationNew.subtotal", "ລວມຍ່ອຍ")}</span>
+              <span className="text-right tabular-nums text-[var(--text)]">{money(subtotal)}</span>
+              <span className="text-[var(--text-mute)]">{t("quotationNew.discount", "ສ່ວນຫຼຸດ")}</span>
               <input type="number" min="0" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} className={`${inputCls} h-8 text-right`} />
-              <span className="text-[var(--theme-text-mute)]">{t("quotationNew.vatRate", "ອັດຕາ ອມພ (%)")}</span>
+              <span className="text-[var(--text-mute)]">{t("quotationNew.vatRate", "ອັດຕາ ອມພ (%)")}</span>
               <input
                 type="number"
                 min="0"
                 value={vatRate}
                 onChange={(e) => setVatRate(Number(e.target.value))}
                 disabled={vatType === "none"}
-                className={`${inputCls} h-8 text-right disabled:cursor-not-allowed disabled:bg-[var(--theme-bg-muted)] disabled:opacity-60`}
+                className={`${inputCls} h-8 text-right disabled:cursor-not-allowed disabled:bg-[var(--surface-sunken)] disabled:opacity-60`}
               />
-              <span className="text-[var(--theme-text-mute)]">{t("quotationNew.vat", "ອມພ")}{vatType === "inclusive" ? ` (${t("quotationNew.vatInclusive", "ລວມໃນ")})` : ""}</span>
-              <span className="text-right font-mono tabular-nums">{money(vatAmount)}</span>
+              <span className="text-[var(--text-mute)]">{t("quotationNew.vat", "ອມພ")}{vatType === "inclusive" ? ` (${t("quotationNew.vatInclusive", "ລວມໃນ")})` : ""}</span>
+              <span className="text-right tabular-nums text-[var(--text)]">{money(vatAmount)}</span>
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-[var(--theme-border-subtle)] pt-3">
-              <span className="text-[14px] font-bold text-[var(--theme-text)]">{t("quotationNew.grandTotal", "ລວມທັງໝົດ")}</span>
-              <span className="font-mono text-[19px] font-bold tabular-nums text-[var(--theme-primary)]">{money(total)}</span>
+            <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-3">
+              <span className="text-[13px] font-black tracking-wider text-[var(--text)]">{t("quotationNew.grandTotal", "ລວມທັງໝົດ")}</span>
+              <span className="text-[19px] font-black tabular-nums text-[var(--brand)]">{money(total)}</span>
             </div>
           </Card>
         </div>

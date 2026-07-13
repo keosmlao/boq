@@ -3,7 +3,7 @@
 /** Per-craftsman work-order performance summary. */
 import { useEffect, useMemo, useState } from "react";
 import { Award, CheckCircle2, Clock, Download, Loader2, RefreshCw, Search, Timer, XCircle } from "lucide-react";
-import { Page, PageHeader, Card, Stat, Btn, inputCls, tblCls, thCls, tdCls, trHover } from "../_components/ui";
+import { Page, PageHeader, Card, Stat, Btn, TwoLine, inputCls, tblCls, thCls, tdCls, trHover } from "../_components/ui";
 import { getTechSummary, type TechSummaryRow } from "@/_actions/tech-summary";
 import { useT } from "@/_lib/i18n";
 
@@ -99,21 +99,21 @@ export default function TechSummaryPage() {
       </div>
 
       <Card className="overflow-hidden p-0">
-        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-3 py-3">
           <div className="relative max-w-xs flex-1">
-            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-mute)]" />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("techSummary.searchPlaceholder", "ຄົ້ນຫາຊື່ / ລະຫັດຊ່າງ")} className={`${inputCls} pl-9`} />
           </div>
         </div>
 
         {error ? (
-          <p className="px-4 py-10 text-center text-sm font-semibold text-rose-600">{t("techSummary.loadFailed", "ໂຫຼດບໍ່ສຳເລັດ")}: {error}</p>
+          <p className="px-4 py-10 text-center text-[13px] font-semibold text-[var(--danger)]">{t("techSummary.loadFailed", "ໂຫຼດບໍ່ສຳເລັດ")}: {error}</p>
         ) : loading ? (
-          <p className="flex items-center justify-center gap-2 px-4 py-12 text-sm text-slate-400">
+          <p className="flex items-center justify-center gap-2 px-4 py-12 text-[13px] text-[var(--text-mute)]">
             <Loader2 size={16} className="animate-spin" /> {t("common.loading", "ກຳລັງໂຫຼດ...")}
           </p>
         ) : filtered.length === 0 ? (
-          <p className="px-4 py-12 text-center text-sm text-slate-400">{t("techSummary.noData", "ຍັງບໍ່ມີຂໍ້ມູນໃບງານ")}</p>
+          <p className="px-4 py-12 text-center text-[13px] text-[var(--text-mute)]">{t("techSummary.noData", "ຍັງບໍ່ມີຂໍ້ມູນໃບງານ")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className={tblCls}>
@@ -137,29 +137,28 @@ export default function TechSummaryPage() {
                   return (
                     <tr key={(r.code || r.name) + i} className={trHover}>
                       <td className={tdCls}>
-                        <div className="font-bold text-slate-800">{r.name}</div>
-                        {r.code && <div className="text-[11px] text-slate-400">{r.code}</div>}
+                        <TwoLine primary={r.name} secondary={r.code || undefined} />
                       </td>
-                      <td className={`${tdCls} text-center font-extrabold`}>{r.total}</td>
-                      <td className={`${tdCls} text-center font-bold text-emerald-600`}>{r.closed}</td>
-                      <td className={`${tdCls} text-center text-blue-600`}>{r.in_progress}</td>
-                      <td className={`${tdCls} text-center text-amber-600`}>{r.review}</td>
-                      <td className={`${tdCls} text-center text-slate-500`}>{r.pending}</td>
-                      <td className={`${tdCls} text-center ${r.rejected ? "text-rose-600 font-bold" : "text-slate-400"}`}>{r.rejected}</td>
+                      <td className={`${tdCls} text-center font-extrabold tabular-nums text-[var(--text)]`}>{r.total}</td>
+                      <td className={`${tdCls} text-center font-bold tabular-nums text-[var(--success)]`}>{r.closed}</td>
+                      <td className={`${tdCls} text-center tabular-nums text-[var(--info)]`}>{r.in_progress}</td>
+                      <td className={`${tdCls} text-center tabular-nums text-[var(--warning)]`}>{r.review}</td>
+                      <td className={`${tdCls} text-center tabular-nums text-[var(--text-soft)]`}>{r.pending}</td>
+                      <td className={`${tdCls} text-center tabular-nums ${r.rejected ? "font-bold text-[var(--danger)]" : "text-[var(--text-mute)]"}`}>{r.rejected}</td>
                       <td className={`${tdCls} text-center`}>
-                        <span className="font-bold text-slate-800">{(r.worked_hours || 0).toFixed(1)}</span>
-                        <span className="text-[11px] text-slate-400"> {t("techSummary.hoursAbbr", "ຊມ")}</span>
-                        {r.sessions > 0 && <div className="text-[10px] text-slate-400">{r.sessions} {t("techSummary.timesUnit", "ຄັ້ງ")}</div>}
+                        <span className="font-bold tabular-nums text-[var(--text)]">{(r.worked_hours || 0).toFixed(1)}</span>
+                        <span className="text-[11px] text-[var(--text-mute)]"> {t("techSummary.hoursAbbr", "ຊມ")}</span>
+                        {r.sessions > 0 && <div className="text-[10px] text-[var(--text-mute)]">{r.sessions} {t("techSummary.timesUnit", "ຄັ້ງ")}</div>}
                       </td>
                       <td className={tdCls}>
                         <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
-                            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${rate}%` }} />
+                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[var(--surface-sunken)]">
+                            <div className="h-full rounded-full bg-[var(--success)]" style={{ width: `${rate}%` }} />
                           </div>
-                          <span className="text-[11px] font-bold text-slate-500">{rate}%</span>
+                          <span className="text-[11px] font-bold tabular-nums text-[var(--text-soft)]">{rate}%</span>
                         </div>
                       </td>
-                      <td className={`${tdCls} text-[11.5px] text-slate-500`}>{fmtDate(r.last_activity)}</td>
+                      <td className={`${tdCls} text-[11.5px] tabular-nums text-[var(--text-soft)]`}>{fmtDate(r.last_activity)}</td>
                     </tr>
                   );
                 })}
@@ -169,7 +168,7 @@ export default function TechSummaryPage() {
         )}
       </Card>
 
-      <p className="mt-3 flex items-center gap-1.5 px-1 text-[11px] text-slate-400">
+      <p className="mt-3 flex items-center gap-1.5 px-1 text-[11px] text-[var(--text-mute)]">
         <XCircle size={12} /> {t("techSummary.footnote", "ໝາຍເຫດ: ນັບຈາກໃບງານ (odg_work_order) ຕາມສະຖານະປັດຈຸບັນ.")}
       </p>
     </Page>

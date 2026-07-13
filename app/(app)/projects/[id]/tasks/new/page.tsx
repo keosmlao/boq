@@ -143,8 +143,8 @@ export default function TaskPlanPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
+      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--text-mute)]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--brand)]" />
         <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
@@ -153,43 +153,43 @@ export default function TaskPlanPage() {
   return (
     <Page max="max-w-none">
       <form onSubmit={submit}>
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <button
               type="button"
               onClick={() => router.push(`/projects/${id}`)}
-              className="mb-1 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]"
+              className="mb-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--text-mute)] transition-colors hover:text-[var(--brand)]"
             >
               <ArrowLeft size={14} /> {t("tasksNew.toProject", "ໄປໂຄງການ")}
             </button>
-            <h1 className="flex items-center gap-2 text-[19px] font-bold leading-tight text-[var(--theme-text)]">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-emerald-500 text-white">
+            <h1 className="flex items-center gap-2.5 text-[19px] font-black leading-tight tracking-tight text-[var(--text)]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                 <CalendarRange size={16} />
               </span>
               {t("tasksNew.title", "ກຳນົດໜ້າວຽກ")}
             </h1>
             {(custName || project?.project_name) && (
-              <p className="text-[12px] text-[var(--theme-text-mute)]">
-                {custName && <span className="font-medium text-[var(--theme-text-soft)]">{t("tasksNew.customerLabel", "ລູກຄ້າ")}: {custName}</span>}
+              <p className="mt-1.5 text-[12px] text-[var(--text-mute)]">
+                {custName && <span className="font-semibold text-[var(--text-soft)]">{t("tasksNew.customerLabel", "ລູກຄ້າ")}: {custName}</span>}
                 {custName && project?.project_name && " · "}
                 {project?.project_name && <>{t("tasksNew.projectLabel", "ໂຄງການ")}: {project.project_name}</>}
               </p>
             )}
           </div>
-          <Btn type="submit" disabled={saving}>
+          <Btn type="submit" variant="go" disabled={saving}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("tasksNew.savePlan", "ບັນທຶກແຜນວຽກ")}
           </Btn>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</div>
+          <div className="mb-4 rounded-xl border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">{error}</div>
         )}
 
-        <Card className="overflow-hidden border-t-2 border-t-teal-400">
-          <div className="flex items-center justify-between border-b border-[var(--theme-border-subtle)] px-3 py-2">
-            <h2 className="flex items-center gap-2 text-[13px] font-bold text-[var(--theme-text)]">
-              <span className="h-4 w-1 rounded bg-teal-500" /> {t("tasksNew.taskListHeading", "ລາຍການໜ້າວຽກ")}
+        <Card className="overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2.5">
+            <h2 className="text-[11px] font-black tracking-wider text-[var(--text)]">
+              {t("tasksNew.taskListHeading", "ລາຍການໜ້າວຽກ")}
             </h2>
             <Btn type="button" variant="outline" onClick={() => setPickOpen(true)}><Plus size={14} /> {t("tasksNew.addTask", "ເພີ່ມໜ້າວຽກ")}</Btn>
           </div>
@@ -208,12 +208,12 @@ export default function TaskPlanPage() {
               <tbody>
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center text-[12px] text-[var(--theme-text-mute)]">{t("tasksNew.emptyHint", 'ກົດ "ເພີ່ມໜ້າວຽກ" ເພື່ອເລືອກໜ້າວຽກ (ເລືອກໄດ້ຫຼາຍອັນພ້ອມກັນ)')}</td>
+                    <td colSpan={6} className="px-4 py-6 text-center text-[12px] text-[var(--text-mute)]">{t("tasksNew.emptyHint", 'ກົດ "ເພີ່ມໜ້າວຽກ" ເພື່ອເລືອກໜ້າວຽກ (ເລືອກໄດ້ຫຼາຍອັນພ້ອມກັນ)')}</td>
                   </tr>
                 )}
                 {rows.map((r, i) => (
                   <tr key={i}>
-                    <td className={`${tdCls} text-[11px] text-[var(--theme-text-mute)]`}>{i + 1}</td>
+                    <td className={`${tdCls} text-[11px] text-[var(--text-mute)]`}>{i + 1}</td>
                     <td className={tdCls}>
                       {masters.length > 0 ? (
                         <RSelect
@@ -230,9 +230,9 @@ export default function TaskPlanPage() {
                     </td>
                     <td className={tdCls}>
                       {r.phase ? (
-                        <span className="inline-block rounded bg-[var(--theme-bg-muted)] px-2 py-0.5 text-[11px] text-[var(--theme-text-soft)]">{r.phase}</span>
+                        <span className="inline-block rounded-md border border-[var(--border)] bg-[var(--surface-sunken)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-soft)]">{r.phase}</span>
                       ) : (
-                        <span className="text-[var(--theme-text-mute)]">-</span>
+                        <span className="text-[var(--text-mute)]">-</span>
                       )}
                     </td>
                     <td className={tdCls}>
@@ -242,16 +242,16 @@ export default function TaskPlanPage() {
                       <input type="number" min="0" value={r.est_hours} onChange={(e) => setRow(i, { est_hours: Number(e.target.value) })} className={`${inputCls} h-8 text-right`} />
                     </td>
                     <td className={tdCls}>
-                      <button type="button" onClick={() => removeRow(i)} className="text-rose-500 hover:text-rose-700"><Trash2 size={15} /></button>
+                      <button type="button" onClick={() => removeRow(i)} className="text-[var(--danger)] transition-opacity hover:opacity-70"><Trash2 size={15} /></button>
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t border-[var(--theme-border-subtle)] font-semibold">
-                  <td className={tdCls} colSpan={3}>{t("common.total", "ລວມ")}</td>
-                  <td className={`${tdCls} text-right tabular-nums text-[var(--theme-primary)]`}>{totalDays}</td>
-                  <td className={`${tdCls} text-right tabular-nums text-[var(--theme-primary)]`}>{totalHours}</td>
+                <tr className="bg-[var(--surface-sunken)] font-bold">
+                  <td className={`${tdCls} text-[var(--text)]`} colSpan={3}>{t("common.total", "ລວມ")}</td>
+                  <td className={`${tdCls} text-right tabular-nums text-[var(--brand)]`}>{totalDays}</td>
+                  <td className={`${tdCls} text-right tabular-nums text-[var(--brand)]`}>{totalHours}</td>
                   <td className={tdCls} />
                 </tr>
               </tfoot>
@@ -259,8 +259,8 @@ export default function TaskPlanPage() {
           </div>
         </Card>
 
-        <p className="mt-2 text-[11px] text-[var(--theme-text-mute)]">
-          {t("tasksNew.notePrefix", "ໜ້າວຽກດຶງຈາກ ບັນຊີໜ້າວຽກ (task master).")} <b>{t("tasksNew.noteBold", "ທີມ ແລະ ວັນເລີ່ມ/ວັນຈົບ ກຳນົດຕາມຫຼັງ")}</b> {t("tasksNew.noteSuffix", "ໃນຂັ້ນໃບງານ. ຊົ່ວໂມງໃຊ້ຄິດໄລ່ຄ່າແຮງ.")}
+        <p className="mt-2 text-[11px] text-[var(--text-mute)]">
+          {t("tasksNew.notePrefix", "ໜ້າວຽກດຶງຈາກ ບັນຊີໜ້າວຽກ (task master).")} <b className="text-[var(--text-soft)]">{t("tasksNew.noteBold", "ທີມ ແລະ ວັນເລີ່ມ/ວັນຈົບ ກຳນົດຕາມຫຼັງ")}</b> {t("tasksNew.noteSuffix", "ໃນຂັ້ນໃບງານ. ຊົ່ວໂມງໃຊ້ຄິດໄລ່ຄ່າແຮງ.")}
         </p>
       </form>
 

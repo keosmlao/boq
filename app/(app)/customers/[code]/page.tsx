@@ -3,11 +3,11 @@
 /** v2 — Customer detail: info + their projects + register a new project. */
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Phone, MapPin, Plus, FolderOpen, ChevronRight } from "lucide-react";
+import { ArrowLeft, Phone, MapPin, Plus, FolderOpen, ChevronRight, Loader2, Hash } from "lucide-react";
 import { getCustomer } from "@/_actions/customers";
 import { getProjects } from "@/_actions/projects";
 import { StatusBadge } from "@/_components/pipeline";
-import { Page, Card, Btn, tblCls, thCls, tdCls } from "../../_components/ui";
+import { Page, PageHeader, Card, Btn, SectionHeader, tblCls, thCls, tdCls, trHover } from "../../_components/ui";
 import { useT } from "@/_lib/i18n";
 
 export default function CustomerDetailPage() {
@@ -49,74 +49,66 @@ export default function CustomerDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
+      <div className="flex h-[60vh] items-center justify-center gap-2.5 text-[var(--text-mute)]">
+        <Loader2 size={20} className="animate-spin" />
+        <span className="text-[13px] font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
 
-  return (
-    <Page>
-      <button
-        onClick={() => router.push("/customers")}
-        className="group mb-4 inline-flex items-center gap-2 text-xs font-bold text-slate-500 transition-colors hover:text-blue-600"
-      >
-        <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5" /> {t("customers.backToList", "ກັບໄປລາຍຊື່ລູກຄ້າ")}
-      </button>
+  const chip = "inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-soft)]";
 
-      {/* Customer header */}
-      <Card className="mb-4 overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-4 p-5">
-          <div className="flex min-w-0 items-center gap-4">
-            <div className="font-display flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl premium-gradient text-xl font-black text-white shadow-md shadow-blue-600/25">
-              {(custName || "?").charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-xl font-black tracking-tight text-slate-900">{custName}</h1>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono text-[11px] font-bold text-slate-600">
-                  {custCode}
-                </span>
-                {customer?.phone && (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">
-                    <Phone size={12} strokeWidth={2.5} className="text-blue-500" /> {customer.phone}
-                  </span>
-                )}
-                {customer?.address && (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">
-                    <MapPin size={12} strokeWidth={2.5} className="text-blue-500" /> {customer.address}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-          <Btn onClick={() => router.push(registerHref)}>
-            <Plus size={14} strokeWidth={2.75} /> {t("customers.registerProject", "ລົງທະບຽນໂຄງການ")}
-          </Btn>
+  return (
+    <Page max="max-w-[1100px]">
+      <PageHeader
+        title={custName}
+        subtitle={[custCode, customer?.phone, customer?.address].filter(Boolean).join(" · ")}
+        actions={
+          <>
+            <Btn variant="go" onClick={() => router.push(registerHref)}>
+              <Plus size={14} strokeWidth={2.75} /> {t("customers.registerProject", "ລົງທະບຽນໂຄງການ")}
+            </Btn>
+            <Btn variant="outline" onClick={() => router.push("/customers")}>
+              <ArrowLeft size={14} /> {t("customers.backToList", "ກັບໄປລາຍຊື່ລູກຄ້າ")}
+            </Btn>
+          </>
+        }
+      />
+
+      {/* Customer info chips */}
+      <Card className="mb-4 p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`${chip} font-mono`}>
+            <Hash size={12} strokeWidth={2.5} className="text-[var(--text-mute)]" /> {custCode}
+          </span>
+          {customer?.phone && (
+            <span className={chip}>
+              <Phone size={12} strokeWidth={2.5} className="text-[var(--brand)]" /> {customer.phone}
+            </span>
+          )}
+          {customer?.address && (
+            <span className={chip}>
+              <MapPin size={12} strokeWidth={2.5} className="text-[var(--brand)]" /> {customer.address}
+            </span>
+          )}
         </div>
       </Card>
 
       {/* Their projects */}
       <Card className="overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-5 py-3.5">
-          <h2 className="flex items-center gap-2.5 text-sm font-black text-slate-800">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 ring-1 ring-blue-100">
-              <FolderOpen size={15} />
-            </span>
-            {t("customers.customerProjects", "ໂຄງການຂອງລູກຄ້າ")}
-          </h2>
-          <span className="font-display rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-500">
+        <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-5 pt-5">
+          <SectionHeader icon={<FolderOpen size={14} />} title={t("customers.customerProjects", "ໂຄງການຂອງລູກຄ້າ")} tone="brand" />
+          <span className="mb-4 rounded-full border border-[var(--border)] bg-[var(--surface-sunken)] px-2.5 py-0.5 text-[10px] font-bold tabular-nums text-[var(--text-mute)]">
             {projects.length} {t("customers.projectsUnit", "ໂຄງການ")}
           </span>
         </div>
         {projects.length === 0 ? (
-          <div className="flex h-48 flex-col items-center justify-center gap-3 text-slate-400">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-300">
+          <div className="flex h-48 flex-col items-center justify-center gap-3 text-[var(--text-mute)]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface-sunken)] text-[var(--text-mute)]">
               <FolderOpen className="h-7 w-7" />
             </div>
-            <span className="text-sm font-semibold">{t("customers.noProjects", "ຍັງບໍ່ມີໂຄງການ")}</span>
-            <Btn onClick={() => router.push(registerHref)} className="mt-1">
+            <span className="text-[12.5px] font-semibold">{t("customers.noProjects", "ຍັງບໍ່ມີໂຄງການ")}</span>
+            <Btn variant="go" onClick={() => router.push(registerHref)} className="mt-1">
               <Plus size={14} strokeWidth={2.75} /> {t("customers.registerProject", "ລົງທະບຽນໂຄງການ")}
             </Btn>
           </div>
@@ -136,12 +128,14 @@ export default function CustomerDetailPage() {
                   <tr
                     key={p.id ?? i}
                     onClick={() => router.push(`/projects/${encodeURIComponent(String(p.id))}`)}
-                    className="group cursor-pointer transition-colors hover:bg-blue-50/40"
+                    className={`group cursor-pointer ${trHover}`}
                   >
-                    <td className={`${tdCls} pl-5 font-bold text-slate-900 group-hover:text-blue-700 transition-colors`}>{p.project_name || t("customers.noName", "(ບໍ່ມີຊື່)")}</td>
-                    <td className={`${tdCls} hidden text-slate-500 lg:table-cell`}>{p.province_name || "-"}</td>
+                    <td className={`${tdCls} pl-5 font-semibold text-[var(--text)]`}>{p.project_name || t("customers.noName", "(ບໍ່ມີຊື່)")}</td>
+                    <td className={`${tdCls} hidden lg:table-cell`}>{p.province_name || "-"}</td>
                     <td className={tdCls}><StatusBadge status={p.project_status} /></td>
-                    <td className={`${tdCls} pr-5 text-right`}><ChevronRight className="inline-block h-4 w-4 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-blue-500" /></td>
+                    <td className={`${tdCls} pr-5 text-right`}>
+                      <ChevronRight className="inline-block h-4 w-4 text-[var(--text-mute)] transition-transform group-hover:translate-x-0.5" />
+                    </td>
                   </tr>
                 ))}
               </tbody>

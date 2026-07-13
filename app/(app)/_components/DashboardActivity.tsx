@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CalendarClock, Bell, ChevronRight } from "lucide-react";
 import { getMyActivities, type Activity } from "@/_actions/activities";
 import { getMyNotifications } from "@/_actions/notifications";
+import { Card, Pill, SectionHeader } from "./ui";
 import { useT } from "@/_lib/i18n";
 
 const ROUTE: Record<string, string> = {
@@ -37,51 +38,57 @@ export default function DashboardActivity() {
   return (
     <div className="space-y-5">
       {/* My appointments */}
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"><CalendarClock size={15} /></span>
-          <h2 className="text-[13px] font-black text-slate-900">{t("overview.myAppointments", "ນັດໝາຍຂອງຂ້ອຍ")}</h2>
-          {appts.length > 0 && <span className="ml-auto rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">{appts.length}</span>}
+      <Card className="overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-[var(--border-soft)] px-4 py-3">
+          <SectionHeader icon={<CalendarClock size={15} />} title={t("overview.myAppointments", "ນັດໝາຍຂອງຂ້ອຍ")} tone="brand" className="mb-0" />
+          {appts.length > 0 && <span className="ml-auto"><Pill tone="brand">{appts.length}</Pill></span>}
         </div>
         {appts.length === 0 ? (
-          <div className="px-4 py-6 text-center text-[12px] text-slate-400">{t("overview.noAppointments", "ບໍ່ມีนัดหมาย")}</div>
+          <div className="px-4 py-6 text-center text-[12px] text-[var(--text-mute)]">{t("overview.noAppointments", "ບໍ່ມີນັດໝາຍ")}</div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div>
             {appts.map((a) => (
-              <button key={a.id} onClick={() => { const h = hrefOf(a.entity_type, a.entity_id); if (h) router.push(h); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-slate-50/70">
+              <button
+                key={a.id}
+                onClick={() => { const h = hrefOf(a.entity_type, a.entity_id); if (h) router.push(h); }}
+                className="flex w-full items-center gap-2 border-b border-[var(--border-soft)] px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-[var(--brand-tint)]"
+              >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[12.5px] font-semibold text-slate-800">{a.summary || a.activity_type}</span>
-                  <span className="block text-[11px] text-slate-400">{fmtDate((a as any).due_date)}</span>
+                  <span className="block truncate text-[12.5px] font-semibold text-[var(--text)]">{a.summary || a.activity_type}</span>
+                  <span className="block text-[11px] text-[var(--text-mute)]">{fmtDate((a as any).due_date)}</span>
                 </span>
-                <ChevronRight size={14} className="flex-shrink-0 text-slate-300" />
+                <ChevronRight size={14} className="flex-shrink-0 text-[var(--text-mute)]" />
               </button>
             ))}
           </div>
         )}
-      </section>
+      </Card>
 
       {/* Recent activity / notifications */}
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600"><Bell size={15} /></span>
-          <h2 className="text-[13px] font-black text-slate-900">{t("overview.recentActivity", "ກິດจะกรรมล่าสุด")}</h2>
+      <Card className="overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-[var(--border-soft)] px-4 py-3">
+          <SectionHeader icon={<Bell size={15} />} title={t("overview.recentActivity", "ກິດຈະກຳລ່າສຸດ")} tone="amber" className="mb-0" />
         </div>
         {notifs.length === 0 ? (
-          <div className="px-4 py-6 text-center text-[12px] text-slate-400">{t("overview.noActivity", "ບໍ່ມีกิจกรรม")}</div>
+          <div className="px-4 py-6 text-center text-[12px] text-[var(--text-mute)]">{t("overview.noActivity", "ບໍ່ມີກິດຈະກຳ")}</div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div>
             {notifs.map((n) => (
-              <button key={n.id} onClick={() => { const h = hrefOf(n.entity_type, n.entity_id); if (h) router.push(h); }} className="flex w-full items-start gap-2 px-4 py-2.5 text-left hover:bg-slate-50/70">
-                <span className={`mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${n.is_read ? "bg-slate-200" : "bg-amber-500"}`} />
+              <button
+                key={n.id}
+                onClick={() => { const h = hrefOf(n.entity_type, n.entity_id); if (h) router.push(h); }}
+                className="flex w-full items-start gap-2 border-b border-[var(--border-soft)] px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-[var(--brand-tint)]"
+              >
+                <span className={`mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${n.is_read ? "bg-[var(--border-strong)]" : "bg-[var(--warning)]"}`} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[12px] font-medium text-slate-700">{n.body || n.kind}</span>
-                  <span className="block text-[10.5px] text-slate-400">{n.actor_name ? `${n.actor_name} · ` : ""}{ago(n.created_at, t)}</span>
+                  <span className="block truncate text-[12px] font-medium text-[var(--text-soft)]">{n.body || n.kind}</span>
+                  <span className="block text-[10.5px] text-[var(--text-mute)]">{n.actor_name ? `${n.actor_name} · ` : ""}{ago(n.created_at, t)}</span>
                 </span>
               </button>
             ))}
           </div>
         )}
-      </section>
+      </Card>
     </div>
   );
 }

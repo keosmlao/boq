@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, BellRing, CheckCircle2, XCircle, RefreshCw, Send, Loader2, Smartphone, KeyRound } from "lucide-react";
-import { Page, PageHeader, Card } from "../_components/ui";
+import { Page, PageHeader, Card, Btn, SectionHeader, inputCls } from "../_components/ui";
 import { getV2User } from "../../_lib/session";
 import { useT } from "@/_lib/i18n";
 
@@ -17,18 +17,25 @@ type Status = {
   serviceAccountSource?: string | null;
 };
 
-function StatusBox({ ok, icon, title, value }: { ok?: boolean; icon: React.ReactNode; title: string; value: string }) {
-  const cls = ok == null
-    ? "border-slate-200 bg-white"
-    : ok
-      ? "border-emerald-200 bg-emerald-50"
-      : "border-rose-200 bg-rose-50";
+function StatusBox({ ok, icon, title, value }: { ok?: boolean | null; icon: React.ReactNode; title: string; value: string }) {
+  const cls =
+    ok == null
+      ? "border-[var(--border)] bg-[var(--surface)]"
+      : ok
+        ? "border-[var(--success-soft)] bg-[var(--success-soft)]"
+        : "border-[var(--danger-soft)] bg-[var(--danger-soft)]";
   return (
     <div className={`flex items-center gap-2.5 rounded-xl border p-3 ${cls}`}>
       {icon}
       <div>
-        <div className="text-[12px] font-bold text-slate-700">{title}</div>
-        <div className={`text-[11.5px] font-semibold ${ok == null ? "text-slate-500" : ok ? "text-emerald-700" : "text-rose-700"}`}>{value}</div>
+        <div className="text-[12px] font-bold text-[var(--text)]">{title}</div>
+        <div
+          className={`text-[11.5px] font-semibold ${
+            ok == null ? "text-[var(--text-mute)]" : ok ? "text-[var(--success)]" : "text-[var(--danger)]"
+          }`}
+        >
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -84,29 +91,40 @@ export default function PushTestPage() {
 
   return (
     <Page max="max-w-2xl">
-      <PageHeader title={t("pushTest.title", "ທົດສອບ Push ໄປແອັບຊ່າງ")} subtitle={t("pushTest.subtitle", "Firebase Cloud Messaging (FCM) ສຳລັບ mobile app")} />
+      <PageHeader
+        title={t("pushTest.title", "ທົດສອບ Push ໄປແອັບຊ່າງ")}
+        subtitle={t("pushTest.subtitle", "Firebase Cloud Messaging (FCM) ສຳລັບ mobile app")}
+        actions={
+          <Btn variant="outline" onClick={load} disabled={loading}>
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {t("pushTest.reload", "ໂຫຼດໃໝ່")}
+          </Btn>
+        }
+      />
 
       <Card className="mb-4 p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[13.5px] font-bold text-[var(--theme-text)]">{t("pushTest.systemStatus", "ສະຖານະລະບົບ Mobile Push")}</h2>
-          <button onClick={load} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50">
-            <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> {t("pushTest.reload", "ໂຫຼດໃໝ່")}
-          </button>
-        </div>
+        <SectionHeader icon={<Smartphone size={15} />} title={t("pushTest.systemStatus", "ສະຖານະລະບົບ Mobile Push")} tone="brand" />
 
         {loading && !status ? (
-          <div className="flex items-center gap-2 py-3 text-sm text-slate-400"><Loader2 size={16} className="animate-spin" /> {t("common.loading", "ກຳລັງໂຫຼດ...")}</div>
+          <div className="flex items-center gap-2 py-3 text-[12.5px] text-[var(--text-mute)]">
+            <Loader2 size={16} className="animate-spin" /> {t("common.loading", "ກຳລັງໂຫຼດ...")}
+          </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             <StatusBox
               ok={!!status?.configured}
-              icon={status?.configured ? <CheckCircle2 size={20} className="text-emerald-600" /> : <XCircle size={20} className="text-rose-600" />}
+              icon={
+                status?.configured ? (
+                  <CheckCircle2 size={20} className="text-[var(--success)]" />
+                ) : (
+                  <XCircle size={20} className="text-[var(--danger)]" />
+                )
+              }
               title="Firebase Admin"
               value={status?.configured ? t("pushTest.configured", "ຕັ້ງຄ່າແລ້ວ") : t("pushTest.noServiceAccount", "ຍັງບໍ່ມີ service account")}
             />
             <StatusBox
               ok={null}
-              icon={<Smartphone size={20} className="text-blue-600" />}
+              icon={<Smartphone size={20} className="text-[var(--info)]" />}
               title="Device token"
               value={`${status?.totalTokens ?? 0} ${t("pushTest.units", "ໜ່ວຍ")}`}
             />
@@ -114,64 +132,75 @@ export default function PushTestPage() {
         )}
 
         {status?.projectId && (
-          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[11.5px] font-semibold text-slate-600">
-            Firebase project: <b>{status.projectId}</b>{status.serviceAccountSource ? ` · ${status.serviceAccountSource}` : ""}
+          <p className="mt-3 rounded-lg bg-[var(--surface-sunken)] px-3 py-2 text-[11.5px] font-semibold text-[var(--text-soft)]">
+            Firebase project: <b className="text-[var(--text)]">{status.projectId}</b>
+            {status.serviceAccountSource ? ` · ${status.serviceAccountSource}` : ""}
           </p>
         )}
 
         {status && !status.configured && (
-          <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[11.5px] font-medium text-amber-800">
-            <div className="mb-1 flex items-center gap-1.5 font-bold"><KeyRound size={13} /> {t("pushTest.missingServerKey", "ຂາດ server key ສຳລັບສົ່ງ FCM")}</div>
-            {t("pushTest.setupHintPre", "ໃຫ້ເອົາ Firebase service account JSON ຂອງ project")} <b>saleproject-36fc8</b> {t("pushTest.setupHintMid", "ມາວາງເປັນ")}
-            <b> BOQ2026/firebase-service-account.json</b> {t("pushTest.setupHintOr", "ຫຼືຕັ້ງ")} <b>FIREBASE_SERVICE_ACCOUNT</b> {t("pushTest.setupHintEnv", "ໃນ `.env`, ແລ້ວ restart server.")}
+          <div className="mt-3 rounded-lg border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-3 py-2 text-[11.5px] font-medium text-[var(--warning)]">
+            <div className="mb-1 flex items-center gap-1.5 font-bold">
+              <KeyRound size={13} /> {t("pushTest.missingServerKey", "ຂາດ server key ສຳລັບສົ່ງ FCM")}
+            </div>
+            {t("pushTest.setupHintPre", "ໃຫ້ເອົາ Firebase service account JSON ຂອງ project")} <b>saleproject-36fc8</b>{" "}
+            {t("pushTest.setupHintMid", "ມາວາງເປັນ")}
+            <b> BOQ2026/firebase-service-account.json</b> {t("pushTest.setupHintOr", "ຫຼືຕັ້ງ")} <b>FIREBASE_SERVICE_ACCOUNT</b>{" "}
+            {t("pushTest.setupHintEnv", "ໃນ `.env`, ແລ້ວ restart server.")}
           </div>
         )}
       </Card>
 
       <Card className="mb-4 p-4">
-        <h2 className="mb-2 text-[13.5px] font-bold text-[var(--theme-text)]">{t("pushTest.sendTestTitle", "ສົ່ງທົດສອບໄປແອັບ")}</h2>
+        <SectionHeader icon={<Send size={15} />} title={t("pushTest.sendTestTitle", "ສົ່ງທົດສອບໄປແອັບ")} tone="brand" />
         <div className="flex gap-2">
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder={t("pushTest.codePlaceholder", "employee_code (ເຊັ່ນ 21012)")}
-            className="flex-1 rounded-xl border border-slate-200 px-3.5 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/12"
+            className={`${inputCls} flex-1`}
           />
-          <button
-            onClick={() => sendTest(code.trim())}
-            disabled={!code.trim() || sending || !status?.configured}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 text-[13px] font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
-          >
-            {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} {t("pushTest.send", "ສົ່ງ")}
-          </button>
+          <Btn variant="ink" onClick={() => sendTest(code.trim())} disabled={!code.trim() || sending || !status?.configured}>
+            {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} {t("pushTest.send", "ສົ່ງ")}
+          </Btn>
         </div>
         {result && (
-          <div className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-semibold ${result.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+          <div
+            className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-semibold ${
+              result.ok ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--danger-soft)] text-[var(--danger)]"
+            }`}
+          >
             {result.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />} {result.message}
           </div>
         )}
       </Card>
 
       <Card className="p-4">
-        <h2 className="mb-3 text-[13.5px] font-bold text-[var(--theme-text)]">{t("pushTest.registeredDevices", "Device ທີ່ລົງທະບຽນ")} ({status?.devices?.length ?? 0})</h2>
+        <SectionHeader
+          icon={<Bell size={15} />}
+          title={`${t("pushTest.registeredDevices", "Device ທີ່ລົງທະບຽນ")} (${status?.devices?.length ?? 0})`}
+          tone="brand"
+        />
         {!status?.devices?.length ? (
-          <p className="py-4 text-center text-[12px] text-slate-400">{t("pushTest.noDevices", "ຍັງບໍ່ມີ device token — ໃຫ້ຊ່າງ login ໃນແອັບກ່ອນ")}</p>
+          <p className="py-4 text-center text-[12px] text-[var(--text-mute)]">
+            {t("pushTest.noDevices", "ຍັງບໍ່ມີ device token — ໃຫ້ຊ່າງ login ໃນແອັບກ່ອນ")}
+          </p>
         ) : (
           <div className="space-y-2">
             {status.devices.map((d) => (
-              <div key={d.employee_code} className="flex items-center gap-3 rounded-xl border border-slate-200 p-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Bell size={16} /></span>
+              <div key={d.employee_code} className="flex items-center gap-3 rounded-xl border border-[var(--border)] p-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--info-soft)] bg-[var(--info-soft)] text-[var(--info)]">
+                  <Bell size={16} />
+                </span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-bold text-slate-700">{d.name}</div>
-                  <div className="text-[11px] text-slate-400">{d.employee_code} · {d.tokens} device · {d.platforms}</div>
+                  <div className="truncate text-[13px] font-bold text-[var(--text)]">{d.name}</div>
+                  <div className="text-[11px] text-[var(--text-mute)]">
+                    {d.employee_code} · {d.tokens} device · {d.platforms}
+                  </div>
                 </div>
-                <button
-                  onClick={() => sendTest(d.employee_code)}
-                  disabled={sending || !status.configured}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11.5px] font-bold text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
-                >
+                <Btn variant="outline" onClick={() => sendTest(d.employee_code)} disabled={sending || !status.configured}>
                   <BellRing size={13} /> {t("pushTest.sendTest", "ສົ່ງທົດສອບ")}
-                </button>
+                </Btn>
               </div>
             ))}
           </div>

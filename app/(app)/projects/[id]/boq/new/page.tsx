@@ -10,7 +10,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Save, Plus, Trash2, ListChecks, FileDown, Upload, Wrench, PackageOpen } from "lucide-react";
 import * as XLSX from "xlsx";
-import { getProjectsBoq, advanceProjectStage } from "@/_actions/projects";
+import { getProjectsBoq } from "@/_actions/projects";
 import { getContracts } from "@/_actions/contracts";
 import { getCustomer } from "@/_actions/customers";
 import { saveBoq, getBoq, updateBoqErp } from "@/_actions/boq";
@@ -198,7 +198,7 @@ export default function CreateBoqPage() {
         items,
       });
       if (res?.success) {
-        await advanceProjectStage(String(id), "BOQ").catch(() => {});
+        // Stage follows the BOQ APPROVAL, not the creation.
         router.push(`/projects/${id}?tab=boq`);
       } else {
         setError(res?.message || t("boqNew.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
@@ -212,8 +212,8 @@ export default function CreateBoqPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
+      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--text-mute)]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--brand)]" />
         <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
@@ -222,9 +222,9 @@ export default function CreateBoqPage() {
   if (!editDocNo && !erpContract) {
     return (
       <Page max="max-w-[700px]">
-        <Card className="border-t-2 border-t-cyan-400 p-6 text-center">
-          <p className="text-[13px] text-[var(--theme-text-soft)]">
-            {t("boqNew.needContractPrefix", "ຕ້ອງມີ")} <b>{t("boqNew.contract", "ສັນຍາ")}</b> {t("boqNew.needContractSuffix", "ກ່ອນ ຈຶ່ງສ້າງ BOQ ໄດ້.")}
+        <Card className="p-6 text-center">
+          <p className="text-[13px] text-[var(--text-soft)]">
+            {t("boqNew.needContractPrefix", "ຕ້ອງມີ")} <b className="text-[var(--text)]">{t("boqNew.contract", "ສັນຍາ")}</b> {t("boqNew.needContractSuffix", "ກ່ອນ ຈຶ່ງສ້າງ BOQ ໄດ້.")}
           </p>
           <div className="mt-4 flex justify-center">
             <Btn onClick={() => router.push(`/projects/${id}`)}>{t("boqNew.backToProject", "ກັບໄປໂຄງການ")}</Btn>
@@ -237,45 +237,45 @@ export default function CreateBoqPage() {
   return (
     <Page max="max-w-none">
       <form onSubmit={submit}>
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <button
               type="button"
               onClick={() => router.push(`/projects/${project?.id ?? id}`)}
-              className="mb-1 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]"
+              className="mb-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-[var(--text-mute)] transition-colors hover:text-[var(--brand)]"
             >
               <ArrowLeft size={14} /> {t("boqNew.toProject", "ໄປໂຄງການ")}
             </button>
-            <h1 className="flex items-center gap-2 text-[19px] font-bold leading-tight text-[var(--theme-text)]">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-sky-500 text-white">
+            <h1 className="flex items-center gap-2.5 text-[19px] font-black leading-tight tracking-tight text-[var(--text)]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                 <ListChecks size={16} />
               </span>
               {editDocNo ? t("boqNew.editBoq", "ແກ້ໄຂ BOQ") : t("boqNew.createBoq", "ສ້າງ BOQ")}
             </h1>
             {(custName || project?.project_name) && (
-              <p className="text-[12px] text-[var(--theme-text-mute)]">
-                {custName && <span className="font-medium text-[var(--theme-text-soft)]">{t("boqNew.customerLabel", "ລູກຄ້າ")}: {custName}</span>}
+              <p className="mt-1.5 text-[12px] text-[var(--text-mute)]">
+                {custName && <span className="font-semibold text-[var(--text-soft)]">{t("boqNew.customerLabel", "ລູກຄ້າ")}: {custName}</span>}
                 {custName && project?.project_name && " · "}
                 {project?.project_name && <>{t("boqNew.projectLabel", "ໂຄງການ")}: {project.project_name}</>}
                 {erpContract?.contract_no && <> · {t("boqNew.contractLabel", "ສັນຍາ")}: {erpContract.contract_no}</>}
               </p>
             )}
           </div>
-          <Btn type="submit" disabled={saving}>
+          <Btn type="submit" variant="go" disabled={saving}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("boqNew.saveBoq", "ບັນທຶກ BOQ")}
           </Btn>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</div>
+          <div className="mb-4 rounded-xl border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">{error}</div>
         )}
 
         {/* Items — materials + labour + consumables, all as line items (qty only) */}
-        <Card className="mb-4 overflow-hidden border-t-2 border-t-cyan-400">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--theme-border-subtle)] px-3 py-2">
-            <h2 className="flex items-center gap-2 text-[13px] font-bold text-[var(--theme-text)]">
-              <span className="h-4 w-1 rounded bg-cyan-500" /> {t("boqNew.boqItemsHeading", "ລາຍການ BOQ (ຈຳນວນ)")}
+        <Card className="mb-4 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-2.5">
+            <h2 className="text-[11px] font-black tracking-wider text-[var(--text)]">
+              {t("boqNew.boqItemsHeading", "ລາຍການ BOQ (ຈຳນວນ)")}
             </h2>
             <div className="flex flex-wrap items-center gap-2">
               <Btn type="button" variant="outline" onClick={downloadTemplate}><FileDown size={14} /> Template</Btn>
@@ -300,12 +300,12 @@ export default function CreateBoqPage() {
               <tbody>
                 {mats.map((m, i) => (
                   <tr key={i}>
-                    <td className={`${tdCls} text-[11px] text-[var(--theme-text-mute)]`}>{i + 1}</td>
+                    <td className={`${tdCls} text-[11px] text-[var(--text-mute)]`}>{i + 1}</td>
                     <td className={tdCls}>
                       {m.locked ? (
-                        <div className="flex items-center gap-2 text-[12.5px] text-[var(--theme-text)]">
-                          <span className="font-medium">{m.description}</span>
-                          {m.itemCode && <span className="font-mono text-[10.5px] text-[var(--theme-text-mute)]">{m.itemCode}</span>}
+                        <div className="flex items-center gap-2 text-[12.5px] text-[var(--text)]">
+                          <span className="font-semibold">{m.description}</span>
+                          {m.itemCode && <span className="text-[10.5px] tabular-nums text-[var(--text-mute)]">{m.itemCode}</span>}
                         </div>
                       ) : (
                         <InventoryPicker
@@ -316,33 +316,33 @@ export default function CreateBoqPage() {
                       )}
                     </td>
                     <td className={tdCls}>
-                      <input value={m.unit ?? ""} onChange={(e) => setMat(i, { unit: e.target.value })} disabled={m.locked} className={`${inputCls} h-8 disabled:bg-[var(--theme-bg-muted)] disabled:opacity-70`} placeholder={t("common.unit", "ໜ່ວຍ")} />
+                      <input value={m.unit ?? ""} onChange={(e) => setMat(i, { unit: e.target.value })} disabled={m.locked} className={`${inputCls} h-8 disabled:bg-[var(--surface-sunken)] disabled:opacity-70`} placeholder={t("common.unit", "ໜ່ວຍ")} />
                     </td>
                     <td className={tdCls}>
                       <input type="number" min="0" value={m.qty} onChange={(e) => setMat(i, { qty: Number(e.target.value) })} className={`${inputCls} h-8 text-right`} />
                     </td>
                     <td className={tdCls}>
                       {m.locked ? (
-                        <span title={t("boqNew.lockedFromContract", "ສິນຄ້າຈາກສັນຍາ — ລົບບໍ່ໄດ້")} className="text-[var(--theme-text-mute)] opacity-40"><Trash2 size={15} /></span>
+                        <span title={t("boqNew.lockedFromContract", "ສິນຄ້າຈາກສັນຍາ — ລົບບໍ່ໄດ້")} className="text-[var(--text-mute)] opacity-40"><Trash2 size={15} /></span>
                       ) : (
-                        <button type="button" onClick={() => removeMat(i)} className="text-rose-500 hover:text-rose-700"><Trash2 size={15} /></button>
+                        <button type="button" onClick={() => removeMat(i)} className="text-[var(--danger)] transition-opacity hover:opacity-70"><Trash2 size={15} /></button>
                       )}
                     </td>
                   </tr>
                 ))}
                 {mats.length === 0 && (
-                  <tr><td colSpan={5} className="px-3 py-4 text-center text-[12px] text-[var(--theme-text-mute)]">{t("boqNew.emptyHint", 'ບໍ່ມີ — ກົດ "ເພີ່ມແຖວ" / "ຄ່າແຮງ" / "ສິ້ນເປືອງ"')}</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-[12px] text-[var(--text-mute)]">{t("boqNew.emptyHint", 'ບໍ່ມີ — ກົດ "ເພີ່ມແຖວ" / "ຄ່າແຮງ" / "ສິ້ນເປືອງ"')}</td></tr>
                 )}
               </tbody>
             </table>
           </div>
-          <div className="flex items-center justify-between border-t border-[var(--theme-border-subtle)] px-3 py-2 text-[11px] text-[var(--theme-text-mute)]">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] px-4 py-2.5 text-[11px] text-[var(--text-mute)]">
             <span>{t("boqNew.footerHint", "ສິນຄ້າຈາກສັນຍາ ລົບບໍ່ໄດ້. ຄ່າແຮງ ແລະ ວັດສະດຸສິ້ນເປືອງ ໃສ່ເປັນແຖວລາຍການ.")}</span>
-            <span className="font-semibold text-[var(--theme-text-soft)]">{mats.length} {t("boqNew.itemsUnit", "ລາຍການ")} · {totalQty.toLocaleString("en-US")} {t("common.unit", "ໜ່ວຍ")}</span>
+            <span className="font-bold tabular-nums text-[var(--text-soft)]">{mats.length} {t("boqNew.itemsUnit", "ລາຍການ")} · {totalQty.toLocaleString("en-US")} {t("common.unit", "ໜ່ວຍ")}</span>
           </div>
         </Card>
 
-        <p className="text-[11.5px] text-[var(--theme-text-mute)]">
+        <p className="text-[11.5px] text-[var(--text-mute)]">
           {t("boqNew.creatorApproverNote", "ຜູ້ຂໍ/ຜູ້ສ້າງ ບັນທຶກອັດຕະໂນມັດຈາກຜູ້ໃຊ້ທີ່ເຂົ້າລະບົບ · ຜູ້ອະນຸມັດ ບັນທຶກຕອນກົດອະນຸມັດ.")}
         </p>
       </form>

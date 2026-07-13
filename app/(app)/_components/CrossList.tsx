@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, RefreshCw, ChevronRight, Inbox, Layers, FolderOpen, CircleAlert } from "lucide-react";
-import { Page, PageHeader, Card, Btn } from "./ui";
+import { Page, PageHeader, Card, Btn, tblCls, thCls, tdCls, trHover } from "./ui";
 import { useT } from "@/_lib/i18n";
 
 export type Column = { header: string; align?: "right" | "center"; cell: (r: any) => React.ReactNode };
@@ -114,14 +114,12 @@ export default function CrossList({
       {columns.map((c, i) => (
         <th
           key={i}
-          className={`px-5 py-3 bg-slate-50/80 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200/60 ${
-            c.align === "right" ? "text-right" : c.align === "center" ? "text-center" : "text-left"
-          }`}
+          className={`${thCls} ${c.align === "right" ? "text-right" : c.align === "center" ? "text-center" : "text-left"}`}
         >
           {c.header}
         </th>
       ))}
-      {rowHref && <th className="px-5 py-3 bg-slate-50/80 border-b border-slate-200/60 w-10" />}
+      {rowHref && <th className={`${thCls} w-10`} />}
     </tr>
   );
 
@@ -130,21 +128,25 @@ export default function CrossList({
       <tr
         key={ri}
         onClick={rowHref ? () => router.push(rowHref(r)) : undefined}
-        className={`group transition-colors duration-150 hover:bg-blue-50/40 ${rowHref ? "cursor-pointer" : ""}`}
+        className={`group ${trHover} ${rowHref ? "cursor-pointer" : ""}`}
       >
         {columns.map((c, ci) => (
           <td
             key={ci}
-            className={`px-5 py-3.5 align-middle text-xs font-semibold text-slate-700 border-b border-slate-100 ${
-              c.align === "right" ? "text-right font-mono text-slate-900" : c.align === "center" ? "text-center" : "text-left"
+            className={`${tdCls} font-semibold ${
+              c.align === "right"
+                ? "text-right font-mono tabular-nums text-[var(--text)]"
+                : c.align === "center"
+                  ? "text-center"
+                  : "text-left"
             }`}
           >
             {c.cell(r)}
           </td>
         ))}
         {rowHref && (
-          <td className="px-5 py-3.5 align-middle border-b border-slate-100 text-right w-10">
-            <ChevronRight className="inline-block h-4 w-4 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-blue-500" />
+          <td className={`${tdCls} w-10 text-right`}>
+            <ChevronRight className="inline-block h-4 w-4 text-[var(--text-mute)] transition-all group-hover:translate-x-0.5 group-hover:text-[var(--brand)]" />
           </td>
         )}
       </tr>
@@ -159,32 +161,32 @@ export default function CrossList({
         subtitle={subtitle ? subtitle(filtered.length) : `${filtered.length} ${t("components.crossList.items", "ລາຍການ")}`}
         actions={
           <div className="flex items-center gap-2">
-            <Btn variant="outline" onClick={() => void refresh()} disabled={loading} className="h-10 w-10 p-0 rounded-xl">
+            <Btn variant="outline" onClick={() => void refresh()} disabled={loading} className="w-9 p-0">
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             </Btn>
             {headerActions}
           </div>
         }
       />
-      <Card className="overflow-hidden border border-slate-200 shadow-sm rounded-2xl">
-        {/* Modern toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 p-4">
-          <div className="relative flex h-10 w-full max-w-xs items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 transition-all">
-            <Search className="h-4 w-4 text-slate-400" />
+      <Card className="overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] p-3">
+          <label className="flex h-9 w-full max-w-xs items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
+            <Search className="h-4 w-4 text-[var(--text-mute)]" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={searchPh}
-              className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
             />
-          </div>
+          </label>
           {groupBy && (
             <button
               onClick={() => setGrouped((g) => !g)}
-              className={`flex h-10 items-center gap-2 rounded-xl border px-4 text-xs font-bold transition-all active:scale-[0.98] ${
+              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-[11.5px] font-bold transition-all active:scale-[0.98] ${
                 grouped
-                  ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-600/25"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                  ? "bg-[var(--ink)] text-[var(--ink-text)]"
+                  : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]"
               }`}
             >
               <Layers size={13} />
@@ -195,54 +197,54 @@ export default function CrossList({
         {aboveTable}
 
         {loading ? (
-          <div className="flex h-56 items-center justify-center gap-3 text-slate-400">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
-            <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
+          <div className="flex h-56 items-center justify-center gap-3 text-[var(--text-mute)]">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--brand)]" />
+            <span className="text-[13px] font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
           </div>
         ) : error ? (
-          <div className="flex h-56 flex-col items-center justify-center gap-2 px-6 text-center text-rose-500">
+          <div className="flex h-56 flex-col items-center justify-center gap-2 px-6 text-center text-[var(--danger)]">
             <CircleAlert className="h-8 w-8 opacity-70" />
-            <span className="text-sm font-bold">{t("components.crossList.loadError", "ບໍ່ສາມາດໂຫຼດຂໍ້ມູນໄດ້")}</span>
-            <span className="max-w-xl font-mono text-[10.5px] font-medium text-rose-400">{error}</span>
+            <span className="text-[13px] font-bold">{t("components.crossList.loadError", "ບໍ່ສາມາດໂຫຼດຂໍ້ມູນໄດ້")}</span>
+            <span className="max-w-xl font-mono text-[10.5px] font-medium opacity-80">{error}</span>
             <Btn variant="outline" onClick={() => void refresh()} className="mt-2">
               <RefreshCw size={13} /> {t("components.crossList.retry", "ລອງໃໝ່")}
             </Btn>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex h-56 flex-col items-center justify-center gap-2 text-slate-400">
+          <div className="flex h-56 flex-col items-center justify-center gap-2 text-[var(--text-mute)]">
             <Inbox className="h-8 w-8 opacity-40" />
-            <span className="text-sm font-semibold">{emptyText}</span>
+            <span className="text-[13px] font-semibold">{emptyText}</span>
           </div>
         ) : useGrouped ? (
-          <div className="space-y-5 bg-slate-50/50 p-4 border-t border-slate-100">
+          <div className="space-y-4 border-t border-[var(--border-soft)] bg-[var(--surface-sunken)] p-3">
             {groups.map((g, gi) => (
-              <div key={gi} className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition-shadow hover:shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
-                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="font-display flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-[12px] font-black text-white shadow-sm shadow-blue-600/25">
+              <div key={gi} className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]">
+                <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-4 py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[11px] font-black text-[var(--brand-strong)]">
                       {g.name.charAt(0).toUpperCase()}
                     </span>
-                    <span className="text-sm font-extrabold text-slate-800">{g.name}</span>
+                    <span className="text-[12.5px] font-extrabold text-[var(--text)]">{g.name}</span>
                   </div>
-                  <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-bold text-slate-500">
+                  <span className="rounded-md border border-[var(--border)] bg-[var(--surface-sunken)] px-2.5 py-0.5 text-[10.5px] font-extrabold tracking-wide text-[var(--text-soft)]">
                     {g.items.length} {t("components.crossList.items", "ລາຍການ")}
                   </span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border-separate border-spacing-0 text-xs">
+                  <table className={tblCls}>
                     <thead>{headRow}</thead>
                     {g.subs ? (
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody>
                         {g.subs.map((s, si) => (
                           <React.Fragment key={si}>
                             <tr>
                               <td
                                 colSpan={columns.length + (rowHref ? 1 : 0)}
-                                className="bg-slate-50/70 px-5 py-2 border-b border-slate-100"
+                                className="border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-4 py-2"
                               >
-                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
-                                  <FolderOpen size={12} className="text-blue-500" /> {s.name}
-                                  <span className="text-slate-400">· {s.items.length}</span>
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[var(--text-soft)]">
+                                  <FolderOpen size={12} className="text-[var(--brand)]" /> {s.name}
+                                  <span className="text-[var(--text-mute)]">· {s.items.length}</span>
                                 </span>
                               </td>
                             </tr>
@@ -251,7 +253,7 @@ export default function CrossList({
                         ))}
                       </tbody>
                     ) : (
-                      <tbody className="divide-y divide-slate-100">{bodyRows(g.items)}</tbody>
+                      <tbody>{bodyRows(g.items)}</tbody>
                     )}
                   </table>
                 </div>
@@ -259,10 +261,10 @@ export default function CrossList({
             ))}
           </div>
         ) : (
-          <div className="overflow-x-auto border-t border-slate-100">
-            <table className="min-w-full border-separate border-spacing-0 text-xs">
+          <div className="overflow-x-auto border-t border-[var(--border-soft)]">
+            <table className={tblCls}>
               <thead>{headRow}</thead>
-              <tbody className="divide-y divide-slate-100">{bodyRows(filtered)}</tbody>
+              <tbody>{bodyRows(filtered)}</tbody>
             </table>
           </div>
         )}

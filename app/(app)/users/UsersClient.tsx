@@ -33,7 +33,7 @@ import {
 } from "@/_lib/permissions";
 import { getV2User } from "../../_lib/session";
 import { isManager } from "@/_lib/permissions";
-import { Page, PageHeader, Card, Btn, Field, inputCls } from "../_components/ui";
+import { Page, PageHeader, Card, Btn, Field, Pill, SectionHeader, inputCls, tblCls, thCls, tdCls, trHover, type PillTone } from "../_components/ui";
 import { useT } from "@/_lib/i18n";
 
 type Draft = {
@@ -48,11 +48,11 @@ type Draft = {
 
 const emptyDraft = (): Draft => ({ username: "", name: "", password: "", role: "staff", active: true, permissions: {}, isNew: true });
 
-const ROLE_TONE: Record<string, string> = {
-  admin: "bg-blue-600 text-white",
-  manager: "bg-blue-100 text-blue-700 border border-blue-200",
-  head_craftsman: "bg-teal-100 text-teal-700 border border-teal-200",
-  staff: "bg-slate-100 text-slate-600 border border-slate-200",
+const ROLE_TONE: Record<string, PillTone> = {
+  admin: "brand",
+  manager: "blue",
+  head_craftsman: "cyan",
+  staff: "neutral",
 };
 
 export default function UsersClient({ initialRows }: { initialRows: AppUserRow[] }) {
@@ -169,72 +169,83 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
         subtitle={`${t("common.total", "ທັງໝົດ")} ${counts.total} · ${t("users.roleAdmin", "ຜູ້ດູແລ")} ${counts.admin} · ${t("users.roleManager", "ຜູ້ຈັດການ")} ${counts.manager} · ${t("users.roleStaff", "ພະນັກງານ")} ${counts.staff}`}
         actions={
           <>
-            <Btn variant="outline" onClick={() => void load()} disabled={loading} className="h-10 w-10 p-0 rounded-xl">
-              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            <Btn variant="outline" onClick={() => void load()} disabled={loading}>
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {t("common.reload", "ໂຫຼດໃໝ່")}
             </Btn>
-            <Btn onClick={openNew} className="h-10 rounded-xl">
+            <Btn variant="go" onClick={openNew}>
               <Plus size={14} strokeWidth={2.75} /> {t("users.createUser", "ສ້າງຜູ້ໃຊ້")}
             </Btn>
           </>
         }
       />
 
-      <Card className="overflow-hidden border border-slate-200 rounded-2xl">
+      <Card className="overflow-hidden">
         {loading ? (
-          <div className="flex h-56 items-center justify-center gap-3 text-slate-400">
-            <Loader2 className="h-6 w-6 animate-spin" />
+          <div className="flex h-56 items-center justify-center gap-2 text-[var(--text-mute)]">
+            <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
           </div>
         ) : rows.length === 0 ? (
-          <div className="flex h-56 flex-col items-center justify-center gap-2 text-slate-400">
+          <div className="flex h-56 flex-col items-center justify-center gap-2 text-[var(--text-mute)]">
             <UsersIcon className="h-8 w-8 opacity-40" />
             <span className="text-sm font-semibold">{t("users.noUsers", "ຍັງບໍ່ມີຜູ້ໃຊ້")}</span>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
-            {/* head */}
-            <div className="flex items-center gap-3.5 bg-slate-50/70 px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              <span className="flex-1">{t("users.colUser", "ຜູ້ໃຊ້")}</span>
-              <span className="w-28 text-left">{t("users.colRole", "ສິດທິ")}</span>
-              <span className="w-20 text-center">{t("common.status", "ສະຖານະ")}</span>
-              <span className="w-16" />
-            </div>
-            {rows.map((u) => (
-              <div key={u.username} className="group flex items-center gap-3.5 px-5 py-3 transition-colors hover:bg-slate-50/50">
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[11px] font-black text-blue-700 ring-1 ring-blue-100">
-                  {(u.name || u.username).charAt(0).toUpperCase()}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-bold text-slate-800">{u.name || u.username}</div>
-                  <div className="mt-0.5 truncate font-mono text-[10.5px] font-medium text-slate-400">
-                    {u.username}
-                    {u.source === "erp" && <span className="ml-1.5 rounded bg-slate-100 px-1 py-0.5 text-[9px] text-slate-400">ERP</span>}
-                  </div>
-                </div>
-                <span className="w-28">
-                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ${ROLE_TONE[u.role] || ROLE_TONE.staff}`}>
-                    {ROLE_LABELS[(u.role as Role)] || u.role}
-                  </span>
-                </span>
-                <span className="w-20 text-center">
-                  {u.active ? (
-                    <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-600"><Check size={12} /> {t("users.active", "ໃຊ້ງານ")}</span>
-                  ) : (
-                    <span className="text-[10.5px] font-bold text-slate-400">{t("users.inactive", "ປິດ")}</span>
-                  )}
-                </span>
-                <div className="flex w-16 flex-shrink-0 items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => openEdit(u)} title={t("common.edit", "ແກ້ໄຂ")} className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
-                    <Pencil size={13} />
-                  </button>
-                  {u.source === "v2" && (
-                    <button onClick={() => del(u)} title={t("common.delete", "ລຶບ")} className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer">
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className={tblCls}>
+              <thead>
+                <tr>
+                  <th className={thCls}>{t("users.colUser", "ຜູ້ໃຊ້")}</th>
+                  <th className={`${thCls} w-32`}>{t("users.colRole", "ສິດທິ")}</th>
+                  <th className={`${thCls} w-24 text-center`}>{t("common.status", "ສະຖານະ")}</th>
+                  <th className={`${thCls} w-24 text-right`}>{t("common.actions", "ການດຳເນີນ")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((u) => (
+                  <tr key={u.username} className={`${trHover} group`}>
+                    <td className={tdCls}>
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[11px] font-black text-[var(--brand-strong)]">
+                          {(u.name || u.username).charAt(0).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold text-[var(--text)]">{u.name || u.username}</div>
+                          <div className="truncate font-mono text-[11px] text-[var(--text-mute)]">
+                            {u.username}
+                            {u.source === "erp" && (
+                              <span className="ml-1.5 rounded bg-[var(--surface-sunken)] px-1 py-0.5 text-[9px]">ERP</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className={tdCls}>
+                      <Pill tone={ROLE_TONE[u.role] || ROLE_TONE.staff}>{ROLE_LABELS[u.role as Role] || u.role}</Pill>
+                    </td>
+                    <td className={`${tdCls} text-center`}>
+                      {u.active ? (
+                        <Pill tone="green">{t("users.active", "ໃຊ້ງານ")}</Pill>
+                      ) : (
+                        <Pill tone="neutral">{t("users.inactive", "ປິດ")}</Pill>
+                      )}
+                    </td>
+                    <td className={`${tdCls} text-right`}>
+                      <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button onClick={() => openEdit(u)} title={t("common.edit", "ແກ້ໄຂ")} className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-[var(--text-mute)] hover:bg-[var(--surface-sunken)] hover:text-[var(--brand)]">
+                          <Pencil size={13} />
+                        </button>
+                        {u.source === "v2" && (
+                          <button onClick={() => del(u)} title={t("common.delete", "ລຶບ")} className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-[var(--text-mute)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]">
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>
@@ -242,23 +253,29 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
       {/* Editor drawer */}
       {draft && (
         <div className="fixed inset-0 z-50 flex justify-end" onClick={() => !saving && setDraft(null)}>
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs" />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" />
           <div
-            className="relative h-full w-full max-w-md overflow-y-auto bg-white shadow-2xl animate-slide-in-right"
+            className="animate-slide-in-right relative h-full w-full max-w-md overflow-y-auto bg-[var(--surface)] shadow-[var(--shadow-lg)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/90 px-5 py-4 backdrop-blur">
-              <h2 className="flex items-center gap-2 text-sm font-black text-slate-900">
-                <ShieldCheck size={16} className="text-blue-600" />
-                {draft.isNew ? t("users.createNewUser", "ສ້າງຜູ້ໃຊ້ໃໝ່") : `${t("common.edit", "ແກ້ໄຂ")}: ${draft.username}`}
-              </h2>
-              <button onClick={() => !saving && setDraft(null)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border-soft)] bg-[var(--surface)] px-5 py-4">
+              <SectionHeader
+                icon={<ShieldCheck size={15} />}
+                title={draft.isNew ? t("users.createNewUser", "ສ້າງຜູ້ໃຊ້ໃໝ່") : `${t("common.edit", "ແກ້ໄຂ")}: ${draft.username}`}
+                tone="brand"
+                className="mb-0"
+              />
+              <button onClick={() => !saving && setDraft(null)} className="cursor-pointer text-[var(--text-mute)] hover:text-[var(--text)]">
                 <X size={18} />
               </button>
             </div>
 
             <div className="space-y-4 p-5">
-              {err && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-semibold text-rose-700">{err}</div>}
+              {err && (
+                <div className="rounded-xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12px] font-semibold text-[var(--danger)]">
+                  {err}
+                </div>
+              )}
 
               <Field label={t("users.fieldUsername", "ຊື່ຜູ້ໃຊ້ (username)")} required>
                 <input
@@ -284,7 +301,9 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
                       type="button"
                       onClick={() => setDraft({ ...draft, role: r })}
                       className={`h-9 rounded-xl text-xs font-bold transition-all ${
-                        draft.role === r ? "bg-blue-600 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        draft.role === r
+                          ? "bg-[var(--ink)] text-[var(--ink-text)]"
+                          : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]"
                       }`}
                     >
                       {ROLE_LABELS[r]}
@@ -294,8 +313,13 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
               </Field>
 
               {!draft.isNew && (
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                  <input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} className="h-4 w-4 accent-blue-600" />
+                <label className="flex items-center gap-2 text-xs font-semibold text-[var(--text-soft)]">
+                  <input
+                    type="checkbox"
+                    checked={draft.active}
+                    onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+                    className="h-4 w-4 accent-[var(--brand)]"
+                  />
                   {t("users.enableAccount", "ເປີດໃຊ້ງານບັນຊີ")}
                 </label>
               )}
@@ -303,16 +327,16 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
               {draft.role !== "admin" ? (
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{t("users.accessPerModule", "ສິດເຂົ້າເຖິງ (ຕໍ່ module)")}</span>
+                    <span className="text-[11px] font-bold tracking-wider text-[var(--text-mute)]">{t("users.accessPerModule", "ສິດເຂົ້າເຖິງ (ຕໍ່ module)")}</span>
                     <span className="flex gap-1.5">
-                      <button type="button" onClick={() => setAllPermissions(true)} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 hover:bg-blue-100">{t("users.selectAll", "ເລືອກທັງໝົດ")}</button>
-                      <button type="button" onClick={() => setAllPermissions(false)} className="rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 hover:bg-slate-50">{t("users.clear", "ລ້າງ")}</button>
+                      <button type="button" onClick={() => setAllPermissions(true)} className="rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--brand-strong)] hover:opacity-90">{t("users.selectAll", "ເລືອກທັງໝົດ")}</button>
+                      <button type="button" onClick={() => setAllPermissions(false)} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-bold text-[var(--text-mute)] hover:bg-[var(--surface-sunken)]">{t("users.clear", "ລ້າງ")}</button>
                     </span>
                   </div>
                   <div className="space-y-1.5">
                     {MODULES.map((m) => (
-                      <div key={m.key} className="rounded-xl border border-slate-200 p-2.5">
-                        <div className="mb-1.5 text-[12px] font-bold text-slate-700">{m.label}</div>
+                      <div key={m.key} className="rounded-xl border border-[var(--border)] p-2.5">
+                        <div className="mb-1.5 text-[12px] font-bold text-[var(--text-soft)]">{m.label}</div>
                         <div className="flex flex-wrap gap-1.5">
                           {m.actions.map((a) => {
                             const on = (draft.permissions[m.key] || []).includes(a);
@@ -322,7 +346,9 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
                                 type="button"
                                 onClick={() => toggle(m.key, a)}
                                 className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all ${
-                                  on ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                  on
+                                    ? "bg-[var(--ink)] text-[var(--ink-text)]"
+                                    : "bg-[var(--surface-sunken)] text-[var(--text-mute)] hover:text-[var(--text)]"
                                 }`}
                               >
                                 {ACTION_LABELS[a]}
@@ -335,15 +361,15 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-[12px] font-semibold text-blue-700">
+                <div className="rounded-xl border border-[var(--info-soft)] bg-[var(--info-soft)] px-3 py-2.5 text-[12px] font-semibold text-[var(--info)]">
                   {t("users.adminNote", "ຜູ້ດູແລລະບົບ ເຂົ້າເຖິງໄດ້ທຸກ module ແລະ ຈັດການຜູ້ໃຊ້ (ບໍ່ຕ້ອງກຳນົດສິດ).")}
                 </div>
               )}
             </div>
 
-            <div className="sticky bottom-0 flex gap-2 border-t border-slate-100 bg-white/90 px-5 py-4 backdrop-blur">
+            <div className="sticky bottom-0 flex gap-2 border-t border-[var(--border-soft)] bg-[var(--surface)] px-5 py-4">
               <Btn variant="outline" onClick={() => setDraft(null)} disabled={saving} className="flex-1">{t("common.cancel", "ຍົກເລີກ")}</Btn>
-              <Btn onClick={save} disabled={saving} className="flex-1">
+              <Btn variant="ink" onClick={save} disabled={saving} className="flex-1">
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {t("common.save", "ບັນທຶກ")}
               </Btn>
             </div>

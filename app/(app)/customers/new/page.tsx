@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Save, UserPlus, User, MapPin } from "lucide-react";
 import { createCustomer, getCustomer, updateCustomer } from "@/_actions/customers";
 import { getProvinces, getDistricts, getVillages } from "@/_actions/lookups";
-import { Page, Card, Btn, Field, SectionHeader, inputCls } from "../../_components/ui";
+import { Page, PageHeader, Card, Btn, Field, Pill, SectionHeader, inputCls } from "../../_components/ui";
 import RSelect from "../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
 
@@ -113,32 +113,31 @@ export default function NewCustomerPage() {
 
   return (
     <Page max="max-w-none">
-      <button
-        onClick={() => router.push("/customers")}
-        className="mb-2 inline-flex items-center gap-1 text-[12px] text-[var(--theme-text-mute)] hover:text-[var(--theme-primary)]"
-      >
-        <ArrowLeft size={14} /> {t("customers.backToList", "ກັບໄປລາຍຊື່ລູກຄ້າ")}
-      </button>
-
-      {/* Colourful hero */}
-      <div className="mb-4 flex items-center gap-3 rounded-xl bg-gradient-to-r from-[var(--theme-primary)] to-blue-500 p-4 text-white shadow-[var(--theme-shadow)]">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur">
-          <UserPlus size={24} />
-        </div>
-        <div>
-          <h1 className="text-[18px] font-bold leading-tight">{editCode ? t("customers.editTitle", "ແກ້ໄຂລູກຄ້າ") : t("customers.createTitle", "ສ້າງລູກຄ້າໃໝ່")}</h1>
-          <p className="text-[12px] text-white/85">{editCode ? t("customers.editSubtitle", "ແກ້ໄຂຂໍ້ມູນລູກຄ້າ") : t("customers.createSubtitle", "ເພີ່ມລູກຄ້າໂຄງການ ເພື່ອເລີ່ມລົງທະບຽນໂຄງການ")}</p>
-        </div>
-      </div>
+      <PageHeader
+        title={editCode ? t("customers.editTitle", "ແກ້ໄຂລູກຄ້າ") : t("customers.createTitle", "ສ້າງລູກຄ້າໃໝ່")}
+        subtitle={editCode ? t("customers.editSubtitle", "ແກ້ໄຂຂໍ້ມູນລູກຄ້າ") : t("customers.createSubtitle", "ເພີ່ມລູກຄ້າໂຄງການ ເພື່ອເລີ່ມລົງທະບຽນໂຄງການ")}
+        badge={
+          <Pill tone="brand">
+            <UserPlus size={11} className="mr-1" /> {t("customers.title", "ລູກຄ້າ")}
+          </Pill>
+        }
+        actions={
+          <Btn type="button" variant="outline" onClick={() => router.push("/customers")}>
+            <ArrowLeft size={14} /> {t("customers.backToList", "ກັບໄປລາຍຊື່ລູກຄ້າ")}
+          </Btn>
+        }
+      />
 
       <form onSubmit={submit}>
         {error && (
-          <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</div>
+          <div className="mb-3 rounded-lg border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12.5px] font-semibold text-[var(--danger)]">
+            {error}
+          </div>
         )}
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card className="border-t-2 border-t-blue-400 p-4">
-          <SectionHeader icon={<User size={15} />} title={t("customers.customerInfo", "ຂໍ້ມູນລູກຄ້າ")} tone="blue" />
+        <Card className="p-4">
+          <SectionHeader icon={<User size={15} />} title={t("customers.customerInfo", "ຂໍ້ມູນລູກຄ້າ")} tone="brand" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t("customers.customerName", "ຊື່ລູກຄ້າ")} required className="sm:col-span-2">
               <input value={form.name} onChange={(e) => set("name", e.target.value)} className={inputCls} placeholder={t("customers.customerName", "ຊື່ລູກຄ້າ")} />
@@ -157,8 +156,8 @@ export default function NewCustomerPage() {
           </div>
         </Card>
 
-        <Card className="border-t-2 border-t-emerald-400 p-4">
-          <SectionHeader icon={<MapPin size={15} />} title={t("customers.location", "ສະຖານທີ່")} tone="emerald" />
+        <Card className="p-4">
+          <SectionHeader icon={<MapPin size={15} />} title={t("customers.location", "ສະຖານທີ່")} tone="teal" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={t("customers.province", "ແຂວງ")} required>
               <Select value={form.province} onChange={onProvince} options={provinces} placeholder={t("customers.selectProvince", "ເລືອກແຂວງ")} />
@@ -178,12 +177,12 @@ export default function NewCustomerPage() {
 
         <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
           {!isComplete && (
-            <span className="mr-auto text-[11.5px] font-medium text-amber-600">
+            <span className="mr-auto text-[11.5px] font-semibold text-[var(--warning)]">
               {t("customers.fillAllRequired", "ກະລຸນາໃສ່ຂໍ້ມູນໃຫ້ຄົບ")}: {missingFields.join(", ")}
             </span>
           )}
           <Btn type="button" variant="outline" onClick={() => router.push("/customers")}>{t("common.cancel", "ຍົກເລີກ")}</Btn>
-          <Btn type="submit" disabled={saving || !isComplete}>
+          <Btn type="submit" variant="go" disabled={saving || !isComplete}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? t("common.saving", "ກຳລັງບັນທຶກ...") : t("customers.saveCustomer", "ບັນທຶກລູກຄ້າ")}
           </Btn>

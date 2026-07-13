@@ -6,6 +6,7 @@ import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { ensureProjectTaskSchema } from "@/_lib/schemas/tasks";
 import { requireUser, requirePermission } from "@/_lib/server-auth";
 import { can } from "@/_lib/permissions";
+import { canEditWorkOrder } from "@/_lib/workorder-stage";
 import { logActivity } from "./chatter";
 import {
   approveWorkOrderAs,
@@ -30,6 +31,7 @@ const mapLegacyWo = (w: any) => ({
   id: `erp-${w.id}`,
   work_no: w.code,
   project_id: w.project_code || "",
+  project_name: w.project_name_resolved || w.project_code || "",
   contract_no: w.contract_no || null,
   technician_name: w.technician_name_resolved || w.technician_id || "",
   technician_code: w.technician_id || null, // ERP stores the technician code in technician_id
@@ -42,7 +44,9 @@ const mapLegacyWo = (w: any) => ({
 });
 
 const LEGACY_WO_SELECT = `
-  SELECT w.*, t.name_1 AS technician_name_resolved
+  SELECT w.*, t.name_1 AS technician_name_resolved,
+         (SELECT project_name FROM odg_projects p
+            WHERE p.id::text = w.project_code OR p.sml_code = w.project_code LIMIT 1) AS project_name_resolved
   FROM odg_work_orders w
   LEFT JOIN odg_technicians t ON t.code = w.technician_id`;
 
@@ -50,7 +54,9 @@ const LEGACY_WO_SELECT = `
 // technician_code (older / seeded rows), resolve it from odg_technicians by the
 // stored technician_name. LATERAL + LIMIT 1 keeps it one row per work order.
 const WO_SELECT_WITH_TECH = `
-  SELECT w.*, tc.code AS resolved_tech_code
+  SELECT w.*, tc.code AS resolved_tech_code,
+         (SELECT project_name FROM odg_projects p
+            WHERE p.id::text = w.project_id::text OR p.sml_code = w.project_id::text LIMIT 1) AS project_name
     FROM odg_work_order w
     LEFT JOIN LATERAL (
       SELECT code FROM odg_technicians t
@@ -246,9 +252,12 @@ async function resolveHelpers(techCode: string | null): Promise<string[]> {
  */
 export async function createWorkOrder(body: any): Promise<{ success: true; data: any } | Fail> {
   try {
+    await requirePermission("work-orders", "create");
     await ensureWorkOrderSchema();
     await ensureProjectTaskSchema();
     if (!body?.project_id) return fail("project_id is required");
+    // ລົດຊ່າງ must be chosen when the work order is issued.
+    if (!body?.vehicle_id && !String(body?.vehicle_plate || "").trim()) return fail("ກະລຸນາເລືອກລົດຊ່າງ");
 
     // Plan tasks have an id; ad-hoc tasks (added on the WO) have only a title.
     const tasks = (Array.isArray(body.tasks) ? body.tasks : []).filter((t: any) => t?.id || (t?.title && String(t.title).trim()));
@@ -271,8 +280,9 @@ export async function createWorkOrder(body: any): Promise<{ success: true; data:
       const wo = await client.query(
         `INSERT INTO odg_work_order
           (work_no, project_id, contract_id, work_date, end_date, technician_code, technician_name,
-           rate_per_hour, total_hours, labor_cost, status, notes, tasks, materials, assigned_username, shift)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+           rate_per_hour, total_hours, labor_cost, status, notes, tasks, materials, assigned_username, shift,
+           vehicle_id, vehicle_plate, vehicle_name)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
         [
           workNo,
           String(body.project_id),
@@ -290,6 +300,9 @@ export async function createWorkOrder(body: any): Promise<{ success: true; data:
           JSON.stringify(materials),
           body.technician_code || null, // bind the assigned craftsman (employee_code)
           body.shift || null,
+          body.vehicle_id ? String(body.vehicle_id) : null,
+          body.vehicle_plate || null,
+          body.vehicle_name || null,
         ],
       );
       const woId = String(wo.rows[0].id);
@@ -341,6 +354,119 @@ export async function createWorkOrder(body: any): Promise<{ success: true; data:
     );
 
     await logActivity("work_order", String(result.id), "ສ້າງໃບງານ", result.work_no ?? undefined);
+    return { success: true, data: result };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/**
+ * Fix a work order that has NOT entered the flow yet (a mistake must be
+ * correctable). Editable ONLY while it is still awaiting the manager's approval
+ * (ອອກໃບງານ, approval_status = pending) or was rejected (ບໍ່ອະນຸມັດ) — see
+ * canEditWorkOrder() in @/_lib/workorder-stage. Approved / accepted / checked-in
+ * / checked-out / closed work orders are in flight and are refused here, not
+ * just hidden in the UI. Legacy ERP (erp-*) work orders have no edit path.
+ */
+export async function updateWorkOrder(id: string, body: any): Promise<{ success: true; data: any } | Fail> {
+  try {
+    await requirePermission("work-orders", "edit");
+    await ensureWorkOrderSchema();
+    await ensureProjectTaskSchema();
+
+    const woId = String(id);
+    if (woId.startsWith("erp-")) return fail("ໃບງານເກົ່າ (ERP) ແກ້ໄຂບໍ່ໄດ້");
+    if (!/^\d+$/.test(woId)) return fail("ບໍ່ພົບໃບງານ");
+
+    const cur = await query(`SELECT * FROM odg_work_order WHERE id = $1 LIMIT 1`, [woId]);
+    const wo = cur.rows[0];
+    if (!wo) return fail("ບໍ່ພົບໃບງານ");
+    if (!canEditWorkOrder(wo)) return fail("ໃບງານນີ້ເຂົ້າຂັ້ນຕອນແລ້ວ — ແກ້ໄຂບໍ່ໄດ້");
+
+    if (!body?.vehicle_id && !String(body?.vehicle_plate || "").trim()) return fail("ກະລຸນາເລືອກລົດຊ່າງ");
+    const tasks = (Array.isArray(body?.tasks) ? body.tasks : []).filter((t: any) => t?.id || (t?.title && String(t.title).trim()));
+    if (!tasks.length) return fail("ກະລຸນາເລືອກໜ້າວຽກຢ່າງໜ້ອຍ 1 ອັນ");
+    const materials = (Array.isArray(body?.materials) ? body.materials : []).filter((m: any) => num(m.qty) > 0);
+
+    const totalHours = tasks.reduce((s: number, t: any) => s + num(t.actual_hours), 0);
+    const rate = num(body.rate_per_hour);
+    const laborCost = totalHours * rate;
+
+    const result = await withTransaction(async (client) => {
+      const upd = await client.query(
+        `UPDATE odg_work_order SET
+            contract_id = $2, work_date = $3, end_date = $4,
+            technician_code = $5, technician_name = $6, assigned_username = $5,
+            rate_per_hour = $7, total_hours = $8, labor_cost = $9,
+            notes = $10, tasks = $11::jsonb, materials = $12::jsonb, shift = $13,
+            vehicle_id = $14, vehicle_plate = $15, vehicle_name = $16
+          WHERE id = $1 RETURNING *`,
+        [
+          woId,
+          body.contract_id ? String(body.contract_id) : null,
+          body.work_date || null,
+          body.end_date || null,
+          body.technician_code || null,
+          body.technician_name || null,
+          rate,
+          totalHours,
+          laborCost,
+          body.notes || null,
+          JSON.stringify(tasks),
+          JSON.stringify(materials),
+          body.shift || null,
+          body.vehicle_id ? String(body.vehicle_id) : null,
+          body.vehicle_plate || null,
+          body.vehicle_name || null,
+        ],
+      );
+
+      // Re-assign the plan: release everything this work order held, then bind the
+      // picked tasks again (same rules as createWorkOrder).
+      await client.query(
+        `UPDATE odg_project_task
+            SET work_order_id = NULL, technician_code = NULL, technician_name = NULL,
+                planned_start = NULL, planned_end = NULL, actual_hours = 0, status = 'planned'
+          WHERE work_order_id = $1`,
+        [woId],
+      );
+      for (const t of tasks) {
+        if (t.id) {
+          await client.query(
+            `UPDATE odg_project_task
+                SET work_order_id = $2, technician_code = $3, technician_name = $4,
+                    planned_start = $5, planned_end = $6, actual_hours = $7, status = 'done'
+              WHERE id = $1`,
+            [t.id, woId, body.technician_code || null, body.technician_name || null, body.work_date || null, body.end_date || null, num(t.actual_hours)],
+          );
+        } else {
+          await client.query(
+            `INSERT INTO odg_project_task
+               (project_id, contract_id, task_code, title, phase, technician_code, technician_name,
+                planned_start, planned_end, est_hours, actual_hours, work_order_id, status)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10,$11,'done')`,
+            [
+              String(wo.project_id ?? body.project_id ?? ""),
+              body.contract_id ? String(body.contract_id) : null,
+              t.task_code || null,
+              String(t.title).trim(),
+              t.phase || "ນອກແຜນ",
+              body.technician_code || null,
+              body.technician_name || null,
+              body.work_date || null,
+              body.end_date || null,
+              num(t.actual_hours),
+              woId,
+            ],
+          );
+        }
+      }
+      return upd.rows[0];
+    });
+
+    invalidate("wo:");
+    invalidate("tasks:");
+    await logActivity("work_order", woId, "ແກ້ໄຂໃບງານ", result?.work_no ?? undefined);
     return { success: true, data: result };
   } catch (e) {
     return fail((e as Error).message);

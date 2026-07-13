@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * v2 projects — dense professional table (interactive shell).
+ * ໂຄງການ — flat list (ODIEN SERVICE layout): toolbar → status tabs → one table.
+ * Rows carry a status bar down the left edge. Board and map views are kept.
  *
  * Data is fetched on the SERVER in page.tsx and passed in via `initialRows`,
  * so there is no mount→useEffect→server-action waterfall on navigation: the
@@ -11,23 +12,94 @@
 import React, { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Search, FolderOpen, ChevronRight, Plus, RefreshCw, Map as MapIcon, List } from "lucide-react";
+import {
+  BellRing,
+  ChevronLeft,
+  ChevronRight,
+  FileSpreadsheet,
+  LayoutGrid,
+  Loader2,
+  Map as MapIcon,
+  Plus,
+  RefreshCw,
+  Search,
+  Table as TableIcon,
+  Users,
+} from "lucide-react";
+import * as XLSX from "xlsx";
+import RSelect from "../_components/RSelect";
+import {
+  Btn,
+  BtnCount,
+  Card,
+  Page,
+  PageHeader,
+  Pill,
+  RowBar,
+  RowBarTh,
+  Segmented,
+  SortTh,
+  Toolbar,
+  TwoLine,
+  tblCls,
+  tdCls,
+  thCls,
+  trHover,
+  type PillTone,
+} from "../_components/ui";
 import { getProjects } from "@/_actions/projects";
 import { getInstallTracking, type InstallRow } from "@/_actions/install-tracking";
-import { Page, thCls, tdCls } from "../_components/ui";
 import { useT } from "@/_lib/i18n";
 
 const ProjectsMap = dynamic(() => import("./ProjectsMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[560px] items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-400">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
+    <div className="flex h-[560px] items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-mute)]">
+      <Loader2 size={22} className="animate-spin" />
     </div>
   ),
 });
 
+const PER_PAGE = 25;
+
 const fmtD = (v?: string | null) => (v ? new Date(v).toLocaleDateString("en-GB") : "—");
 const daysSince = (v?: string | null) => (v ? Math.max(0, Math.floor((Date.now() - new Date(v).getTime()) / 86_400_000)) : null);
+
+type SortKey = "project_name" | "customer_name" | "project_status" | "install_started_at" | "wo_count" | "worked_hours";
+type ViewMode = "table" | "board" | "map";
+
+/** Stage of a single project row — mirrors the status filter semantics below. */
+function stageOf(r: any): "waiting" | "closed" | "open" {
+  const status = String(r.project_status || "");
+  if (status === "ປິດໂຄງການ") return "closed";
+  if (status.startsWith("ລໍຖ້າ")) return "waiting";
+  return "open";
+}
+
+/**
+ * The status filter predicate. NOTE: "open" means "not closed" (it therefore
+ * also contains the waiting projects) — this is the pre-existing behaviour and
+ * is deliberately preserved.
+ */
+function matchesStatus(r: any, key: string): boolean {
+  const status = String(r.project_status || "");
+  if (key === "open") return status !== "ປິດໂຄງການ";
+  if (key === "waiting") return status.startsWith("ລໍຖ້າ");
+  if (key === "closed") return status === "ປິດໂຄງການ";
+  return true;
+}
+
+const STAGE_BAR: Record<string, "info" | "brand" | "warning" | "success" | "danger" | "neutral"> = {
+  open: "brand",
+  waiting: "warning",
+  closed: "success",
+};
+
+const STAGE_PILL: Record<string, PillTone> = {
+  open: "brand",
+  waiting: "amber",
+  closed: "green",
+};
 
 export default function ProjectsClient({
   initialRows,
@@ -41,12 +113,13 @@ export default function ProjectsClient({
   const [rows, setRows] = useState<any[]>(initialRows ?? []);
   const [metrics, setMetrics] = useState<Map<string, InstallRow>>(new Map());
   const [loading, setLoading] = useState(false);
+  const [draftQ, setDraftQ] = useState("");
   const [q, setQ] = useState("");
   const [groupByCustomer, setGroupByCustomer] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "map">(initialView);
+  const [viewMode, setViewMode] = useState<ViewMode>(initialView);
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "project_name", dir: "asc" });
 
   const load = async () => {
     setLoading(true);
@@ -66,30 +139,53 @@ export default function ProjectsClient({
     });
   }, []);
 
+  const runSearch = () => {
+    setQ(draftQ);
+    setCurrentPage(1);
+  };
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: rows.length };
+    for (const key of ["open", "waiting", "closed"]) c[key] = rows.filter((r) => matchesStatus(r, key)).length;
+    return c;
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const kw = q.trim().toLowerCase();
-    return rows.filter((r) => {
-      const status = String(r.project_status || "");
-      if (statusFilter === "open" && status === "ປິດໂຄງການ") return false;
-      if (statusFilter === "waiting" && !status.startsWith("ລໍຖ້າ")) return false;
-      if (statusFilter === "closed" && status !== "ປິດໂຄງການ") return false;
+    const list = rows.filter((r) => {
+      if (!matchesStatus(r, statusFilter)) return false;
       if (!kw) return true;
       return [r.project_name, r.customer_name, r.coordinator, r.sml_code, r.village_name, r.district_name, r.province_name, r.project_status]
         .map((x) => (x ?? "").toString().toLowerCase())
         .some((x) => x.includes(kw));
     });
-  }, [rows, q, statusFilter]);
+    const dir = sort.dir === "asc" ? 1 : -1;
+    const num = (r: any, key: "wo_count" | "worked_hours") => Number(metrics.get(String(r.id))?.[key] ?? 0) || 0;
+    return [...list].sort((a, b) => {
+      if (sort.key === "wo_count" || sort.key === "worked_hours") {
+        return num(a, sort.key) > num(b, sort.key) ? dir : -dir;
+      }
+      const av =
+        sort.key === "install_started_at" ? metrics.get(String(a.id))?.install_started_at ?? "" : a[sort.key];
+      const bv =
+        sort.key === "install_started_at" ? metrics.get(String(b.id))?.install_started_at ?? "" : b[sort.key];
+      return String(av ?? "") > String(bv ?? "") ? dir : -dir;
+    });
+  }, [rows, q, statusFilter, sort, metrics]);
 
   React.useEffect(() => {
     setCurrentPage(1);
   }, [q, groupByCustomer, statusFilter]);
 
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const current = Math.min(currentPage, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((current - 1) * PER_PAGE, current * PER_PAGE),
+    [filtered, current],
+  );
 
-  const totalPages = Math.ceil(filtered.length / pageSize);
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
 
   const grouped = useMemo(() => {
     const groups: Record<string, any[]> = {};
@@ -98,316 +194,334 @@ export default function ProjectsClient({
       if (!groups[cName]) groups[cName] = [];
       groups[cName].push(r);
     });
-    return Object.entries(groups).map(([customerName, projects]) => ({
-      customerName,
-      projects,
-    }));
-  }, [filtered]);
+    return Object.entries(groups).map(([customerName, projects]) => ({ customerName, projects }));
+  }, [filtered, t]);
 
-  const runningCount = rows.filter((r) =>
-    ["running", "ດຳເນີນຕາມໂຄງການ", "ໃບງານ"].includes(r.project_status)
-  ).length;
+  const stages = [
+    { value: "all", label: t("common.all", "ທັງໝົດ") },
+    { value: "open", label: t("projects.filter.open", "ກຳລັງເຮັດ") },
+    { value: "waiting", label: t("projects.filter.waiting", "ລໍຖ້າ") },
+    { value: "closed", label: t("projects.filter.closed", "ປິດແລ້ວ") },
+  ];
 
-  const quoteCount = rows.filter((r) =>
-    ["quotation", "ສະເໜີລາຄາ"].includes(r.project_status)
-  ).length;
+  const stageLabel = (key: string) => stages.find((s) => s.value === key)?.label ?? key;
+
+  const tabs = stages.map((tab) => ({
+    value: tab.value,
+    label: (
+      <span className="flex items-center gap-1.5">
+        {tab.label}
+        <span className="rounded-full bg-black/10 px-1.5 text-[10px] font-black dark:bg-white/15">{counts[tab.value] ?? 0}</span>
+      </span>
+    ),
+  }));
+
+  /** Excel export of exactly what is on screen (current filter + sort, all pages). */
+  const exportExcel = () => {
+    const sheet = XLSX.utils.json_to_sheet(
+      filtered.map((r) => {
+        const m = metrics.get(String(r.id));
+        const dur = daysSince(m?.install_started_at);
+        return {
+          [t("projects.col.project", "ໂຄງການ")]: r.project_name || "",
+          [t("projects.col.customerName", "ຊື່ລູກຄ້າ")]: r.customer_name || r.sml_code || "",
+          [t("common.status", "ສະຖານະ")]: r.project_status || "",
+          [t("projects.col.installStart", "ເລີ່ມຕິດຕັ້ງ")]: fmtD(m?.install_started_at),
+          [t("projects.col.duration", "ໄລຍະ")]: dur ?? "",
+          [t("projects.col.workOrders", "ໃບງານ")]: m?.wo_count ?? 0,
+          [t("projects.col.hours", "ຊົ່ວໂມງ")]: m && m.worked_hours > 0 ? Number(m.worked_hours.toFixed(1)) : 0,
+        };
+      }),
+    );
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, "projects");
+    XLSX.writeFile(book, `projects-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const openProject = (id: unknown) => router.push(`/projects/${encodeURIComponent(String(id))}`);
+
+  /** The shared table body for both the flat and the grouped-by-customer views. */
+  const renderRows = (list: any[]) =>
+    list.map((r, i) => {
+      const m = metrics.get(String(r.id));
+      const dur = daysSince(m?.install_started_at);
+      const stage = stageOf(r);
+      return (
+        <tr key={r.id ?? i} onClick={() => openProject(r.id)} className={`${trHover} cursor-pointer`}>
+          <RowBar tone={STAGE_BAR[stage] || "neutral"} />
+          <td className={tdCls}>
+            <TwoLine
+              primary={r.project_name || t("projects.noName", "(ບໍ່ມີຊື່)")}
+              secondary={r.customer_name || r.sml_code || undefined}
+            />
+          </td>
+          <td className={tdCls}>
+            <Pill tone={STAGE_PILL[stage] || "neutral"}>{r.project_status || stageLabel(stage)}</Pill>
+          </td>
+          <td className={`${tdCls} tabular-nums`}>{fmtD(m?.install_started_at)}</td>
+          <td className={`${tdCls} text-right tabular-nums`}>
+            {dur != null ? `${dur} ${t("projects.unit.days", "ມື້")}` : "—"}
+          </td>
+          <td className={`${tdCls} text-right tabular-nums`}>{m?.wo_count ? m.wo_count : "—"}</td>
+          <td className={`${tdCls} text-right font-semibold tabular-nums text-[var(--text)]`}>
+            {m && m.worked_hours > 0 ? m.worked_hours.toFixed(1) : "—"}
+          </td>
+        </tr>
+      );
+    });
+
+  const head = (
+    <thead>
+      <tr>
+        <RowBarTh />
+        <SortTh
+          label={t("projects.col.project", "ໂຄງການ")}
+          active={sort.key === "project_name"}
+          dir={sort.dir}
+          onClick={() => toggleSort("project_name")}
+        />
+        <SortTh
+          label={t("common.status", "ສະຖານະ")}
+          active={sort.key === "project_status"}
+          dir={sort.dir}
+          onClick={() => toggleSort("project_status")}
+          className="w-44"
+        />
+        <SortTh
+          label={t("projects.col.installStart", "ເລີ່ມຕິດຕັ້ງ")}
+          active={sort.key === "install_started_at"}
+          dir={sort.dir}
+          onClick={() => toggleSort("install_started_at")}
+          className="w-32"
+        />
+        <th className={`${thCls} w-24 text-right`}>{t("projects.col.duration", "ໄລຍະ")}</th>
+        <SortTh
+          label={t("projects.col.workOrders", "ໃບງານ")}
+          active={sort.key === "wo_count"}
+          dir={sort.dir}
+          onClick={() => toggleSort("wo_count")}
+          className="w-24 text-right"
+        />
+        <SortTh
+          label={t("projects.col.hours", "ຊົ່ວໂມງ")}
+          active={sort.key === "worked_hours"}
+          dir={sort.dir}
+          onClick={() => toggleSort("worked_hours")}
+          className="w-24 text-right"
+        />
+      </tr>
+    </thead>
+  );
 
   return (
-    <Page max="max-w-none w-full">
-      {/* Monochrome Minimalist Header */}
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-100 pb-5">
-        <div className="min-w-0">
-          <h1 className="truncate text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-none">{t("projects.title", "ໂຄງການ")}</h1>
-          <p className="mt-2 text-xs font-medium text-slate-400">
-            {t("projects.summary.total", "ໂຄງການທັງໝົດ")} {rows.length} · {t("projects.summary.running", "ກຳລັງດຳເນີນການ")} {runningCount} · {t("projects.summary.quote", "ສະເໜີລາຄາ / Pre-Sales")} {quoteCount}
-          </p>
+    <Page max="max-w-none">
+      <PageHeader
+        title={t("projects.title", "ໂຄງການ")}
+        subtitle={`${t("projects.summary.total", "ໂຄງການທັງໝົດ")} ${filtered.length} · ${t("common.page", "ໜ້າ")} ${current}/${totalPages}`}
+        actions={
+          <>
+            <Btn variant="go" onClick={() => router.push("/projects/new")}>
+              <Plus size={14} /> {t("projects.register", "ລົງທະບຽນໂຄງການ")}
+            </Btn>
+            <Btn variant="outline" onClick={exportExcel} disabled={filtered.length === 0}>
+              <FileSpreadsheet size={14} /> Excel
+            </Btn>
+            <Btn variant="outline" onClick={() => void load()} disabled={loading}>
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {t("common.reload", "ໂຫຼດໃໝ່")}
+            </Btn>
+            <Btn
+              variant="danger-outline"
+              onClick={() => {
+                setStatusFilter("waiting");
+                setCurrentPage(1);
+              }}
+            >
+              <BellRing size={14} /> {t("projects.filter.waiting", "ລໍຖ້າ")} <BtnCount value={counts.waiting ?? 0} />
+            </Btn>
+          </>
+        }
+      />
+
+      <Toolbar>
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+          <Search size={15} className="text-[var(--text-mute)]" />
+          <input
+            value={draftQ}
+            onChange={(e) => setDraftQ(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            placeholder={t("projects.search.placeholder", "ຄົ້ນຫາໂຄງການ, ລູກຄ້າ...")}
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
+          />
+        </label>
+
+        <div className="w-52">
+          <RSelect
+            value={statusFilter === "all" ? "" : statusFilter}
+            onChange={(v) => {
+              setStatusFilter(v || "all");
+              setCurrentPage(1);
+            }}
+            isClearable
+            isSearchable={false}
+            placeholder={t("projects.allStatuses", "ສະຖານະທັງໝົດ")}
+            options={stages
+              .filter((s) => s.value !== "all")
+              .map((s) => ({ value: s.value, label: `${s.label} (${counts[s.value] ?? 0})` }))}
+          />
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          <button
-            onClick={() => void load()}
-            disabled={loading}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          </button>
-          <button
-            onClick={() => router.push("/projects/new")}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-700 active:scale-[0.98] cursor-pointer"
-          >
-            <Plus size={14} strokeWidth={2.5} /> {t("projects.register", "ລົງທະບຽນໂຄງການ")}
-          </button>
-        </div>
+
+        <Btn variant="ink" onClick={runSearch}>
+          <Search size={14} /> {t("common.search", "ຄົ້ນຫາ")}
+        </Btn>
+
+        <Btn
+          variant={groupByCustomer ? "primary" : "outline"}
+          onClick={() => setGroupByCustomer(!groupByCustomer)}
+          disabled={viewMode !== "table"}
+        >
+          <Users size={14} /> {t("projects.groupByCustomer", "ຈັດກຸ່ມຕາມລູກຄ້າ")}
+        </Btn>
+
+        <Segmented<ViewMode>
+          className="ml-auto"
+          value={viewMode}
+          onChange={setViewMode}
+          options={[
+            { value: "table", label: t("projects.view.table", "ຕາຕະລາງ"), icon: <TableIcon size={14} /> },
+            { value: "board", label: t("projects.view.board", "ກະດານ"), icon: <LayoutGrid size={14} /> },
+            { value: "map", label: t("projects.view.map", "ແຜນທີ່"), icon: <MapIcon size={14} /> },
+          ]}
+        />
+      </Toolbar>
+
+      <div className="mb-4 overflow-x-auto">
+        <Segmented
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setCurrentPage(1);
+          }}
+          options={tabs}
+        />
       </div>
 
-      <div className="space-y-4">
-        {/* Search & Filter Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div className="flex flex-wrap items-center gap-3 flex-1">
-            <div className="relative flex h-9 w-full max-w-xs items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100 transition-all">
-              <Search className="h-3.5 w-3.5 text-slate-400" />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={t("projects.search.placeholder", "ຄົ້ນຫາໂຄງການ, ລູກຄ້າ...")}
-                className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none"
-              />
-            </div>
-            <div className="flex items-center gap-1">
-              {[
-                ["all", t("common.all", "ທັງໝົດ")],
-                ["open", t("projects.filter.open", "ກຳລັງເຮັດ")],
-                ["waiting", t("projects.filter.waiting", "ລໍຖ້າ")],
-                ["closed", t("projects.filter.closed", "ປິດແລ້ວ")],
-              ].map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setStatusFilter(key)}
-                  className={`h-8 rounded-lg px-3 text-xs font-semibold transition-all cursor-pointer ${
-                    statusFilter === key
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Table / Map view toggle */}
-            <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5">
-              <button
-                onClick={() => setViewMode("table")}
-                className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all cursor-pointer ${
-                  viewMode === "table" ? "bg-blue-600 text-white shadow-xs" : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <List size={13} /> {t("projects.view.table", "ຕາຕະລາງ")}
-              </button>
-              <button
-                onClick={() => setViewMode("map")}
-                className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all cursor-pointer ${
-                  viewMode === "map" ? "bg-blue-600 text-white shadow-xs" : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <MapIcon size={13} /> {t("projects.view.map", "ແຜນທີ່")}
-              </button>
-            </div>
-
-            <button
-              onClick={() => setGroupByCustomer(!groupByCustomer)}
-              disabled={viewMode === "map"}
-              className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                groupByCustomer
-                  ? "bg-blue-600 border-blue-600 text-white shadow-xs"
-                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              <span>{t("projects.groupByCustomer", "ຈັດກຸ່ມຕາມລູກຄ້າ")}</span>
-            </button>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex h-56 items-center justify-center gap-3 text-slate-400">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
-            <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex h-56 flex-col items-center justify-center gap-2 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-            <FolderOpen className="h-8 w-8 opacity-40" />
-            <span className="text-sm font-semibold">{t("projects.notFound", "ບໍ່ພົບໂຄງການ")}</span>
-          </div>
-        ) : viewMode === "map" ? (
-          <ProjectsMap
-            rows={filtered}
-            onOpen={(id) => router.push(`/projects/${encodeURIComponent(id)}`)}
-            t={t}
-          />
-        ) : groupByCustomer ? (
-          /* Grouped by Customer View */
-          <div className="space-y-5">
-            {grouped.map((g, gi) => (
-              <div key={gi} className="border border-slate-200/80 rounded-xl bg-white overflow-hidden shadow-2xs">
-                {/* Customer Group Header */}
-                <div className="bg-slate-50 px-4.5 py-3 border-b border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-7.5 w-7.5 items-center justify-center rounded-lg bg-slate-100 border border-slate-200/50 font-bold text-xs text-slate-600">
-                      {g.customerName.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-[13px] font-bold text-slate-800">{g.customerName}</span>
+      {loading ? (
+        <Card className="flex h-56 items-center justify-center gap-3 text-[var(--text-mute)]">
+          <Loader2 size={20} className="animate-spin" />
+          <span className="text-[12.5px] font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
+        </Card>
+      ) : viewMode === "map" ? (
+        <ProjectsMap rows={filtered} onOpen={(id) => openProject(id)} t={t} />
+      ) : viewMode === "board" ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {stages
+            .filter((s) => s.value !== "all")
+            .map((s) => {
+              const col = filtered.filter((r) => matchesStatus(r, s.value));
+              return (
+                <Card key={s.value} className="overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-3 py-2">
+                    <Pill tone={STAGE_PILL[s.value] || "neutral"}>{s.label}</Pill>
+                    <span className="text-[11px] font-bold text-[var(--text-mute)]">{col.length}</span>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                  <div className="max-h-[520px] space-y-1.5 overflow-y-auto p-2">
+                    {col.length === 0 ? (
+                      <p className="py-6 text-center text-[11px] text-[var(--text-mute)]">{t("projects.notFound", "ບໍ່ພົບໂຄງການ")}</p>
+                    ) : (
+                      col.map((r) => (
+                        <button
+                          key={String(r.id)}
+                          type="button"
+                          onClick={() => openProject(r.id)}
+                          className="flex w-full items-start gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface)] p-2 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-sunken)]"
+                        >
+                          <span
+                            className="mt-0.5 h-8 w-[3px] flex-shrink-0 rounded-full"
+                            style={{ background: `var(--${STAGE_BAR[stageOf(r)] || "border-strong"})` }}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[11.5px] font-semibold text-[var(--text)]">
+                              {r.project_name || t("projects.noName", "(ບໍ່ມີຊື່)")}
+                            </span>
+                            <span className="block truncate text-[11px] text-[var(--text-soft)]">
+                              {r.customer_name || r.sml_code || "-"}
+                            </span>
+                            <span className="block truncate text-[10px] text-[var(--text-mute)]">{r.project_status || "-"}</span>
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+        </div>
+      ) : groupByCustomer ? (
+        <div className="space-y-4">
+          {grouped.length === 0 ? (
+            <Card className="px-4 py-12 text-center text-[12.5px] text-[var(--text-mute)]">
+              {t("projects.notFound", "ບໍ່ພົບໂຄງການ")}
+            </Card>
+          ) : (
+            grouped.map((g, gi) => (
+              <Card key={gi} className="overflow-hidden">
+                <div className="flex items-center justify-between border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-4 py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[11px] font-black text-[var(--text-soft)]">
+                      {g.customerName.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="text-[12.5px] font-bold text-[var(--text)]">{g.customerName}</span>
+                  </div>
+                  <span className="text-[11px] font-bold text-[var(--text-mute)]">
                     {g.projects.length} {t("projects.unit", "ໂຄງການ")}
                   </span>
                 </div>
-
-                {/* Projects under this customer */}
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border-separate border-spacing-0 text-xs">
-                    <thead>
-                      <tr className="bg-slate-50/55">
-                        <th className={`${thCls} pl-4.5 border-b border-slate-100 bg-slate-50/50`}>{t("projects.col.project", "ໂຄງການ")}</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>{t("common.status", "ສະຖານະ")}</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>{t("projects.col.installStart", "ເລີ່ມຕິດຕັ້ງ")}</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.duration", "ໄລຍະ")}</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.workOrders", "ໃບງານ")}</th>
-                        <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.hours", "ຊົ່ວໂມງ")}</th>
-                        <th className={`${thCls} w-10 pr-4.5 border-b border-slate-100 bg-slate-50/50`} />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {g.projects.map((r, pi) => {
-                        const m = metrics.get(String(r.id));
-                        const dur = daysSince(m?.install_started_at);
-                        return (
-                        <tr
-                          key={r.id ?? pi}
-                          onClick={() => router.push(`/projects/${encodeURIComponent(String(r.id))}`)}
-                          className="hover:bg-slate-50/50 cursor-pointer transition-colors"
-                        >
-                          <td className={`${tdCls} pl-4.5 font-semibold text-slate-800`}>
-                            {r.project_name || t("projects.noName", "(ບໍ່ມີຊື່)")}
-                          </td>
-                          <td className={`${tdCls} text-slate-600`}>
-                            {r.project_status || "-"}
-                          </td>
-                          <td className={`${tdCls} text-slate-500 text-[11.5px]`}>
-                            {fmtD(m?.install_started_at)}
-                          </td>
-                          <td className={`${tdCls} text-right text-slate-600`}>
-                            {dur != null ? `${dur} ${t("projects.unit.days", "ມື້")}` : "—"}
-                          </td>
-                          <td className={`${tdCls} text-right text-slate-600`}>
-                            {m?.wo_count ? m.wo_count : "—"}
-                          </td>
-                          <td className={`${tdCls} text-right font-semibold text-slate-700`}>
-                            {m && m.worked_hours > 0 ? `${m.worked_hours.toFixed(1)}` : "—"}
-                          </td>
-                          <td className={`${tdCls} pr-4.5 text-right`}>
-                            <ChevronRight className="inline-block h-4 w-4 text-slate-300" />
-                          </td>
-                        </tr>
-                        );
-                      })}
-                    </tbody>
+                  <table className={tblCls}>
+                    {head}
+                    <tbody>{renderRows(g.projects)}</tbody>
                   </table>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* Flat Paginated View */
-          <div className="border border-slate-200/80 rounded-xl bg-white overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-separate border-spacing-0 text-xs">
-                <thead>
-                  <tr className="bg-slate-50/55">
-                    <th className={`${thCls} pl-4.5 border-b border-slate-100 bg-slate-50/50`}>{t("projects.col.project", "ໂຄງການ")}</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>{t("projects.col.customerName", "ຊື່ລູກຄ້າ")}</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>{t("common.status", "ສະຖານະ")}</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50`}>{t("projects.col.installStart", "ເລີ່ມຕິດຕັ້ງ")}</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.duration", "ໄລຍະ")}</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.workOrders", "ໃບງານ")}</th>
-                    <th className={`${thCls} border-b border-slate-100 bg-slate-50/50 text-right`}>{t("projects.col.hours", "ຊົ່ວໂມງ")}</th>
-                    <th className={`${thCls} w-10 pr-4.5 border-b border-slate-100 bg-slate-50/50`} />
+              </Card>
+            ))
+          )}
+        </div>
+      ) : (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className={tblCls}>
+              {head}
+              <tbody>
+                {paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className={`px-4 py-12 text-center text-[12.5px] text-[var(--text-mute)]`}>
+                      {t("projects.notFound", "ບໍ່ພົບໂຄງການ")}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {paginated.map((r, i) => {
-                    const m = metrics.get(String(r.id));
-                    const dur = daysSince(m?.install_started_at);
-                    return (
-                    <tr
-                      key={r.id ?? i}
-                      onClick={() => router.push(`/projects/${encodeURIComponent(String(r.id))}`)}
-                      className="hover:bg-slate-50/50 cursor-pointer transition-colors"
-                    >
-                      <td className={`${tdCls} pl-4.5 font-semibold text-slate-800`}>
-                        {r.project_name || t("projects.noName", "(ບໍ່ມີຊື່)")}
-                      </td>
-                      <td className={`${tdCls} text-slate-500`}>
-                        {r.customer_name || r.sml_code || "-"}
-                      </td>
-                      <td className={`${tdCls} text-slate-600`}>
-                        {r.project_status || "-"}
-                      </td>
-                      <td className={`${tdCls} text-slate-500 text-[11.5px]`}>
-                        {fmtD(m?.install_started_at)}
-                      </td>
-                      <td className={`${tdCls} text-right text-slate-600`}>
-                        {dur != null ? `${dur} ${t("projects.unit.days", "ມື້")}` : "—"}
-                      </td>
-                      <td className={`${tdCls} text-right text-slate-600`}>
-                        {m?.wo_count ? m.wo_count : "—"}
-                      </td>
-                      <td className={`${tdCls} text-right font-semibold text-slate-700`}>
-                        {m && m.worked_hours > 0 ? `${m.worked_hours.toFixed(1)}` : "—"}
-                      </td>
-                      <td className={`${tdCls} pr-4.5 text-right`}>
-                        <ChevronRight className="inline-block h-4 w-4 text-slate-300" />
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Controls */}
-            {filtered.length > pageSize && (
-              <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 px-4 py-3 bg-slate-50/20 gap-3">
-                <div className="text-[11px] text-slate-400 font-medium">
-                  {t("projects.pagination.showing", "ສະແດງ")} {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filtered.length)} {t("projects.pagination.of", "ຈາກ")} {filtered.length} {t("projects.unit", "ໂຄງການ")}
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                    className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
-                  >
-                    {t("projects.pagination.prev", "ກ່ອນໜ້າ")}
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }).map((_, idx) => {
-                      const pNum = idx + 1;
-                      if (totalPages > 5 && Math.abs(pNum - currentPage) > 1 && pNum !== 1 && pNum !== totalPages) {
-                        if (pNum === 2 || pNum === totalPages - 1) {
-                          return <span key={idx} className="px-1 text-slate-400 text-xs">...</span>;
-                        }
-                        return null;
-                      }
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => setCurrentPage(pNum)}
-                          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-semibold transition-all shadow-2xs cursor-pointer ${
-                            currentPage === pNum
-                              ? "bg-blue-600 text-white shadow-xs"
-                              : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                          }`}
-                        >
-                          {pNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                    className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
-                  >
-                    {t("projects.pagination.next", "ຖັດໄປ")}
-                  </button>
-                </div>
-              </div>
-            )}
+                ) : (
+                  renderRows(paginated)
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-[var(--border-soft)] px-4 py-2.5">
+              <span className="text-[11.5px] text-[var(--text-mute)]">
+                {t("common.page", "ໜ້າ")} {current}/{totalPages}
+              </span>
+              <div className="flex gap-1.5">
+                <Btn variant="outline" onClick={() => setCurrentPage(current - 1)} disabled={current <= 1}>
+                  <ChevronLeft size={14} /> {t("common.prev", "ກ່ອນ")}
+                </Btn>
+                <Btn variant="outline" onClick={() => setCurrentPage(current + 1)} disabled={current >= totalPages}>
+                  {t("common.next", "ຖັດໄປ")} <ChevronRight size={14} />
+                </Btn>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
     </Page>
   );
 }

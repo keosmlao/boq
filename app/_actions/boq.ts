@@ -302,6 +302,7 @@ async function nextBoqDocNo(client: any, monthKey: string) {
 
 export async function saveBoq(payload: Record<string, unknown>): Promise<{ success: true; message: string; doc_no: string; total_items: number } | Fail> {
   try {
+    await requirePermission("boq", "create");
     const custCode = cleanText(payload?.cust_code);
     const projectId = cleanText(payload?.project_id);
     const username = cleanText(payload?.username);
@@ -435,11 +436,23 @@ export async function updateBoqErp(
 
     const result = await withTransaction(async (client) => {
       const head = await client.query(
-        `SELECT doc_date, cust_code, contract_id, project_id FROM odg_projects_boq WHERE doc_no = $1 LIMIT 1`,
+        `SELECT doc_date, cust_code, contract_id, project_id, COALESCE(approve_status, 0)::int AS approve_status
+           FROM odg_projects_boq WHERE doc_no = $1 LIMIT 1`,
         [decodedDocNo],
       );
       const h = head.rows[0];
-      if (!h) return { notFound: true as const };
+      if (!h) return { notFound: true as const, resubmitted: false as const };
+
+      // Fixing a REJECTED BOQ (approve_status = 2) sends it back into the
+      // approval queue (0 = ລໍຖ້າອະນຸມັດ). Decided server-side — the form has no
+      // say in it. An approved (1) or pending (0) BOQ keeps its state.
+      const wasRejected = Number(h.approve_status) === 2;
+      if (wasRejected) {
+        await client.query(
+          `UPDATE odg_projects_boq SET approve_status = 0, approver = NULL WHERE doc_no = $1`,
+          [decodedDocNo],
+        );
+      }
 
       await client.query(`DELETE FROM odg_projects_boq_detail WHERE doc_no = $1`, [decodedDocNo]);
       for (const item of validItems) {
@@ -452,11 +465,12 @@ export async function updateBoqErp(
           [decodedDocNo, h.doc_date, h.cust_code, item.item_code || null, item.item_name, item.qty, item.unit_code || null, h.contract_id, h.project_id],
         );
       }
-      return { notFound: false as const };
+      return { notFound: false as const, resubmitted: wasRejected };
     });
 
     if (result.notFound) return fail("ບໍ່ພົບ BOQ");
     await logActivity("boq", decodedDocNo, "ແກ້ໄຂ BOQ");
+    if (result.resubmitted) await logActivity("boq", decodedDocNo, "ສົ່ງ BOQ ອະນຸມັດໃໝ່");
     invalidate("projects:");
     return { success: true, doc_no: decodedDocNo, total_items: validItems.length };
   } catch (e) {
@@ -470,11 +484,14 @@ export async function approveBoq(docNo: string, payload: { status?: number; user
     const status = toNumber(payload?.status, 0);
     const username = payload?.username ? String(payload.username) : null;
 
+    // The FIRST BOQ of a contract needs the base boq "approve" permission.
     // Subsequent (2nd+) BOQ of a contract may only be approved/rejected by an
     // admin OR a user explicitly granted the boq "approve_next" permission.
     const sessionUser = await getSessionUser();
     const firstBoq = await isFirstBoqForContract(decodedDocNo);
-    if (!firstBoq && !isAdmin(sessionUser) && !can(sessionUser, "boq", "approve_next")) {
+    if (firstBoq) {
+      await requirePermission("boq", "approve");
+    } else if (!isAdmin(sessionUser) && !can(sessionUser, "boq", "approve_next")) {
       return fail("ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບ ຫຼື ຜູ້ມີສິດອະນຸມັດໃບຕໍ່ໄປເທົ່ານັ້ນ");
     }
 

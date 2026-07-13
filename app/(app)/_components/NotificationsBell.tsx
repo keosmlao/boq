@@ -120,12 +120,12 @@ export default function NotificationsBell() {
     <div className="relative">
       <button
         onClick={() => { setOpen((o) => !o); load(); }}
-        className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition"
+        className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)] transition"
         title={tr("components.notifications.title", "ການແຈ້ງເຕືອນ")}
       >
         <Bell size={17} />
         {unread > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9.5px] font-black text-white ring-2 ring-[var(--surface)]">
+          <span className="absolute -right-1 -top-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[9.5px] font-black text-white ring-2 ring-[var(--surface)]">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
@@ -134,12 +134,12 @@ export default function NotificationsBell() {
       {open && (
         <>
           <button aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_20px_45px_-12px_rgba(15,23,42,0.28)] animate-scale-up">
-            <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-soft)]/70 px-4 py-3">
-              <Bell size={15} className="text-blue-600 dark:text-blue-400" />
+          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
+            <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-4 py-3">
+              <Bell size={15} className="text-[var(--brand)]" />
               <span className="text-[12.5px] font-black text-[var(--text)]">{tr("components.notifications.title", "ການແຈ້ງເຕືອນ")}</span>
               {unread > 0 && (
-                <button onClick={markAll} className="ml-auto inline-flex items-center gap-1 text-[10.5px] font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                <button onClick={markAll} className="ml-auto inline-flex items-center gap-1 text-[10.5px] font-bold text-[var(--brand)] hover:underline">
                   <CheckCheck size={12} /> {tr("components.notifications.markAllRead", "ອ່ານທັງໝົດ")}
                 </button>
               )}
@@ -154,9 +154,9 @@ export default function NotificationsBell() {
                     <button
                       key={n.id}
                       onClick={() => openRecord(n)}
-                      className={`flex w-full items-start gap-2.5 border-b border-[var(--border-soft)] px-4 py-2.5 text-left transition hover:bg-[var(--surface-soft)] ${n.is_read ? "" : "bg-[var(--brand-tint)]"}`}
+                      className={`flex w-full items-start gap-2.5 border-b border-[var(--border-soft)] px-4 py-2.5 text-left transition hover:bg-[var(--surface-sunken)] ${n.is_read ? "" : "bg-[var(--brand-tint)]"}`}
                     >
-                      <span className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg ${n.is_read ? "bg-[var(--surface-soft)] text-[var(--text-mute)]" : "bg-[var(--brand-soft)] text-blue-600 dark:text-blue-400"}`}>
+                      <span className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg ${n.is_read ? "bg-[var(--surface-sunken)] text-[var(--text-mute)]" : "bg-[var(--brand-soft)] text-[var(--brand-strong)]"}`}>
                         {KIND_ICON[n.kind] || <Bell size={13} />}
                       </span>
                       <div className="min-w-0 flex-1">
@@ -166,7 +166,7 @@ export default function NotificationsBell() {
                           {route && <span>· {ENTITY_LABEL[n.entity_type] ?? n.entity_type}</span>}
                         </div>
                       </div>
-                      {!n.is_read && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-blue-500 dark:bg-blue-400" />}
+                      {!n.is_read && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-[var(--brand)]" />}
                     </button>
                   );
                 })

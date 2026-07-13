@@ -3,8 +3,10 @@
 /** v2 — Edit project. Loads the project, prefills the shared form. */
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { getProjectsBoq } from "@/_actions/projects";
 import ProjectForm, { type ProjectInitial } from "../../_ProjectForm";
+import { Card, Page } from "../../../_components/ui";
 import { useT } from "@/_lib/i18n";
 
 const toDateInput = (v: unknown): string => {
@@ -67,14 +69,20 @@ export default function EditProjectPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--theme-text-mute)]">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--theme-border-subtle)] border-t-[var(--theme-primary)]" />
-        <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
+      <div className="flex h-[60vh] items-center justify-center gap-3 text-[var(--text-mute)]">
+        <Loader2 size={20} className="animate-spin text-[var(--brand)]" />
+        <span className="text-[12.5px] font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
     );
   }
   if (notFound || !initial) {
-    return <div className="px-4 py-10 text-center text-[var(--theme-text-mute)]">{t("projects.notFound", "ບໍ່ພົບໂຄງການ")}</div>;
+    return (
+      <Page max="max-w-[700px]">
+        <Card className="p-8 text-center text-[12.5px] font-semibold text-[var(--text-mute)]">
+          {t("projects.notFound", "ບໍ່ພົບໂຄງການ")}
+        </Card>
+      </Page>
+    );
   }
 
   return <ProjectForm mode="edit" projectId={String(id)} initial={initial} />;

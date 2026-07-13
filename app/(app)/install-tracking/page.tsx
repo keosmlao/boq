@@ -4,7 +4,7 @@
  *  pause workflow (employee requests → manager reviews → admin approves). */
 import { useEffect, useMemo, useState } from "react";
 import { CalendarRange, CheckCircle2, Clock, Download, Loader2, PauseCircle, PlayCircle, RefreshCw, Search, Timer } from "lucide-react";
-import { Page, PageHeader, Card, Stat, Btn, inputCls, tblCls, thCls, tdCls, trHover } from "../_components/ui";
+import { Page, PageHeader, Card, Stat, Btn, Pill, RowBar, RowBarTh, Toolbar, tblCls, thCls, tdCls, trHover } from "../_components/ui";
 import { StatusBadge } from "@/_components/pipeline";
 import { useConfirm } from "../_components/Confirm";
 import { isManager, isAdmin } from "@/_lib/permissions";
@@ -102,25 +102,31 @@ export default function InstallTrackingPage() {
         <Stat icon={<Clock size={18} />} label={t("installTracking.statPauseRequests", "ຄຳຮ້ອງພັກ (ລໍຖ້າ)")} value={totals.pending} />
       </div>
 
-      <Card className="overflow-hidden p-0">
-        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-          <div className="relative max-w-xs flex-1">
-            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("installTracking.searchPlaceholder", "ຄົ້ນຫາໂຄງການ")} className={`${inputCls} pl-9`} />
-          </div>
-        </div>
+      <Toolbar>
+        <label className="flex h-9 min-w-[240px] max-w-xs flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+          <Search size={15} className="text-[var(--text-mute)]" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("installTracking.searchPlaceholder", "ຄົ້ນຫາໂຄງການ")}
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
+          />
+        </label>
+      </Toolbar>
 
+      <Card className="overflow-hidden p-0">
         {error ? (
-          <p className="px-4 py-10 text-center text-sm font-semibold text-rose-600">{error}</p>
+          <p className="px-4 py-10 text-center text-sm font-semibold text-[var(--danger)]">{error}</p>
         ) : loading ? (
-          <p className="flex items-center justify-center gap-2 px-4 py-12 text-sm text-slate-400"><Loader2 size={16} className="animate-spin" /> {t("common.loading", "ກຳລັງໂຫຼດ...")}</p>
+          <p className="flex items-center justify-center gap-2 px-4 py-12 text-sm text-[var(--text-mute)]"><Loader2 size={16} className="animate-spin" /> {t("common.loading", "ກຳລັງໂຫຼດ...")}</p>
         ) : filtered.length === 0 ? (
-          <p className="px-4 py-12 text-center text-sm text-slate-400">{t("installTracking.noProjects", "ຍັງບໍ່ມີໂຄງການທີ່ເລີ່ມຕິດຕັ້ງ")}</p>
+          <p className="px-4 py-12 text-center text-sm text-[var(--text-mute)]">{t("installTracking.noProjects", "ຍັງບໍ່ມີໂຄງການທີ່ເລີ່ມຕິດຕັ້ງ")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className={tblCls}>
               <thead>
                 <tr>
+                  <RowBarTh />
                   <th className={thCls}>{t("installTracking.colProject", "ໂຄງການ")}</th>
                   <th className={thCls}>{t("common.status", "ສະຖານະ")}</th>
                   <th className={thCls}>{t("installTracking.colStarted", "ເລີ່ມຕິດຕັ້ງ")}</th>
@@ -135,42 +141,43 @@ export default function InstallTrackingPage() {
                   const isBusy = busy === `req-${k}` || busy === `act-${k}`;
                   return (
                     <tr key={k} className={trHover}>
-                      <td className={tdCls}><a href={`/projects/${r.project_id}`} className="font-bold text-slate-800 hover:text-blue-600">{r.project_name}</a></td>
+                      <RowBar tone={r.paused ? "danger" : r.req_id ? "warning" : "success"} />
+                      <td className={tdCls}><a href={`/projects/${r.project_id}`} className="font-bold text-[var(--text)] hover:text-[var(--brand)]">{r.project_name}</a></td>
                       <td className={tdCls}><StatusBadge status={r.project_status} /></td>
-                      <td className={`${tdCls} text-[11.5px]`}>{fmtDate(r.install_started_at)}</td>
-                      <td className={`${tdCls} text-center`}><span className="font-bold text-slate-800">{(r.worked_hours || 0).toFixed(1)}</span><span className="text-[11px] text-slate-400"> {t("installTracking.hoursUnit", "ຊມ")}</span></td>
+                      <td className={`${tdCls} text-[11.5px] tabular-nums`}>{fmtDate(r.install_started_at)}</td>
+                      <td className={`${tdCls} text-center`}><span className="font-bold tabular-nums text-[var(--text)]">{(r.worked_hours || 0).toFixed(1)}</span><span className="text-[11px] text-[var(--text-mute)]"> {t("installTracking.hoursUnit", "ຊມ")}</span></td>
                       <td className={`${tdCls} text-[11.5px]`}>
                         {r.paused ? (
-                          <span className="font-bold text-rose-600">{t("installTracking.statPaused", "ພັກ")} {r.current_pause_days} {t("installTracking.daysUnit", "ມື້")} ({t("installTracking.since", "ຕັ້ງແຕ່")} {fmtDate(r.paused_since)})</span>
+                          <span className="font-bold text-[var(--danger)]">{t("installTracking.statPaused", "ພັກ")} {r.current_pause_days} {t("installTracking.daysUnit", "ມື້")} ({t("installTracking.since", "ຕັ້ງແຕ່")} {fmtDate(r.paused_since)})</span>
                         ) : r.total_pause_days > 0 ? (
-                          <span className="text-slate-500">{t("installTracking.everPaused", "ເຄີຍພັກລວມ")} {r.total_pause_days} {t("installTracking.daysUnit", "ມື້")}</span>
-                        ) : <span className="text-slate-300">—</span>}
+                          <span className="text-[var(--text-soft)]">{t("installTracking.everPaused", "ເຄີຍພັກລວມ")} {r.total_pause_days} {t("installTracking.daysUnit", "ມື້")}</span>
+                        ) : <span className="text-[var(--text-mute)]">—</span>}
                       </td>
                       <td className={`${tdCls} text-right`}>
-                        <div className="flex justify-end gap-1.5">
-                          {isBusy && <Loader2 size={14} className="animate-spin text-slate-400" />}
+                        <div className="flex items-center justify-end gap-1.5">
+                          {isBusy && <Loader2 size={14} className="animate-spin text-[var(--text-mute)]" />}
                           {/* paused → resume (manager/admin) */}
                           {r.paused && mgr && (
-                            <button onClick={() => run(`act-${k}`, async () => (await confirm({ title: t("installTracking.resume", "ກັບມາດຳເນີນ"), message: `${t("installTracking.resumeConfirm", "ຍົກເລີກການພັກ ແລະ ກັບໄປຕິດຕັ້ງ")} "${r.project_name}"?`, confirmLabel: t("installTracking.resume", "ກັບມາດຳເນີນ") })) ? resumeProject(r.project_id) : { success: false, message: "" })} className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100">{t("installTracking.resume", "ກັບມາດຳເນີນ")}</button>
+                            <Btn variant="ink" className="h-8 px-3" onClick={() => run(`act-${k}`, async () => (await confirm({ title: t("installTracking.resume", "ກັບມາດຳເນີນ"), message: `${t("installTracking.resumeConfirm", "ຍົກເລີກການພັກ ແລະ ກັບໄປຕິດຕັ້ງ")} "${r.project_name}"?`, confirmLabel: t("installTracking.resume", "ກັບມາດຳເນີນ") })) ? resumeProject(r.project_id) : { success: false, message: "" })}>{t("installTracking.resume", "ກັບມາດຳເນີນ")}</Btn>
                           )}
                           {/* no pending request & not paused → request pause (anyone) */}
                           {!r.paused && !r.req_id && (
-                            <button onClick={() => askPause(r)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-50">{t("installTracking.requestPause", "ຮ້ອງຂໍພັກ")}</button>
+                            <Btn variant="outline" className="h-8 px-3" onClick={() => askPause(r)}>{t("installTracking.requestPause", "ຮ້ອງຂໍພັກ")}</Btn>
                           )}
                           {/* requested → manager review */}
                           {r.req_status === "requested" && (mgr ? (
                             <>
-                              <button onClick={() => run(`act-${k}`, async () => (await confirm({ title: t("installTracking.reviewPauseTitle", "ກວດສອບຄຳຮ້ອງພັກ"), message: `${t("installTracking.reviewPauseMsg", "ຜ່ານ ຄຳຮ້ອງພັກ")} "${r.project_name}"? (${r.req_reason || t("installTracking.noReason", "ບໍ່ມີເຫດຜົນ")})`, confirmLabel: t("installTracking.reviewPass", "ກວດສອບຜ່ານ") })) ? reviewProjectPause(r.req_id!, true) : { success: false, message: "" })} className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 hover:bg-blue-100">{t("installTracking.reviewPass", "ກວດສອບຜ່ານ")}</button>
-                              <button onClick={() => run(`act-${k}`, async () => (await confirm({ title: t("common.reject", "ປະຕິເສດ"), message: t("installTracking.rejectPauseMsg", "ປະຕິເສດ ຄຳຮ້ອງພັກ?"), confirmLabel: t("common.reject", "ປະຕິເສດ"), tone: "danger" })) ? rejectProjectPause(r.req_id!) : { success: false, message: "" })} className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-50">{t("common.reject", "ປະຕິເສດ")}</button>
+                              <Btn variant="ink" className="h-8 px-3" onClick={() => run(`act-${k}`, async () => (await confirm({ title: t("installTracking.reviewPauseTitle", "ກວດສອບຄຳຮ້ອງພັກ"), message: `${t("installTracking.reviewPauseMsg", "ຜ່ານ ຄຳຮ້ອງພັກ")} "${r.project_name}"? (${r.req_reason || t("installTracking.noReason", "ບໍ່ມີເຫດຜົນ")})`, confirmLabel: t("installTracking.reviewPass", "ກວດສອບຜ່ານ") })) ? reviewProjectPause(r.req_id!, true) : { success: false, message: "" })}>{t("installTracking.reviewPass", "ກວດສອບຜ່ານ")}</Btn>
+                              <Btn variant="danger-outline" className="h-8 px-3" onClick={() => run(`act-${k}`, async () => (await confirm({ title: t("common.reject", "ປະຕິເສດ"), message: t("installTracking.rejectPauseMsg", "ປະຕິເສດ ຄຳຮ້ອງພັກ?"), confirmLabel: t("common.reject", "ປະຕິເສດ"), tone: "danger" })) ? rejectProjectPause(r.req_id!) : { success: false, message: "" })}>{t("common.reject", "ປະຕິເສດ")}</Btn>
                             </>
-                          ) : <span className="text-[11px] font-semibold text-amber-600">{t("installTracking.waitingManager", "ລໍຖ້າຜູ້ຈັດການກວດສອບ")}</span>)}
+                          ) : <Pill tone="amber">{t("installTracking.waitingManager", "ລໍຖ້າຜູ້ຈັດການກວດສອບ")}</Pill>)}
                           {/* manager_ok → admin approve */}
                           {r.req_status === "manager_ok" && (adm ? (
                             <>
-                              <button onClick={() => run(`act-${k}`, async () => (await confirm({ title: t("installTracking.approvePauseTitle", "ອະນຸມັດ ພັກໂຄງການ"), message: `${t("installTracking.approvePauseMsg1", "ອະນຸມັດ ໃຫ້")} "${r.project_name}" ${t("installTracking.approvePauseMsg2", "ພັກໂຄງການ?")}`, confirmLabel: t("common.approve", "ອະນຸມັດ") })) ? approveProjectPause(r.req_id!) : { success: false, message: "" })} className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-100">{t("installTracking.approvePause", "ອະນຸມັດພັກ")}</button>
-                              <button onClick={() => run(`act-${k}`, async () => (await confirm({ title: t("common.reject", "ປະຕິເສດ"), message: t("installTracking.rejectPauseMsg", "ປະຕິເສດ ຄຳຮ້ອງພັກ?"), confirmLabel: t("common.reject", "ປະຕິເສດ"), tone: "danger" })) ? rejectProjectPause(r.req_id!) : { success: false, message: "" })} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-50">{t("common.reject", "ປະຕິເສດ")}</button>
+                              <Btn variant="ink" className="h-8 px-3" onClick={() => run(`act-${k}`, async () => (await confirm({ title: t("installTracking.approvePauseTitle", "ອະນຸມັດ ພັກໂຄງການ"), message: `${t("installTracking.approvePauseMsg1", "ອະນຸມັດ ໃຫ້")} "${r.project_name}" ${t("installTracking.approvePauseMsg2", "ພັກໂຄງການ?")}`, confirmLabel: t("common.approve", "ອະນຸມັດ") })) ? approveProjectPause(r.req_id!) : { success: false, message: "" })}>{t("installTracking.approvePause", "ອະນຸມັດພັກ")}</Btn>
+                              <Btn variant="outline" className="h-8 px-3" onClick={() => run(`act-${k}`, async () => (await confirm({ title: t("common.reject", "ປະຕິເສດ"), message: t("installTracking.rejectPauseMsg", "ປະຕິເສດ ຄຳຮ້ອງພັກ?"), confirmLabel: t("common.reject", "ປະຕິເສດ"), tone: "danger" })) ? rejectProjectPause(r.req_id!) : { success: false, message: "" })}>{t("common.reject", "ປະຕິເສດ")}</Btn>
                             </>
-                          ) : <span className="text-[11px] font-semibold text-amber-600">{t("installTracking.waitingAdmin", "ລໍຖ້າຜູ້ດູແລລະບົບອະນຸມັດ")}</span>)}
+                          ) : <Pill tone="amber">{t("installTracking.waitingAdmin", "ລໍຖ້າຜູ້ດູແລລະບົບອະນຸມັດ")}</Pill>)}
                         </div>
                       </td>
                     </tr>
@@ -182,7 +189,7 @@ export default function InstallTrackingPage() {
         )}
       </Card>
 
-      <p className="mt-3 flex items-center gap-1.5 px-1 text-[11px] text-slate-400">
+      <p className="mt-3 flex items-center gap-1.5 px-1 text-[11px] text-[var(--text-mute)]">
         <CheckCircle2 size={12} /> {t("installTracking.footerNote", "ການພັກ: ພະນັກງານຮ້ອງຂໍ → ຜູ້ຈັດການກວດສອບ → ຜູ້ດູແລລະບົບອະນຸມັດ. ຊົ່ວໂມງ = check-in/out ຂອງຊ່າງ.")}
       </p>
     </Page>

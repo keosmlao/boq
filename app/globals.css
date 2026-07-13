@@ -1,11 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Noto+Sans+Lao:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/* Dark mode is driven by the theme toggle (data-theme on <html>), not the OS. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --font-sans: 'Plus Jakarta Sans', var(--font-lao), "Noto Sans Lao", system-ui, sans-serif;
   /* Display / numeric face — used on stats, doc numbers & the wordmark.
      Latin-only; Lao text falls through to Noto Sans Lao. */
   --font-display: 'Space Grotesk', 'Plus Jakarta Sans', var(--font-lao), system-ui, sans-serif;
+
+  /* Token-driven colour utilities: bg-brand, text-ink, border-line, … */
+  --color-brand:       var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft:  var(--brand-soft);
+  --color-brand-tint:  var(--brand-tint);
+  --color-ink:         var(--ink);
+  --color-ink-hover:   var(--ink-hover);
+  --color-go:          var(--go);
+  --color-go-hover:    var(--go-hover);
+  --color-surface:     var(--surface);
+  --color-surface-soft:var(--surface-soft);
+  --color-line:        var(--border);
+  --color-line-soft:   var(--border-soft);
 }
 
 /* =========================================================================
@@ -15,17 +32,17 @@
 
 :root,
 [data-theme="light"] {
-  /* Surfaces — soft blue pastel, airy */
-  --bg:            #eef4fe;
-  --bg-subtle:     #f5f9ff;
+  /* Surfaces — quiet neutral canvas keeps content in focus */
+  --bg:            #f6f7f9;
+  --bg-subtle:     #fafafa;
   --surface:       #ffffff;
-  --surface-soft:  #f5f9ff;
-  --surface-sunken:#e9f1fb;
+  --surface-soft:  #f8fafc;
+  --surface-sunken:#f1f5f9;
 
   /* Borders */
-  --border:        #dde7f4;
-  --border-soft:   #eef3fb;
-  --border-strong: #c3d3ea;
+  --border:        #e2e8f0;
+  --border-soft:   #f1f5f9;
+  --border-strong: #cbd5e1;
 
   /* Text */
   --text:          #0f172a;
@@ -33,13 +50,24 @@
   --text-mute:     #94a3b8;
   --text-inverse:  #f8fafc;
 
-  /* Brand — Blue pastel (soft sky blue) */
-  --brand:         #3b82f6;
-  --brand-hover:   #2563eb;
-  --brand-strong:  #1d4ed8;
-  --brand-soft:    #dbeafe;
-  --brand-tint:    #eff6ff;
-  --brand-ring:    rgba(59, 130, 246, 0.18);
+  /* Brand — teal */
+  --brand:         #009b83;
+  --brand-hover:   #007f6c;
+  --brand-strong:  #006b5b;
+  --brand-soft:    #d9f5ef;
+  --brand-tint:    #effbf8;
+  --brand-ring:    rgba(0, 155, 131, 0.18);
+
+  /* Ink — the dark navy used for solid "commit" controls & active segments */
+  --ink:           #0f172a;
+  --ink-hover:     #1e293b;
+  --ink-text:      #ffffff;
+  --ink-ring:      rgba(15, 23, 42, 0.16);
+
+  /* Go — the green used for document / primary create actions */
+  --go:            #15a05f;
+  --go-hover:      #0f8a50;
+  --go-soft:       #e7f7ee;
 
   /* Semantic */
   --success:       #059669;
@@ -64,7 +92,7 @@
   --radius-xl: 24px;
 
   /* Shell-specific — light pastel sidebar */
-  --sidebar-bg:    #ffffff;
+  --sidebar-bg:    #050b1d;
   --topbar-bg:     rgba(255, 255, 255, 0.85);
   --selection-bg:  rgba(59, 130, 246, 0.16);
 }
@@ -85,12 +113,22 @@
   --text-mute:     #64748b;
   --text-inverse:  #090d16;
 
-  --brand:         #60a5fa;
-  --brand-hover:   #3b82f6;
-  --brand-strong:  #93c5fd;
-  --brand-soft:    rgba(96, 165, 250, 0.16);
-  --brand-tint:    rgba(96, 165, 250, 0.08);
-  --brand-ring:    rgba(96, 165, 250, 0.32);
+  --brand:         #2dd4bf;
+  --brand-hover:   #14b8a6;
+  --brand-strong:  #5eead4;
+  --brand-soft:    rgba(45, 212, 191, 0.16);
+  --brand-tint:    rgba(45, 212, 191, 0.08);
+  --brand-ring:    rgba(45, 212, 191, 0.28);
+
+  /* On dark the "ink" control inverts to a light slab so it still reads as solid. */
+  --ink:           #e2e8f0;
+  --ink-hover:     #cbd5e1;
+  --ink-text:      #0f172a;
+  --ink-ring:      rgba(226, 232, 240, 0.22);
+
+  --go:            #22c55e;
+  --go-hover:      #16a34a;
+  --go-soft:       rgba(34, 197, 94, 0.14);
 
   --success:       #34d399;
   --success-soft:  rgba(52, 211, 153, 0.12);
@@ -106,7 +144,7 @@
   --shadow-md: 0 4px 12px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4);
   --shadow-lg: 0 12px 32px rgba(0,0,0,0.7), 0 4px 8px rgba(0,0,0,0.5);
 
-  --sidebar-bg:    #090d16;
+  --sidebar-bg:    #050b1d;
   --topbar-bg:     rgba(9, 13, 22, 0.85);
   --selection-bg:  rgba(129, 140, 248, 0.2);
 }
@@ -167,7 +205,7 @@ html[data-theme="dark"] {
 
 body {
   font-family: var(--font-lao), "Noto Sans Lao", 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.5;
   min-height: 100vh;
   background: var(--bg);
@@ -181,8 +219,13 @@ body {
   color: var(--text);
 }
 
-* {
-  border-color: var(--border);
+/* Default border colour. MUST stay inside @layer base: unlayered CSS outranks
+   Tailwind's utility layer, so an unlayered `*` rule would override every
+   border-<color> utility in the app (border-transparent included). */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 /* =========================================================================
@@ -682,6 +725,139 @@ body {
 .hover-glow:hover {
   box-shadow: 0 0 22px rgba(59, 130, 246, 0.16);
   transform: scale(1.01);
+}
+
+/* =========================================================================
+   System-wide simplicity layer
+   Normalises older screens without changing their workflow or information.
+   ========================================================================= */
+.system-content {
+  --content-radius: 12px;
+  color: var(--text-soft);
+}
+
+/* One compact type scale across old and new screens. */
+.system-content :is(.text-\[8px\], .text-\[8\.5px\], .text-\[9px\], .text-\[9\.5px\]) {
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.system-content :is(.text-\[10px\], .text-\[10\.5px\]) {
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.system-content :is(.text-\[11px\], .text-\[11\.5px\]) {
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.system-content :is(.text-\[12px\], .text-\[12\.5px\]) {
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.system-content :is(.text-\[13px\], .text-\[13\.5px\]) {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.system-content :is(.text-sm, .text-base) {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.system-content :is(.text-lg) {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.system-content :is(.text-xl, .text-2xl) {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+/* Slate utilities are remapped onto tokens so old screens follow the theme
+   (they were hard-coded hexes, which broke dark mode). */
+.system-content :is(.text-slate-950, .text-slate-900, .text-slate-800) {
+  color: var(--text);
+}
+
+.system-content :is(.text-slate-700, .text-slate-600) {
+  color: var(--text-soft);
+}
+
+.system-content :is(.text-slate-500, .text-slate-400) {
+  color: var(--text-mute);
+}
+
+.system-content :is(.bg-white) { background-color: var(--surface); }
+.system-content :is(.bg-slate-50, .bg-slate-100\/60, .bg-slate-50\/60) { background-color: var(--surface-sunken); }
+.system-content :is(.bg-slate-100) { background-color: var(--surface-soft); }
+.system-content :is(.border-slate-100, .border-slate-200) { border-color: var(--border); }
+.system-content :is(.border-slate-300, .border-slate-400) { border-color: var(--border-strong); }
+.system-content :is(.hover\:bg-slate-50:hover, .hover\:bg-slate-100:hover) { background-color: var(--surface-sunken); }
+
+.system-content :is(.rounded-3xl, .rounded-2xl) {
+  border-radius: var(--content-radius);
+}
+
+.system-content :is(.shadow-2xl, .shadow-xl, .shadow-lg, .shadow-md, .shadow-sm) {
+  box-shadow: var(--shadow-xs);
+}
+
+.system-content :is(.hover\:-translate-y-0\.5:hover, .hover\:-translate-y-1:hover, .hover\:scale-\[1\.01\]:hover) {
+  transform: none;
+}
+
+.system-content :is(input, select, textarea) {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.system-content :is(input, select, textarea):focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}
+
+.system-content table {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.system-content thead {
+  background: var(--surface-sunken);
+}
+
+.system-content th {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.system-content :is(button, a) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Map legacy blue accents to the teal reference palette. */
+.system-content .bg-blue-600 { background-color: var(--brand); }
+.system-content .hover\:bg-blue-700:hover { background-color: var(--brand-hover); }
+.system-content :is(.text-blue-600, .text-blue-700) { color: var(--brand-strong); }
+.system-content :is(.bg-blue-50, .bg-blue-50\/40, .bg-blue-50\/60) { background-color: var(--brand-tint); }
+.system-content :is(.border-blue-100, .border-blue-200, .border-blue-300) { border-color: #b7e8de; }
+.system-content [class*="bg-gradient-to-"] {
+  background-image: none;
+  background-color: var(--brand);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .system-content *,
+  .system-content *::before,
+  .system-content *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* =========================================================================

@@ -1,265 +1,423 @@
 "use client";
 
-/** v2 — Quotation list. Clean monochrome accordion: customer → project → quotation. */
+/**
+ * ໃບສະເໜີລາຄາ — flat list (ODIEN SERVICE layout): toolbar → status tabs → one table.
+ * Rows carry a status bar down the left edge; no customer/project accordion.
+ */
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Search,
-  RefreshCw,
+  BellRing,
+  ChevronLeft,
   ChevronRight,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  FileText,
-  Wallet,
-  Clock,
-  CheckCircle2,
-  Inbox,
-  FolderKanban,
+  FileSpreadsheet,
+  LayoutGrid,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Search,
+  Table as TableIcon,
 } from "lucide-react";
+import * as XLSX from "xlsx";
+import ProjectPickerModal from "../_components/ProjectPickerModal";
+import RSelect from "../_components/RSelect";
+import {
+  Btn,
+  BtnCount,
+  Card,
+  Page,
+  PageHeader,
+  Pill,
+  RowBar,
+  RowBarTh,
+  Segmented,
+  SortTh,
+  Toolbar,
+  TwoLine,
+  tblCls,
+  tdCls,
+  thCls,
+  trHover,
+  type PillTone,
+} from "../_components/ui";
 import { getQuotations } from "@/_actions/quotations";
-import { Page, Card } from "../_components/ui";
 import { useT } from "@/_lib/i18n";
+
+const PER_PAGE = 25;
+
+type Quote = Record<string, any>;
 
 const money = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n.toLocaleString("en-US") : "0";
 };
-const d10 = (v: unknown) => (v ? String(v).slice(0, 10) : "-");
-const norm = (s: unknown) => String(s || "ລໍຖ້າອະນຸມັດ");
-const statusKind = (s: string): "done" | "off" | "wait" =>
-  s === "ອະນຸມັດແລ້ວ" ? "done" : s === "ປະຕິເສດ" ? "off" : "wait";
-const initial = (s: string) => s.replace(/[^\p{L}\p{N}]/u, "").charAt(0).toUpperCase() || "?";
 
-const FILTERS = [
-  { key: "all", i18nKey: "common.all", label: "ທັງໝົດ" },
-  { key: "ລໍຖ້າອະນຸມັດ", i18nKey: "status.pending", label: "ລໍຖ້າອະນຸມັດ" },
-  { key: "ອະນຸມັດແລ້ວ", i18nKey: "status.approved", label: "ອະນຸມັດແລ້ວ" },
-  { key: "ປະຕິເສດ", i18nKey: "status.rejected", label: "ປະຕິເສດ" },
-];
+const d10 = (v: unknown) => {
+  if (!v) return "-";
+  const d = new Date(v as any);
+  const p = (n: number) => String(n).padStart(2, "0");
+  if (isNaN(d.getTime())) {
+    const m = String(v).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : String(v).slice(0, 10);
+  }
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}`;
+};
 
-type Quote = Record<string, any>;
+/** Statuses stored on odg_quotation — anything unknown counts as "awaiting approval". */
+const APPROVED = "ອະນຸມັດແລ້ວ";
+const REJECTED = "ປະຕິເສດ";
+const PENDING = "ລໍຖ້າອະນຸມັດ";
 
-/** Status in grayscale only: solid = done, faint = rejected, outline = pending. */
-function Tag({ status }: { status: string }) {
-  const k = statusKind(status);
-  const cls = k === "done" ? "bg-slate-800 text-white" : k === "off" ? "bg-slate-100 text-slate-400" : "border border-slate-300 bg-white text-slate-500";
-  return <span className={`inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-[10px] font-bold ${cls}`}>{status}</span>;
-}
+const norm = (s: unknown) => String(s || PENDING);
+/** Tab/board bucket for a quotation. */
+const statusKey = (r: Quote) => {
+  const s = norm(r.status);
+  return s === APPROVED ? APPROVED : s === REJECTED ? REJECTED : PENDING;
+};
+
+const STATUS_BAR: Record<string, "info" | "brand" | "warning" | "success" | "danger" | "neutral"> = {
+  [PENDING]: "warning",
+  [APPROVED]: "success",
+  [REJECTED]: "danger",
+};
+
+const STATUS_PILL: Record<string, PillTone> = {
+  [PENDING]: "amber",
+  [APPROVED]: "green",
+  [REJECTED]: "red",
+};
+
+type SortKey = "quotation_no" | "quotation_date" | "customer_name" | "total_amount";
 
 export default function QuotationsClient({ initialRows }: { initialRows: Quote[] }) {
   const t = useT();
   const router = useRouter();
-  const [rows, setRows] = useState<Quote[]>(initialRows ?? []);
-  const [loading, setLoading] = useState(false);
+  const [pick, setPick] = useState(false);
+  const [allRows, setAllRows] = useState<Quote[]>(initialRows ?? []);
+  const [activeTab, setActiveTab] = useState<string>("all");
+  const [draftQ, setDraftQ] = useState("");
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("all");
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "quotation_date", dir: "desc" });
+  const [view, setView] = useState<"table" | "board">("table");
+  const [loading, setLoading] = useState(false);
 
-  const load = async () => {
+  const runSearch = () => {
+    setQ(draftQ);
+    setPage(1);
+  };
+
+  const reload = async () => {
     setLoading(true);
     try {
       const res: any = await getQuotations({});
-      setRows(res?.success ? res.data || [] : Array.isArray(res) ? res : []);
+      setAllRows(res?.success ? res.data || [] : Array.isArray(res) ? res : []);
     } catch {
-      setRows([]);
+      setAllRows([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filtered = useMemo(() => {
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: allRows.length };
+    for (const key of [PENDING, APPROVED, REJECTED]) {
+      c[key] = allRows.filter((r) => statusKey(r) === key).length;
+    }
+    return c;
+  }, [allRows]);
+
+  const rows = useMemo(() => {
     const kw = q.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (status !== "all" && norm(r.status) !== status) return false;
+    const list = allRows.filter((r) => {
+      if (activeTab !== "all" && statusKey(r) !== activeTab) return false;
       if (!kw) return true;
       return `${r.quotation_no ?? ""} ${r.project_name ?? ""} ${r.customer_name ?? ""}`.toLowerCase().includes(kw);
     });
-  }, [rows, q, status]);
-
-  const stats = useMemo(() => {
-    const s = { total: rows.length, pending: 0, approved: 0, value: 0 };
-    rows.forEach((r) => {
-      const st = norm(r.status);
-      if (st === "ອະນຸມັດແລ້ວ") s.approved++;
-      else if (st !== "ປະຕິເສດ") s.pending++;
-      s.value += Number(r.total_amount) || 0;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      const av = sort.key === "quotation_date" ? a.quotation_date ?? a.created_at : a[sort.key];
+      const bv = sort.key === "quotation_date" ? b.quotation_date ?? b.created_at : b[sort.key];
+      if (sort.key === "total_amount") return (Number(av) || 0) > (Number(bv) || 0) ? dir : -dir;
+      return String(av ?? "") > String(bv ?? "") ? dir : -dir;
     });
-    return s;
-  }, [rows]);
+  }, [allRows, activeTab, q, sort]);
 
-  // Two-level grouping: customer → project, customers sorted by total value.
-  const groups = useMemo(() => {
-    const byCustomer: Record<string, Quote[]> = {};
-    filtered.forEach((r) => {
-      const c = r.customer_name || t("quotations.noCustomer", "(ບໍ່ລະບຸລູກຄ້າ)");
-      (byCustomer[c] ||= []).push(r);
-    });
-    return Object.entries(byCustomer)
-      .map(([customer, list]) => {
-        const byProject: Record<string, Quote[]> = {};
-        list.forEach((r) => {
-          const p = r.project_name || t("quotations.noProject", "(ບໍ່ລະບຸໂຄງການ)");
-          (byProject[p] ||= []).push(r);
-        });
-        const projects = Object.entries(byProject).map(([project, quotes]) => ({
-          project,
-          quotes,
-          value: quotes.reduce((sum, x) => sum + (Number(x.total_amount) || 0), 0),
-        }));
-        return { customer, projects, count: list.length, value: projects.reduce((sum, p) => sum + p.value, 0) };
-      })
-      .sort((a, b) => b.value - a.value);
-  }, [filtered]);
+  const totalValue = useMemo(() => rows.reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0), [rows]);
 
-  const open = (id: unknown) => router.push(`/quotations/${id}`);
+  const pageCount = Math.max(1, Math.ceil(rows.length / PER_PAGE));
+  const current = Math.min(page, pageCount);
+  const pageRows = rows.slice((current - 1) * PER_PAGE, current * PER_PAGE);
 
-  const filtering = q.trim() !== "" || status !== "all";
-  const isOpen = (c: string) => filtering || expanded.has(c);
-  const toggle = (c: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      next.has(c) ? next.delete(c) : next.add(c);
-      return next;
-    });
-  const allOpen = groups.length > 0 && groups.every((g) => expanded.has(g.customer));
-  const toggleAll = () => setExpanded(allOpen ? new Set() : new Set(groups.map((g) => g.customer)));
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+
+  const statuses = [
+    { value: "all", label: t("common.all", "ທັງໝົດ") },
+    { value: PENDING, label: t("status.pending", "ລໍຖ້າອະນຸມັດ") },
+    { value: APPROVED, label: t("status.approved", "ອະນຸມັດແລ້ວ") },
+    { value: REJECTED, label: t("status.rejected", "ປະຕິເສດ") },
+  ];
+
+  const tabs = statuses.map((tab) => ({
+    value: tab.value,
+    label: (
+      <span className="flex items-center gap-1.5">
+        {tab.label}
+        <span className="rounded-full bg-black/10 px-1.5 text-[10px] font-black dark:bg-white/15">{counts[tab.value] ?? 0}</span>
+      </span>
+    ),
+  }));
+
+  /** Excel export of exactly what is on screen (current filter + sort, all pages). */
+  const exportExcel = () => {
+    const sheet = XLSX.utils.json_to_sheet(
+      rows.map((r) => ({
+        [t("quotations.quotationNo", "ເລກທີໃບສະເໜີ")]: r.quotation_no || "",
+        [t("common.project", "ໂຄງການ")]: r.project_name || "",
+        [t("common.customer", "ລູກຄ້າ")]: r.customer_name || "",
+        [t("common.date", "ວັນທີ")]: d10(r.quotation_date ?? r.created_at),
+        [t("common.status", "ສະຖານະ")]: norm(r.status),
+        [t("common.amount", "ມູນຄ່າ")]: Number(r.total_amount) || 0,
+      })),
+    );
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, "quotations");
+    XLSX.writeFile(book, `quotations-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
 
   return (
-    <Page max="max-w-none w-full">
-      {/* Monochrome Minimalist Header */}
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-100 pb-5">
-        <div className="min-w-0">
-          <h1 className="truncate text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-none">{t("quotations.title", "ໃບສະເໜີລາຄາ")}</h1>
-          <p className="mt-2 text-xs font-medium text-slate-400">
-            {t("quotations.totalQuotes", "ໃບສະເໜີທັງໝົດ")} {stats.total} · {t("quotations.totalValue", "ມູນຄ່າລວມ")} {money(stats.value)} {t("common.currencyKip", "ບາດ")} · {t("status.pending", "ລໍຖ້າອະນຸມັດ")} {stats.pending} · {t("status.approved", "ອະນຸມັດແລ້ວ")} {stats.approved}
-          </p>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          <button
-            onClick={() => void load()}
-            disabled={loading}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          </button>
-          {!filtering && groups.length > 0 && (
-            <button
-              onClick={toggleAll}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
+    <Page max="max-w-none">
+      <PageHeader
+        title={t("quotations.title", "ໃບສະເໜີລາຄາ")}
+        subtitle={`${t("quotations.totalPrefix", "ທັງໝົດ")} ${rows.length} ${t("quotations.itemsUnit", "ລາຍການ")} · ${t("quotations.totalValue", "ມູນຄ່າລວມ")} ${money(totalValue)} ${t("common.currencyKip", "ບາດ")} · ${t("common.page", "ໜ້າ")} ${current}/${pageCount}`}
+        actions={
+          <>
+            <Btn variant="go" onClick={() => setPick(true)}>
+              <Plus size={14} /> {t("quotations.create", "ສ້າງໃບສະເໜີລາຄາ")}
+            </Btn>
+            <Btn variant="outline" onClick={exportExcel} disabled={rows.length === 0}>
+              <FileSpreadsheet size={14} /> Excel
+            </Btn>
+            <Btn variant="outline" onClick={() => void reload()} disabled={loading}>
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {t("common.reload", "ໂຫຼດໃໝ່")}
+            </Btn>
+            <Btn
+              variant="danger-outline"
+              onClick={() => {
+                setActiveTab(PENDING);
+                setPage(1);
+              }}
             >
-              {allOpen ? <ChevronsDownUp size={13} /> : <ChevronsUpDown size={13} />}
-              <span>{allOpen ? t("common.collapseAll", "ຍຸບທັງໝົດ") : t("common.expandAll", "ຂະຫຍາຍທັງໝົດ")}</span>
-            </button>
-          )}
+              <BellRing size={14} /> {t("status.pending", "ລໍຖ້າອະນຸມັດ")} <BtnCount value={counts[PENDING] ?? 0} />
+            </Btn>
+          </>
+        }
+      />
+
+      <Toolbar>
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+          <Search size={15} className="text-[var(--text-mute)]" />
+          <input
+            value={draftQ}
+            onChange={(e) => setDraftQ(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            placeholder={t("quotations.searchPlaceholder", "ຄົ້ນຫາ ເລກທີ, ໂຄງການ, ລູກຄ້າ...")}
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
+          />
+        </label>
+
+        <div className="w-52">
+          <RSelect
+            value={activeTab === "all" ? "" : activeTab}
+            onChange={(v) => {
+              setActiveTab(v || "all");
+              setPage(1);
+            }}
+            isClearable
+            isSearchable={false}
+            placeholder={t("quotations.allStatuses", "ສະຖານະທັງໝົດ")}
+            options={statuses
+              .filter((s) => s.value !== "all")
+              .map((s) => ({ value: s.value, label: `${s.label} (${counts[s.value] ?? 0})` }))}
+          />
         </div>
+
+        <Btn variant="ink" onClick={runSearch}>
+          <Search size={14} /> {t("common.search", "ຄົ້ນຫາ")}
+        </Btn>
+
+        <Segmented<"table" | "board">
+          className="ml-auto"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "table", label: t("quotations.viewTable", "ຕາຕະລາງ"), icon: <TableIcon size={14} /> },
+            { value: "board", label: t("quotations.viewBoard", "ກະດານ"), icon: <LayoutGrid size={14} /> },
+          ]}
+        />
+      </Toolbar>
+
+      <div className="mb-4 overflow-x-auto">
+        <Segmented
+          value={activeTab}
+          onChange={(v) => {
+            setActiveTab(v);
+            setPage(1);
+          }}
+          options={tabs}
+        />
       </div>
 
-      <div className="space-y-4">
-        {/* Search & Filter Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div className="relative flex h-9 w-full max-w-xs items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100 transition-all">
-            <Search className="h-3.5 w-3.5 text-slate-400" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t("quotations.searchPlaceholder", "ຄົ້ນຫາ ເລກທີ, ໂຄງການ, ລູກຄ້າ...")}
-              className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none"
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setStatus(f.key)}
-                className={`h-8 rounded-lg px-3 text-xs font-semibold transition-all cursor-pointer ${
-                  status === f.key
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-                }`}
-              >
-                {t(f.i18nKey, f.label)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex h-56 items-center justify-center gap-3 text-slate-400">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
-            <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
-          </div>
-        ) : groups.length === 0 ? (
-          <div className="flex h-56 flex-col items-center justify-center gap-2 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-            <Inbox className="h-8 w-8 opacity-40" />
-            <span className="text-sm font-semibold">{rows.length ? t("quotations.noMatch", "ບໍ່ພົບໃບສະເໜີທີ່ກົງ") : t("quotations.empty", "ຍັງບໍ່ມີໃບສະເໜີລາຄາ")}</span>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-xl bg-white overflow-hidden shadow-2xs">
-            {groups.map((g) => {
-              const opened = isOpen(g.customer);
+      {view === "board" ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {statuses
+            .filter((s) => s.value !== "all")
+            .filter((s) => activeTab === "all" || activeTab === s.value)
+            .map((s) => {
+              const col = rows.filter((r) => statusKey(r) === s.value);
               return (
-                <div key={g.customer} className="group transition-colors">
-                  {/* Customer Group Row (Accordion Toggle) */}
-                  <div
-                    onClick={() => toggle(g.customer)}
-                    className={`flex w-full cursor-pointer items-center gap-3.5 px-4.5 py-3 transition-colors hover:bg-slate-50/50 ${opened ? "bg-slate-50/30" : ""}`}
-                  >
-                    <ChevronRight className={`h-3.5 w-3.5 flex-shrink-0 text-slate-400 transition-transform duration-200 ${opened ? "rotate-90" : ""}`} />
-                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-50 border border-slate-100 text-xs font-bold text-slate-600">
-                      {initial(g.customer)}
+                <Card key={s.value} className="overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-3 py-2">
+                    <span className="flex items-center gap-2 text-[11.5px] font-bold text-[var(--text)]">
+                      <Pill tone={STATUS_PILL[s.value] || "neutral"}>{s.label}</Pill>
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-semibold text-slate-800 transition-colors group-hover:text-slate-900">{g.customer}</div>
-                      <div className="mt-0.5 text-[10.5px] font-medium text-slate-400">
-                        {g.projects.length} {t("quotations.projectsUnit", "ໂຄງການ")} · {g.count} {t("quotations.quotesUnit", "ໃບສະເໜີ")}
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0 text-right pr-2">
-                      <div className="font-mono text-xs font-bold text-slate-700">{money(g.value)}</div>
-                      <div className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t("common.currencyKip", "ບາດ")}</div>
-                    </div>
+                    <span className="text-[11px] font-bold text-[var(--text-mute)]">{col.length}</span>
                   </div>
-
-                  {/* Customer Projects & Quotations */}
-                  {opened && (
-                    <div className="bg-slate-50/15 border-t border-slate-100/70 px-4.5 py-2.5">
-                      <div className="ml-[17px] border-l border-slate-200 pl-3.5 space-y-3">
-                        {g.projects.map((p) => (
-                          <div key={p.project} className="space-y-1">
-                            <div className="flex items-center gap-2 rounded-lg px-2 py-1 bg-white border border-slate-100 shadow-2xs">
-                              <FolderKanban size={11} className="flex-shrink-0 text-slate-400" />
-                              <span className="truncate text-[11.5px] font-semibold text-slate-600">{p.project}</span>
-                              <span className="ml-auto flex-shrink-0 font-mono text-[10px] font-semibold text-slate-400">{money(p.value)} {t("common.currencyKip", "ບາດ")}</span>
-                            </div>
-                            <div className="ml-3 border-l border-slate-200/50 pl-3 space-y-0.5">
-                              {p.quotes.map((qt) => (
-                                <button
-                                  key={qt.id}
-                                  onClick={() => open(qt.id)}
-                                  className="group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left transition-colors hover:bg-white cursor-pointer"
-                                >
-                                  <FileText size={12} className="flex-shrink-0 text-slate-400 group-hover:text-slate-600" />
-                                  <div className="min-w-0 flex-1">
-                                    <div className="truncate font-mono text-[11.5px] font-semibold text-slate-700">{qt.quotation_no || t("quotations.noNumber", "(ບໍ່ມີເລກທີ່)")}</div>
-                                    <div className="text-[10px] font-medium text-slate-400">{d10(qt.quotation_date)}</div>
-                                  </div>
-                                  <Tag status={norm(qt.status)} />
-                                  <div className="w-24 flex-shrink-0 text-right font-mono text-xs font-semibold text-slate-700 sm:w-28">{money(qt.total_amount)}</div>
-                                  <ChevronRight className="h-3 w-3 flex-shrink-0 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-slate-500" />
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  <div className="max-h-[520px] space-y-1.5 overflow-y-auto p-2">
+                    {col.length === 0 ? (
+                      <p className="py-6 text-center text-[11px] text-[var(--text-mute)]">{t("quotations.empty", "ຍັງບໍ່ມີໃບສະເໜີລາຄາ")}</p>
+                    ) : (
+                      col.map((r) => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => router.push(`/quotations/${r.id}`)}
+                          className="flex w-full items-start gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface)] p-2 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-sunken)]"
+                        >
+                          <span
+                            className="mt-0.5 h-8 w-[3px] flex-shrink-0 rounded-full"
+                            style={{ background: `var(--${STATUS_BAR[s.value] || "border-strong"})` }}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-mono text-[11.5px] font-semibold text-[var(--text)]">
+                              {r.quotation_no || t("quotations.noNumber", "(ບໍ່ມີເລກທີ່)")}
+                            </span>
+                            <span className="block truncate text-[11px] text-[var(--text-soft)]">
+                              {r.project_name || t("quotations.noProject", "(ບໍ່ລະບຸໂຄງການ)")}
+                            </span>
+                            <span className="block truncate text-[10px] text-[var(--text-mute)]">
+                              {r.customer_name || t("quotations.noCustomer", "(ບໍ່ລະບຸລູກຄ້າ)")} · {money(r.total_amount)}
+                            </span>
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </Card>
               );
             })}
+        </div>
+      ) : (
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className={tblCls}>
+              <thead>
+                <tr>
+                  <RowBarTh />
+                  <SortTh
+                    label={t("quotations.quotationNo", "ເລກທີໃບສະເໜີ")}
+                    active={sort.key === "quotation_no"}
+                    dir={sort.dir}
+                    onClick={() => toggleSort("quotation_no")}
+                  />
+                  <SortTh
+                    label={`${t("common.project", "ໂຄງການ")} / ${t("common.customer", "ລູກຄ້າ")}`}
+                    active={sort.key === "customer_name"}
+                    dir={sort.dir}
+                    onClick={() => toggleSort("customer_name")}
+                  />
+                  <SortTh
+                    label={t("common.date", "ວັນທີ")}
+                    active={sort.key === "quotation_date"}
+                    dir={sort.dir}
+                    onClick={() => toggleSort("quotation_date")}
+                    className="w-32"
+                  />
+                  <th className={`${thCls} w-40`}>{t("common.status", "ສະຖານະ")}</th>
+                  <SortTh
+                    label={t("common.amount", "ມູນຄ່າ")}
+                    active={sort.key === "total_amount"}
+                    dir={sort.dir}
+                    onClick={() => toggleSort("total_amount")}
+                    className="w-32 text-right"
+                  />
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-[12.5px] text-[var(--text-mute)]">
+                      {allRows.length ? t("quotations.noMatch", "ບໍ່ພົບໃບສະເໜີທີ່ກົງ") : t("quotations.empty", "ຍັງບໍ່ມີໃບສະເໜີລາຄາ")}
+                    </td>
+                  </tr>
+                ) : (
+                  pageRows.map((r) => {
+                    const key = statusKey(r);
+                    return (
+                      <tr key={r.id} onClick={() => router.push(`/quotations/${r.id}`)} className={`${trHover} cursor-pointer`}>
+                        <RowBar tone={STATUS_BAR[key] || "neutral"} />
+                        <td className={`${tdCls} w-44 max-w-44`}>
+                          <span className="block truncate font-mono font-semibold text-[var(--text)]">
+                            {r.quotation_no || t("quotations.noNumber", "(ບໍ່ມີເລກທີ່)")}
+                          </span>
+                        </td>
+                        {/* Project + customer share a cell: on most quotations they are the same string. */}
+                        <td className={`${tdCls} max-w-[320px]`}>
+                          <TwoLine
+                            primary={r.project_name || r.customer_name || t("quotations.noProject", "(ບໍ່ລະບຸໂຄງການ)")}
+                            secondary={
+                              r.customer_name && r.customer_name !== r.project_name ? r.customer_name : undefined
+                            }
+                          />
+                        </td>
+                        <td className={`${tdCls} tabular-nums`}>{d10(r.quotation_date ?? r.created_at)}</td>
+                        <td className={tdCls}>
+                          <Pill tone={STATUS_PILL[key] || "neutral"}>{norm(r.status)}</Pill>
+                        </td>
+                        <td className={`${tdCls} text-right font-semibold tabular-nums text-[var(--text)]`}>{money(r.total_amount)}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+
+          {pageCount > 1 && (
+            <div className="flex items-center justify-between border-t border-[var(--border-soft)] px-4 py-2.5">
+              <span className="text-[11.5px] text-[var(--text-mute)]">
+                {t("common.page", "ໜ້າ")} {current}/{pageCount}
+              </span>
+              <div className="flex gap-1.5">
+                <Btn variant="outline" onClick={() => setPage(current - 1)} disabled={current <= 1}>
+                  <ChevronLeft size={14} /> {t("common.prev", "ກ່ອນ")}
+                </Btn>
+                <Btn variant="outline" onClick={() => setPage(current + 1)} disabled={current >= pageCount}>
+                  {t("common.next", "ຖັດໄປ")} <ChevronRight size={14} />
+                </Btn>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      <ProjectPickerModal
+        open={pick}
+        onClose={() => setPick(false)}
+        onPick={(p) => router.push(`/projects/${p.id}/quotation/new`)}
+        title={t("quotations.pickProject", "ເລືອກໂຄງການເພື່ອສ້າງໃບສະເໜີລາຄາ")}
+      />
     </Page>
   );
 }

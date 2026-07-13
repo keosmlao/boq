@@ -58,23 +58,42 @@ export default function ProjectPickerModal({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-[10vh]" onClick={onClose}>
-      <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-[var(--theme-shadow-lg)]" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between bg-gradient-to-r from-[var(--theme-primary)] to-blue-500 px-4 py-3 text-white">
-          <h3 className="text-[14px] font-bold">{titleText}</h3>
-          <button onClick={onClose} className="text-white/80 hover:text-white"><X size={18} /></button>
+    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 px-4 pt-[10vh] backdrop-blur-[2px]" onClick={onClose}>
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-4 py-3">
+          <h3 className="flex items-center gap-2 text-[13px] font-black text-[var(--text)]">
+            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+              <FolderKanban size={14} />
+            </span>
+            {titleText}
+          </h3>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-mute)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]"
+          >
+            <X size={18} />
+          </button>
         </div>
-        <div className="border-b border-[var(--theme-border-subtle)] p-2">
-          <div className="flex h-9 items-center gap-2 rounded-md border border-[var(--theme-border-subtle)] px-2.5">
-            <Search size={14} className="text-[var(--theme-text-mute)]" />
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("components.projectPicker.searchPlaceholder", "ຄົ້ນຫາໂຄງການ, ລູກຄ້າ...")} className="min-w-0 flex-1 bg-transparent text-[13px] outline-none" />
-          </div>
+        <div className="border-b border-[var(--border-soft)] p-2.5">
+          <label className="flex h-9 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
+            <Search size={14} className="text-[var(--text-mute)]" />
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("components.projectPicker.searchPlaceholder", "ຄົ້ນຫາໂຄງການ, ລູກຄ້າ...")}
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
+            />
+          </label>
         </div>
         <div className="max-h-[50vh] overflow-y-auto">
           {loading ? (
-            <div className="py-10 text-center text-[12px] text-[var(--theme-text-mute)]">{t("common.loading", "ກຳລັງໂຫຼດ...")}</div>
+            <div className="py-10 text-center text-[12px] text-[var(--text-mute)]">{t("common.loading", "ກຳລັງໂຫຼດ...")}</div>
           ) : filtered.length === 0 ? (
-            <div className="py-10 text-center text-[12px] text-[var(--theme-text-mute)]">
+            <div className="py-10 text-center text-[12px] text-[var(--text-mute)]">
               {requireApprovedContract ? t("components.projectPicker.noneApprovedContract", "ບໍ່ພົບໂຄງການທີ່ມີສັນຍາອະນຸມັດແລ້ວ") : requireBoq ? t("components.projectPicker.noneWithBoq", "ບໍ່ພົບໂຄງການທີ່ມີ BOQ") : t("components.projectPicker.none", "ບໍ່ພົບໂຄງການ")}
             </div>
           ) : (
@@ -82,12 +101,14 @@ export default function ProjectPickerModal({
               <button
                 key={p.id ?? i}
                 onClick={() => onPick(p)}
-                className="flex w-full items-center gap-2 border-b border-[var(--theme-border-subtle)] px-3 py-2 text-left last:border-0 hover:bg-[var(--theme-bg-muted)]"
+                className="flex w-full items-center gap-2.5 border-b border-[var(--border-soft)] px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-[var(--brand-tint)]"
               >
-                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-[var(--theme-primary-tint)] text-[var(--theme-primary)]"><FolderKanban size={14} /></span>
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[var(--text-mute)]">
+                  <FolderKanban size={14} />
+                </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[12.5px] font-semibold text-[var(--theme-text)]">{p.project_name || t("components.picker.noName", "(ບໍ່ມີຊື່)")}</span>
-                  <span className="block truncate text-[10.5px] text-[var(--theme-text-mute)]">{p.customer_name || p.sml_code || "-"}</span>
+                  <span className="block truncate text-[12.5px] font-semibold text-[var(--text)]">{p.project_name || t("components.picker.noName", "(ບໍ່ມີຊື່)")}</span>
+                  <span className="block truncate text-[10.5px] text-[var(--text-mute)]">{p.customer_name || p.sml_code || "-"}</span>
                 </span>
               </button>
             ))

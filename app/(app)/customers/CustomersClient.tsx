@@ -1,149 +1,53 @@
 "use client";
 
-/** v2 — Customers as a workflow drill-down tree (nested, not flat):
- *  ລູກຄ້າ → ໂຄງການ → ໃບສະເໜີລາຄາ → ສັນຍາ → BOQ → ໃບຂໍເບີກ
- *                                          └→ ໜ້າວຽກ → ໃບງານ
- *  Plain / monochrome — no accent colours. Lazy-loads each project's docs.
+/**
+ * ລູກຄ້າ — flat list (ODIEN SERVICE layout): toolbar → filter tabs → one table.
+ * Rows carry a status bar down the left edge and open the customer detail page
+ * (/customers/[code]), where their projects live.
  *
- *  Initial customers + projects are fetched on the SERVER (see page.tsx) and
- *  seeded via props — this removes the old mount→useEffect→server-action
- *  waterfall. The Refresh button still calls load() to re-fetch client-side,
- *  and each project's documents are still lazy-loaded on expand. */
+ * Initial customers + projects are fetched on the SERVER (see page.tsx) and
+ * seeded via props — this removes the old mount→useEffect→server-action
+ * waterfall. The reload button still calls load() to re-fetch client-side.
+ */
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Search,
-  RefreshCw,
+  ChevronLeft,
   ChevronRight,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  Plus,
-  Pencil,
-  Trash2,
-  Users,
-  FolderKanban,
-  FileText,
-  FileSignature,
-  ListChecks,
-  CalendarRange,
-  Wrench,
-  PackageOpen,
+  FileSpreadsheet,
   Loader2,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { getCustomers, deleteCustomer } from "@/_actions/customers";
-import { getProjects, getProjectsBoq } from "@/_actions/projects";
-import { getQuotations } from "@/_actions/quotations";
-import { getContracts } from "@/_actions/contracts";
-import { getProjectTasks } from "@/_actions/tasks-v2";
-import { getWorkOrders } from "@/_actions/workorder";
-import { getRequests } from "@/_actions/request-v2";
-import { Page } from "../_components/ui";
+import { getProjects } from "@/_actions/projects";
+import RSelect from "../_components/RSelect";
+import {
+  Btn,
+  Card,
+  Page,
+  PageHeader,
+  Pill,
+  RowBar,
+  RowBarTh,
+  Segmented,
+  SortTh,
+  Toolbar,
+  TwoLine,
+  tblCls,
+  tdCls,
+  thCls,
+  trHover,
+} from "../_components/ui";
 import { useT } from "@/_lib/i18n";
 
-type TFn = (key: string, fallback: string) => string;
+const PER_PAGE = 25;
 
-const money = (v: unknown) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n.toLocaleString("en-US") : "0";
-};
-const d10 = (v: unknown) => (v ? String(v).slice(0, 10) : "");
 const arr = (res: any): any[] => (res?.success ? res.data || [] : Array.isArray(res) ? res : []);
-
-/** Status rendered in grayscale only: solid = done, faint = rejected, outline = pending. */
-type Mono = { label: string; kind: "done" | "wait" | "off" } | null;
-const quoStatus = (s: any, t: TFn): Mono => {
-  const v = String(s || "ລໍຖ້າອະນຸມັດ");
-  const kind = v === "ອະນຸມັດແລ້ວ" ? "done" : v === "ປະຕິເສດ" ? "off" : "wait";
-  const label = kind === "done" ? t("status.approved", "ອະນຸມັດແລ້ວ") : kind === "off" ? t("status.rejected", "ປະຕິເສດ") : t("status.pending", "ລໍຖ້າອະນຸມັດ");
-  return { label, kind };
-};
-const boqStatus = (b: any, t: TFn): Mono => {
-  const a = Number(b.approve_status);
-  return a === 1 ? { label: t("status.approved", "ອະນຸມັດແລ້ວ"), kind: "done" } : a === 2 ? { label: t("status.rejected", "ປະຕິເສດ"), kind: "off" } : { label: t("status.pending", "ລໍຖ້າອະນຸມັດ"), kind: "wait" };
-};
-const contractStatus = (c: any, t: TFn): Mono => {
-  const isErp = c.src === "erp";
-  const sales = isErp ? Number(c.approve_status_1) === 1 : !!c.sales_approved;
-  const acc = isErp ? Math.max(Number(c.approve_status_2) || 0, Number(c.acc_approve) || 0) === 1 : !!c.accounting_approved;
-  return sales && acc ? { label: t("customers.statusComplete", "ສົມບູນ"), kind: "done" } : { label: t("status.pending", "ລໍຖ້າອະນຸມັດ"), kind: "wait" };
-};
-const reqStatus = (r: any, t: TFn): Mono => {
-  const s = String(r.status || "requested");
-  return s === "withdrawn" ? { label: t("customers.statusWithdrawn", "ເບີກແລ້ວ"), kind: "done" } : s === "rejected" ? { label: t("status.rejected", "ປະຕິເສດ"), kind: "off" } : { label: t("customers.statusRequested", "ຮ້ອງຂໍ"), kind: "wait" };
-};
-
-function Tag({ status }: { status: Mono }) {
-  if (!status) return null;
-  const cls =
-    status.kind === "done"
-      ? "bg-slate-800 text-white"
-      : status.kind === "off"
-        ? "bg-slate-100 text-slate-400"
-        : "border border-slate-300 bg-white text-slate-500";
-  return <span className={`inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-[10px] font-bold ${cls}`}>{status.label}</span>;
-}
-
-/** Per-category leaf rendering + icon. */
-type Meta = {
-  label: string;
-  icon: React.ReactNode;
-  primary: (it: any) => string;
-  secondary: (it: any) => string;
-  status: (it: any) => Mono;
-  href: (it: any, pid: string) => string;
-};
-const buildMeta = (t: TFn): Record<string, Meta> => ({
-  quotation: { label: t("quotations.title", "ໃບສະເໜີລາຄາ"), icon: <FileText size={13} />, primary: (q) => q.quotation_no || t("customers.noNumber", "(ບໍ່ມີເລກທີ່)"), secondary: (q) => [d10(q.quotation_date), q.total_amount ? `${money(q.total_amount)} ${t("common.currencyKip", "ບາດ")}` : ""].filter(Boolean).join(" · "), status: (q) => quoStatus(q.status, t), href: (q) => `/quotations/${q.id}` },
-  contract: { label: t("customers.catContract", "ສັນຍາ"), icon: <FileSignature size={13} />, primary: (c) => c.contract_no || t("customers.noNumber", "(ບໍ່ມີເລກທີ່)"), secondary: (c) => [c.total_amount ? `${money(c.total_amount)} ${t("common.currencyKip", "ບາດ")}` : "", d10(c.sign_date)].filter(Boolean).join(" · "), status: (c) => contractStatus(c, t), href: (c) => (c.src === "erp" ? `/contracts/${encodeURIComponent(c.contract_no || "")}` : `/contracts/${c.id}`) },
-  boq: { label: t("customers.catBoq", "BOQ"), icon: <ListChecks size={13} />, primary: (b) => b.doc_no || b.boq_no || t("customers.noNumber", "(ບໍ່ມີເລກທີ່)"), secondary: (b) => d10(b.doc_date), status: (b) => boqStatus(b, t), href: (b) => `/boq/${encodeURIComponent(b.doc_no || b.boq_no || "")}` },
-  request: { label: t("customers.catRequest", "ໃບຂໍເບີກ"), icon: <PackageOpen size={13} />, primary: (r) => r.request_no || t("customers.noNumber", "(ບໍ່ມີເລກທີ່)"), secondary: (r) => [d10(r.created_at), Array.isArray(r.items) ? `${r.items.length} ${t("customers.itemsUnit", "ລາຍການ")}` : ""].filter(Boolean).join(" · "), status: (r) => reqStatus(r, t), href: (r) => `/requests/${encodeURIComponent(r.id)}` },
-  tasks: { label: t("customers.catTasks", "ໜ້າວຽກ"), icon: <CalendarRange size={13} />, primary: (it) => it.title || t("customers.catTasks", "ໜ້າວຽກ"), secondary: (it) => [it.phase, it.technician_name].filter(Boolean).join(" · "), status: () => null, href: (_t, pid) => `/projects/${pid}?tab=tasks` },
-  workorder: { label: t("customers.catWorkorder", "ໃບງານ"), icon: <Wrench size={13} />, primary: (w) => w.work_no || t("customers.noNumber", "(ບໍ່ມີເລກທີ່)"), secondary: (w) => [d10(w.work_date || w.created_at), w.technician_name].filter(Boolean).join(" · "), status: () => null, href: (w) => `/work-orders/${w.id}` },
-});
-
-/** Nested workflow tree of document categories. */
-type CatNode = Meta & { key: string; children: CatNode[] };
-const buildCatTree = (meta: Record<string, Meta>): CatNode[] => {
-  const node = (key: string, children: CatNode[] = []): CatNode => ({ key, ...meta[key], children });
-  return [
-    node("quotation", [
-      node("contract", [node("boq", [node("request")])]),
-      node("tasks", [node("workorder")]),
-    ]),
-  ];
-};
-const subtreeCount = (n: CatNode, cats: Record<string, any[]>): number =>
-  (cats[n.key]?.length || 0) + n.children.reduce((s, c) => s + subtreeCount(c, cats), 0);
-const allCatKeys = (pid: string, tree: CatNode[]): string[] => {
-  const keys: string[] = [];
-  const walk = (nodes: CatNode[]) => nodes.forEach((n) => { keys.push(`k:${pid}:${n.key}`); walk(n.children); });
-  walk(tree);
-  return keys;
-};
-
-async function fetchProjectCats(pid: string): Promise<Record<string, any[]>> {
-  const [pRes, qRes, cRes, tRes, woRes, rqRes]: any = await Promise.all([
-    getProjectsBoq({ projectId: pid }),
-    getQuotations({ projectId: pid }),
-    getContracts({ projectId: pid }),
-    getProjectTasks({ projectId: pid }),
-    getWorkOrders({ projectId: pid }),
-    getRequests({ projectId: pid }),
-  ]);
-  const proj = (pRes?.success ? pRes.data?.[0] : null) || null;
-  const legacyContracts = (Array.isArray(proj?.contractlist) ? proj.contractlist : []).map((c: any) => ({ ...c, src: "erp" }));
-  const legacyBoqs = legacyContracts.flatMap((c: any) =>
-    (Array.isArray(c?.boq_list) ? c.boq_list : []).map((b: any) => ({ ...b, src: "erp", contract_no: c.contract_no })),
-  );
-  return {
-    quotation: arr(qRes),
-    contract: [...arr(cRes), ...legacyContracts],
-    boq: legacyBoqs,
-    request: arr(rqRes),
-    tasks: arr(tRes),
-    workorder: arr(woRes),
-  };
-}
 
 const FILTERS = [
   { key: "all", i18nKey: "common.all", label: "ທັງໝົດ" },
@@ -152,7 +56,7 @@ const FILTERS = [
 ];
 
 type Customer = Record<string, any> & { projects: any[] };
-type ProjData = { loading: boolean; cats?: Record<string, any[]>; error?: boolean };
+type SortKey = "name" | "code" | "phone" | "projects";
 
 /** Build the sml_code → projects[] map exactly as the old client did. */
 const buildProjMap = (projects: any[]): Record<string, any[]> => {
@@ -165,12 +69,6 @@ const buildProjMap = (projects: any[]): Record<string, any[]> => {
   return map;
 };
 
-/** Shared right-hand column atoms so status + count line up vertically across
- *  every depth — gives the tree a tabular feel. */
-const RIGHT = "flex w-[120px] flex-shrink-0 items-center justify-end gap-2";
-const COUNT = "w-7 text-right text-[10.5px] font-bold tabular-nums";
-const ACT = "flex w-16 flex-shrink-0 items-center justify-end gap-0.5";
-
 export default function CustomersClient({
   initialCustomers,
   initialProjects,
@@ -180,15 +78,19 @@ export default function CustomersClient({
 }) {
   const t = useT();
   const router = useRouter();
-  const META = useMemo(() => buildMeta(t), [t]);
-  const CAT_TREE = useMemo(() => buildCatTree(META), [META]);
   const [rows, setRows] = useState<any[]>(initialCustomers);
   const [projMap, setProjMap] = useState<Record<string, any[]>>(() => buildProjMap(initialProjects));
   const [loading, setLoading] = useState(false);
+  const [draftQ, setDraftQ] = useState("");
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
-  const [open, setOpen] = useState<Set<string>>(new Set());
-  const [projData, setProjData] = useState<Record<string, ProjData>>({});
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "projects", dir: "desc" });
+
+  const runSearch = () => {
+    setQ(draftQ);
+    setPage(1);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -209,58 +111,37 @@ export default function CustomersClient({
     [rows, projMap],
   );
 
-  const stats = useMemo(() => {
-    let projects = 0,
-      withP = 0;
-    customers.forEach((c) => {
-      projects += c.projects.length;
-      if (c.projects.length) withP++;
-    });
-    return { total: customers.length, projects, withP, withoutP: customers.length - withP };
+  const counts = useMemo(() => {
+    const withP = customers.filter((c) => c.projects.length > 0).length;
+    return { all: customers.length, has: withP, none: customers.length - withP };
   }, [customers]);
 
-  const kw = q.trim().toLowerCase();
   const filtered = useMemo(() => {
-    return customers
-      .filter((c) => {
-        if (filter === "has" && c.projects.length === 0) return false;
-        if (filter === "none" && c.projects.length > 0) return false;
-        if (!kw) return true;
-        const inCust = [c.name, c.code, c.phone].some((x) => (x ?? "").toString().toLowerCase().includes(kw));
-        const inProj = c.projects.some((p) => (p.project_name ?? "").toString().toLowerCase().includes(kw));
-        return inCust || inProj;
-      })
-      .sort((a, b) => b.projects.length - a.projects.length || String(a.name).localeCompare(String(b.name)));
-  }, [customers, kw, filter]);
-
-  const searching = kw !== "";
-  const isOpen = (key: string) => open.has(key);
-  const toggle = (key: string) =>
-    setOpen((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
+    const kw = q.trim().toLowerCase();
+    const list = customers.filter((c) => {
+      if (filter === "has" && c.projects.length === 0) return false;
+      if (filter === "none" && c.projects.length > 0) return false;
+      if (!kw) return true;
+      const inCust = [c.name, c.code, c.phone].some((x) => (x ?? "").toString().toLowerCase().includes(kw));
+      const inProj = c.projects.some((p) => (p.project_name ?? "").toString().toLowerCase().includes(kw));
+      return inCust || inProj;
     });
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      if (sort.key === "projects") {
+        if (a.projects.length !== b.projects.length) return a.projects.length > b.projects.length ? dir : -dir;
+        return String(a.name ?? "").localeCompare(String(b.name ?? ""));
+      }
+      return String(a[sort.key] ?? "") > String(b[sort.key] ?? "") ? dir : -dir;
+    });
+  }, [customers, q, filter, sort]);
 
-  const custOpen = (code: string) => searching || isOpen(`c:${code}`);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const current = Math.min(page, pageCount);
+  const pageRows = filtered.slice((current - 1) * PER_PAGE, current * PER_PAGE);
 
-  const openProject = (pid: string) => {
-    const key = `p:${pid}`;
-    const willOpen = !isOpen(key);
-    toggle(key);
-    if (willOpen && !projData[pid]) {
-      setProjData((d) => ({ ...d, [pid]: { loading: true } }));
-      fetchProjectCats(pid)
-        .then((cats) => {
-          setProjData((d) => ({ ...d, [pid]: { loading: false, cats } }));
-          setOpen((prev) => new Set([...prev, ...allCatKeys(pid, CAT_TREE)]));
-        })
-        .catch(() => setProjData((d) => ({ ...d, [pid]: { loading: false, error: true } })));
-    }
-  };
-
-  const allOpen = filtered.length > 0 && filtered.every((c) => isOpen(`c:${c.code}`));
-  const toggleAll = () => setOpen(allOpen ? new Set() : new Set(filtered.map((c) => `c:${c.code}`)));
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
 
   const del = async (code: string) => {
     if (!window.confirm(t("customers.deleteConfirm", "ລົບລູກຄ້ານີ້? ກູ້ຄືນບໍ່ໄດ້."))) return;
@@ -269,261 +150,213 @@ export default function CustomersClient({
     else alert(res?.message || t("customers.deleteFailed", "ລົບບໍ່ສຳເລັດ"));
   };
 
-  // Recursive renderer — emits FLAT, full-width table rows (no nested cards or
-  // connector rules); hierarchy reads from the left indent + the aligned
-  // status/count columns on the right.
-  const renderCat = (n: CatNode, pid: string, cats: Record<string, any[]>, depth: number): React.ReactNode => {
-    const items = cats[n.key] || [];
-    const expandable = subtreeCount(n, cats) > 0;
-    const key = `k:${pid}:${n.key}`;
-    const cOpen = expandable && isOpen(key);
-    const empty = items.length === 0;
-    const catPad = 52 + depth * 18;
-    return (
-      <React.Fragment key={n.key}>
-        <div
-          onClick={expandable ? () => toggle(key) : undefined}
-          style={{ paddingLeft: catPad }}
-          className={`flex items-center gap-2.5 py-2 pr-4 ${expandable ? "cursor-pointer hover:bg-slate-50" : "cursor-default"}`}
-        >
-          <ChevronRight className={`h-3 w-3 flex-shrink-0 text-slate-300 transition-transform duration-200 ${expandable ? "" : "opacity-0"} ${cOpen ? "rotate-90" : ""}`} />
-          <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-slate-100 ${empty ? "text-slate-300" : "text-slate-500"}`}>{n.icon}</span>
-          <span className={`flex-1 truncate text-[11.5px] font-semibold ${empty ? "text-slate-400" : "text-slate-600"}`}>{n.label}</span>
-          <div className={RIGHT}>
-            <span className={`${COUNT} ${empty ? "text-slate-300" : "text-slate-500"}`}>{items.length}</span>
-          </div>
-          <span className={ACT} />
-        </div>
-        {cOpen && (
-          <>
-            {items.map((it, i) => {
-              const sec = n.secondary(it);
-              return (
-                <div
-                  key={it.id ?? it.doc_no ?? it.boq_no ?? it.contract_no ?? it.request_no ?? i}
-                  onClick={() => router.push(n.href(it, pid))}
-                  style={{ paddingLeft: catPad + 18 }}
-                  className="group/leaf flex cursor-pointer items-center gap-2.5 py-2 pr-4 transition-colors hover:bg-slate-50"
-                >
-                  <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-300 transition-colors group-hover/leaf:bg-slate-600" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-mono text-[12px] font-semibold text-slate-700">{n.primary(it)}</div>
-                    {sec && <div className="truncate text-[10.5px] font-medium text-slate-400">{sec}</div>}
-                  </div>
-                  <div className={RIGHT}>
-                    <Tag status={n.status(it)} />
-                  </div>
-                  <span className={ACT}>
-                    <ChevronRight className="h-3.5 w-3.5 text-slate-300 transition-all group-hover/leaf:translate-x-0.5 group-hover/leaf:text-slate-500" />
-                  </span>
-                </div>
-              );
-            })}
-            {n.children.map((child) => renderCat(child, pid, cats, depth + 1))}
-          </>
-        )}
-      </React.Fragment>
+  const tabs = FILTERS.map((f) => ({
+    value: f.key,
+    label: (
+      <span className="flex items-center gap-1.5">
+        {t(f.i18nKey, f.label)}
+        <span className="rounded-full bg-black/10 px-1.5 text-[10px] font-black dark:bg-white/15">
+          {counts[f.key as keyof typeof counts] ?? 0}
+        </span>
+      </span>
+    ),
+  }));
+
+  /** Excel export of exactly what is on screen (current filter + sort, all pages). */
+  const exportExcel = () => {
+    const sheet = XLSX.utils.json_to_sheet(
+      filtered.map((c) => ({
+        [t("customers.code", "ລະຫັດ")]: c.code || "",
+        [t("customers.title", "ລູກຄ້າ")]: c.name || "",
+        [t("customers.phone", "ເບີໂທ")]: c.phone || "",
+        [t("customers.colProjects", "ໂຄງການ")]: c.projects.length,
+      })),
     );
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, "customers");
+    XLSX.writeFile(book, `customers-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   return (
-    <Page max="max-w-none w-full">
-      {/* Monochrome Minimalist Header */}
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-100 pb-5">
-        <div className="min-w-0">
-          <h1 className="truncate text-xl md:text-2xl font-bold tracking-tight text-slate-900 leading-none">{t("customers.title", "ລູກຄ້າ")}</h1>
-          <p className="mt-2 text-xs font-medium text-slate-400">
-            {t("customers.totalCustomers", "ລູກຄ້າທັງໝົດ")} {stats.total} · {t("customers.withProject", "ມີໂຄງການ")} {stats.withP} · {t("customers.withoutProject", "ບໍ່ມີໂຄງການ")} {stats.withoutP}
-          </p>
+    <Page max="max-w-none">
+      <PageHeader
+        title={t("customers.title", "ລູກຄ້າ")}
+        subtitle={`${t("customers.totalPrefix", "ທັງໝົດ")} ${filtered.length} ${t("customers.itemsUnit", "ລາຍການ")} · ${t("common.page", "ໜ້າ")} ${current}/${pageCount}`}
+        actions={
+          <>
+            <Btn variant="go" onClick={() => router.push("/customers/new")}>
+              <Plus size={14} /> {t("customers.createCustomer", "ສ້າງລູກຄ້າ")}
+            </Btn>
+            <Btn variant="outline" onClick={exportExcel} disabled={filtered.length === 0}>
+              <FileSpreadsheet size={14} /> Excel
+            </Btn>
+            <Btn variant="outline" onClick={() => void load()} disabled={loading}>
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} {t("common.reload", "ໂຫຼດໃໝ່")}
+            </Btn>
+          </>
+        }
+      />
+
+      <Toolbar>
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+          <Search size={15} className="text-[var(--text-mute)]" />
+          <input
+            value={draftQ}
+            onChange={(e) => setDraftQ(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runSearch()}
+            placeholder={t("customers.searchPlaceholder", "ຄົ້ນຫາ ລະຫັດ, ຊື່ລູກຄ້າ...")}
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
+          />
+        </label>
+
+        <div className="w-52">
+          <RSelect
+            value={filter === "all" ? "" : filter}
+            onChange={(v) => {
+              setFilter(v || "all");
+              setPage(1);
+            }}
+            isClearable
+            isSearchable={false}
+            placeholder={t("customers.allFilters", "ຕົວກອງທັງໝົດ")}
+            options={FILTERS.filter((f) => f.key !== "all").map((f) => ({
+              value: f.key,
+              label: `${t(f.i18nKey, f.label)} (${counts[f.key as keyof typeof counts] ?? 0})`,
+            }))}
+          />
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
-          <button
-            onClick={() => void load()}
-            disabled={loading}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          </button>
-          {!searching && filtered.length > 0 && (
-            <button
-              onClick={toggleAll}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 cursor-pointer"
-            >
-              {allOpen ? <ChevronsDownUp size={13} /> : <ChevronsUpDown size={13} />}
-              <span>{allOpen ? t("common.collapseAll", "ຍຸບທັງໝົດ") : t("common.expandAll", "ຂະຫຍາຍທັງໝົດ")}</span>
-            </button>
-          )}
-          <button
-            onClick={() => router.push("/customers/new")}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-700 active:scale-[0.98] cursor-pointer"
-          >
-            <Plus size={14} strokeWidth={2.5} /> {t("customers.createCustomer", "ສ້າງລູກຄ້າ")}
-          </button>
-        </div>
+
+        <Btn variant="ink" onClick={runSearch}>
+          <Search size={14} /> {t("common.search", "ຄົ້ນຫາ")}
+        </Btn>
+      </Toolbar>
+
+      <div className="mb-4 overflow-x-auto">
+        <Segmented
+          value={filter}
+          onChange={(v) => {
+            setFilter(v);
+            setPage(1);
+          }}
+          options={tabs}
+        />
       </div>
 
-      <div className="space-y-4">
-        {/* Search & Filter Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div className="relative flex h-9 w-full max-w-xs items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100 transition-all">
-            <Search className="h-3.5 w-3.5 text-slate-400" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={t("customers.searchPlaceholder", "ຄົ້ນຫາ ລະຫັດ, ຊື່ລູກຄ້າ...")}
-              className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none"
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`h-8 rounded-lg px-3 text-xs font-semibold transition-all cursor-pointer ${
-                  filter === f.key
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-                }`}
-              >
-                {t(f.i18nKey, f.label)}
-              </button>
-            ))}
-          </div>
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className={tblCls}>
+            <thead>
+              <tr>
+                <RowBarTh />
+                <SortTh
+                  label={t("customers.title", "ລູກຄ້າ")}
+                  active={sort.key === "name"}
+                  dir={sort.dir}
+                  onClick={() => toggleSort("name")}
+                />
+                <SortTh
+                  label={t("customers.code", "ລະຫັດ")}
+                  active={sort.key === "code"}
+                  dir={sort.dir}
+                  onClick={() => toggleSort("code")}
+                  className="w-36"
+                />
+                <SortTh
+                  label={t("customers.phone", "ເບີໂທ")}
+                  active={sort.key === "phone"}
+                  dir={sort.dir}
+                  onClick={() => toggleSort("phone")}
+                  className="w-36"
+                />
+                <SortTh
+                  label={t("customers.colProjects", "ໂຄງການ")}
+                  active={sort.key === "projects"}
+                  dir={sort.dir}
+                  onClick={() => toggleSort("projects")}
+                  className="w-24 text-right"
+                />
+                <th className={`${thCls} w-40`}>{t("common.status", "ສະຖານະ")}</th>
+                <th className={`${thCls} w-24 text-right`}>{t("common.actions", "ຈັດການ")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && customers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-[var(--text-mute)]">
+                    <Loader2 size={20} className="mx-auto animate-spin" />
+                  </td>
+                </tr>
+              ) : pageRows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-[12.5px] text-[var(--text-mute)]">
+                    {rows.length ? t("customers.noMatch", "ບໍ່ພົບລູກຄ້າ") : t("customers.empty", "ຍັງບໍ່ມີລູກຄ້າ")}
+                  </td>
+                </tr>
+              ) : (
+                pageRows.map((c) => {
+                  const code = String(c.code);
+                  const hasP = c.projects.length > 0;
+                  return (
+                    <tr key={code} onClick={() => router.push(`/customers/${encodeURIComponent(code)}`)} className={`${trHover} cursor-pointer`}>
+                      <RowBar tone={hasP ? "brand" : "neutral"} />
+                      <td className={tdCls}>
+                        <TwoLine
+                          primary={c.name || code}
+                          secondary={hasP ? c.projects.map((p: any) => p.project_name).filter(Boolean).join(" · ") || undefined : undefined}
+                        />
+                      </td>
+                      <td className={`${tdCls} font-mono`}>{code}</td>
+                      <td className={tdCls}>{c.phone || "-"}</td>
+                      <td className={`${tdCls} text-right font-semibold tabular-nums text-[var(--text)]`}>{c.projects.length}</td>
+                      <td className={tdCls}>
+                        <Pill tone={hasP ? "brand" : "neutral"}>
+                          {hasP ? t("customers.withProject", "ມີໂຄງການ") : t("customers.withoutProject", "ບໍ່ມີໂຄງການ")}
+                        </Pill>
+                      </td>
+                      <td className={`${tdCls} text-right`} onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/customers/new?edit=${encodeURIComponent(code)}`)}
+                            title={t("common.edit", "ແກ້ໄຂ")}
+                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-[var(--text-mute)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => del(code)}
+                            title={t("common.delete", "ລົບ")}
+                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-[var(--text-mute)] transition-colors hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {loading ? (
-          <div className="flex h-56 items-center justify-center gap-3 text-slate-400">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
-            <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex h-56 flex-col items-center justify-center gap-2 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-            <Users className="h-8 w-8 opacity-40" />
-            <span className="text-sm font-semibold">{rows.length ? t("customers.noMatch", "ບໍ່ພົບລູກຄ້າ") : t("customers.empty", "ຍັງບໍ່ມີລູກຄ້າ")}</span>
-          </div>
-        ) : (
-          <div className="border border-slate-200/80 rounded-xl bg-white overflow-hidden shadow-2xs">
-            {/* Table head */}
-            <div className="flex items-center border-b border-slate-200 bg-slate-50/70 px-4.5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none">
-              <span className="flex-1 pl-[20px]">{t("customers.title", "ລູກຄ້າ")}</span>
-              <span className="hidden sm:block w-24 flex-shrink-0">{t("customers.code", "ລະຫັດ")}</span>
-              <span className="hidden md:block w-32 flex-shrink-0">{t("customers.phone", "ເບີໂທ")}</span>
-              <span className="w-[120px] flex-shrink-0 text-right pr-1">{t("customers.statusCount", "ສະຖານະ · ຈຳນວນ")}</span>
-              <span className="w-16 flex-shrink-0 text-right" />
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {filtered.map((c) => {
-                const code = String(c.code);
-                const opened = custOpen(code);
-                return (
-                  <div key={code} className="group transition-colors">
-                    {/* Customer Row */}
-                    <div
-                      onClick={() => toggle(`c:${code}`)}
-                      className={`flex w-full cursor-pointer items-center px-4.5 py-2.5 transition-colors hover:bg-slate-50/50 ${opened ? "bg-slate-50/30" : ""}`}
-                    >
-                      <ChevronRight className={`h-3.5 w-3.5 flex-shrink-0 text-slate-400 transition-transform duration-200 ${opened ? "rotate-90" : ""}`} />
-                      <div className="flex-1 min-w-0 pl-2 pr-4">
-                        <div className="truncate text-xs font-semibold text-slate-800 transition-colors group-hover:text-slate-900">{c.name || code}</div>
-                      </div>
-                      <div className="hidden sm:block w-24 flex-shrink-0 text-[11px] font-mono text-slate-400">
-                        {code}
-                      </div>
-                      <div className="hidden md:block w-32 flex-shrink-0 text-xs text-slate-400">
-                        {c.phone || "—"}
-                      </div>
-                      <div className={RIGHT}>
-                        <span className="w-16 flex-shrink-0 text-right text-[10px] text-slate-400 font-medium select-none">
-                          {c.projects.length > 0 ? t("customers.withProject", "ມີໂຄງການ") : t("customers.withoutProject", "ບໍ່ມີໂຄງການ")}
-                        </span>
-                        <span className={`${COUNT} text-slate-500`}>{c.projects.length}</span>
-                      </div>
-                      <div className={`${ACT} opacity-0 group-hover:opacity-100 transition-opacity duration-150`} onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => router.push(`/customers/new?edit=${encodeURIComponent(code)}`)}
-                          title={t("common.edit", "ແກ້ໄຂ")}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          onClick={() => del(code)}
-                          title={t("common.delete", "ລົບ")}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Customer Projects & Documents — flat, full-width rows */}
-                    {opened && (
-                      <div className="divide-y divide-slate-100/70 border-t border-slate-100 bg-slate-50/20">
-                        {c.projects.length === 0 ? (
-                          <div style={{ paddingLeft: 30 }} className="flex items-center justify-between gap-3 py-2.5 pr-4">
-                            <span className="text-[11.5px] font-medium text-slate-400">{t("customers.noProjects", "ຍັງບໍ່ມີໂຄງການ")}</span>
-                            <button
-                              onClick={() => router.push(`/projects/new?cust=${encodeURIComponent(code)}&name=${encodeURIComponent(c.name || code)}`)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[10.5px] font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-800 cursor-pointer"
-                            >
-                              <Plus size={11} strokeWidth={2.75} /> {t("customers.registerProject", "ລົງທະບຽນໂຄງການ")}
-                            </button>
-                          </div>
-                        ) : (
-                          c.projects.map((p) => {
-                            const pid = String(p.id);
-                            const pOpen = isOpen(`p:${pid}`);
-                            const pd = projData[pid];
-                            const total = pd?.cats ? Object.values(pd.cats).reduce((s, a) => s + a.length, 0) : null;
-                            return (
-                              <React.Fragment key={pid}>
-                                <div
-                                  onClick={() => openProject(pid)}
-                                  style={{ paddingLeft: 28 }}
-                                  className="flex cursor-pointer items-center gap-2.5 py-2 pr-4 transition-colors hover:bg-slate-50"
-                                >
-                                  <ChevronRight className={`h-3.5 w-3.5 flex-shrink-0 text-slate-400 transition-transform duration-200 ${pOpen ? "rotate-90" : ""}`} />
-                                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
-                                    <FolderKanban size={12} />
-                                  </span>
-                                  <span className="min-w-0 flex-1 truncate text-[11.5px] font-semibold text-slate-700">{p.project_name || t("customers.noName", "(ບໍ່ມີຊື່)")}</span>
-                                  <div className={RIGHT}>
-                                    {p.project_status && (
-                                      <span className="max-w-[78px] truncate rounded border border-slate-200/80 bg-white px-1.5 py-0.5 text-[9px] font-medium text-slate-500">
-                                        {p.project_status}
-                                      </span>
-                                    )}
-                                    {total !== null && <span className={`${COUNT} text-slate-500`}>{total}</span>}
-                                  </div>
-                                  <span className={ACT} />
-                                </div>
-
-                                {pOpen &&
-                                  (!pd || pd.loading ? (
-                                    <div style={{ paddingLeft: 52 }} className="flex items-center gap-2 py-2 pr-4 text-[11px] font-medium text-slate-400">
-                                      <Loader2 size={12} className="animate-spin text-slate-400" /> {t("customers.loadingDocs", "ກຳລັງໂຫຼດເອກະສານ...")}
-                                    </div>
-                                  ) : pd.error ? (
-                                    <div style={{ paddingLeft: 52 }} className="py-2 pr-4 text-[11px] font-medium text-slate-500">{t("customers.loadDocsFailed", "ໂຫຼດເອກະສານບໍ່ສຳເລັດ")}</div>
-                                  ) : (
-                                    CAT_TREE.map((n) => renderCat(n, pid, pd.cats!, 0))
-                                  ))}
-                              </React.Fragment>
-                            );
-                          })
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+        {pageCount > 1 && (
+          <div className="flex items-center justify-between border-t border-[var(--border-soft)] px-4 py-2.5">
+            <span className="text-[11.5px] text-[var(--text-mute)]">
+              {t("common.page", "ໜ້າ")} {current}/{pageCount}
+            </span>
+            <div className="flex gap-1.5">
+              <Btn variant="outline" onClick={() => setPage(current - 1)} disabled={current <= 1}>
+                <ChevronLeft size={14} /> {t("common.prev", "ກ່ອນ")}
+              </Btn>
+              <Btn variant="outline" onClick={() => setPage(current + 1)} disabled={current >= pageCount}>
+                {t("common.next", "ຖັດໄປ")} <ChevronRight size={14} />
+              </Btn>
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </Page>
   );
 }
-
-/** Clear, minimal divider heading between page sections. */

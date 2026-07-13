@@ -4,7 +4,7 @@ import { query } from "@/_lib/db";
 import { logActivity } from "./chatter";
 import { cached, invalidate } from "@/_lib/cache";
 import { cleanText, isTruthyFlag } from "@/_lib/http";
-import { requirePermission } from "@/_lib/server-auth";
+import { requireManager, requirePermission } from "@/_lib/server-auth";
 import {
   approveProjectRequest,
   createProject,
@@ -137,7 +137,7 @@ export async function updateProjectAction(id: string, payload: Record<string, un
   } catch (e) { return fail((e as Error).message); }
 }
 
-/** v2 pipeline stages, stored in odg_projects.project_status, in order. */
+/** v2 pipeline stages a document/approval can advance a project to, in order. */
 const V2_STAGES = [
   "ລົງທະບຽນ",
   "ສຳຫຼວດ",
@@ -146,23 +146,248 @@ const V2_STAGES = [
   "BOQ",
   "ກຳນົດໜ້າວຽກ",
   "ໃບງານ",
-  "ປິດໂຄງການ",
 ];
 
-/** Move a project's status FORWARD to `target` (never backward). */
+/** Close-out statuses — written ONLY by the close actions below, never by advanceProjectStage. */
+const PENDING_CLOSE_STATUS = "ລໍຖ້າອະນຸມັດປິດໂຄງການ";
+const CLOSED_STATUS = "ປິດໂຄງການ";
+const INSTALL_STATUS = "ດຳເນີນການຕິດຕັ້ງ";
+
+/**
+ * Rank of EVERY project_status the system writes, on one pipeline axis.
+ * The ERP lifecycle labels (ສາມາດເບີກຂອງໃດ້, ດຳເນີນການຕິດຕັ້ງ …) are folded in so
+ * a pipeline advance can never pull a project BACK to an earlier label than the
+ * one ERP already gave it.
+ */
+const STAGE_RANK: Record<string, number> = {
+  "ລໍຖ້າດຳເນີນ": 0,
+  "ລົງທະບຽນ": 0,
+  "ສຳຫຼວດ": 1,
+  "ສະເໜີລາຄາ": 2,
+  "ສັນຍາ": 3,
+  "ຂັ້ນຕອນດຳເນີນໂຄງການ": 3,
+  BOQ: 4,
+  "ສາມາດເບີກຂອງໃດ້": 4,
+  "ກຳນົດໜ້າວຽກ": 5,
+  "ໃບງານ": 6,
+  [INSTALL_STATUS]: 6,
+  [PENDING_CLOSE_STATUS]: 7,
+  [CLOSED_STATUS]: 8,
+};
+
+/** Statuses the pipeline must never overwrite (paused / closing / closed / cancelled). */
+const FROZEN_STATUSES = new Set(["ພັກໂຄງການ", PENDING_CLOSE_STATUS, CLOSED_STATUS, "ຍົກເລີກ"]);
+
+/** True when the row exists. A missing/legacy table means "cannot prove" → false. */
+async function rowExists(sql: string, params: unknown[]): Promise<boolean> {
+  try {
+    const r = await query(sql, params);
+    return r.rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Is `stage` actually REACHED by the real data? Stage advancement follows
+ * APPROVAL, not creation — so a create form that calls advanceProjectStage
+ * before the document is approved is a no-op until the approval lands.
+ */
+async function stageIsReal(pid: number, stage: string): Promise<boolean> {
+  const id = String(pid);
+  switch (stage) {
+    case "ລົງທະບຽນ":
+      return true;
+    case "ສຳຫຼວດ":
+      return rowExists(`SELECT 1 FROM odg_survey WHERE project_id::text = $1 LIMIT 1`, [id]);
+    case "ສະເໜີລາຄາ":
+      return rowExists(
+        `SELECT 1 FROM odg_quotation WHERE project_id::text = $1 AND status = 'ອະນຸມັດແລ້ວ' LIMIT 1`,
+        [id],
+      );
+    case "ສັນຍາ": {
+      // Fully approved = sales AND accounting (v2 odg_contract or legacy ERP).
+      const v2 = await rowExists(
+        `SELECT 1 FROM odg_contract
+          WHERE project_id::text = $1
+            AND COALESCE(sales_approved, false)
+            AND COALESCE(accounting_approved, false)
+          LIMIT 1`,
+        [id],
+      );
+      if (v2) return true;
+      return rowExists(
+        `SELECT 1 FROM odg_projects_contract
+          WHERE project_id::text = $1
+            AND COALESCE(approve_status_1, 0) = 1
+            AND GREATEST(COALESCE(approve_status_2, 0), COALESCE(acc_approve, 0)) = 1
+          LIMIT 1`,
+        [id],
+      );
+    }
+    case "BOQ":
+      return rowExists(
+        `SELECT 1 FROM odg_projects_boq WHERE project_id::text = $1 AND COALESCE(approve_status, 0) = 1 LIMIT 1`,
+        [id],
+      );
+    case "ກຳນົດໜ້າວຽກ":
+      return rowExists(`SELECT 1 FROM odg_project_task WHERE project_id::text = $1 LIMIT 1`, [id]);
+    case "ໃບງານ":
+      return rowExists(`SELECT 1 FROM odg_work_order WHERE project_id::text = $1 LIMIT 1`, [id]);
+    default:
+      return false;
+  }
+}
+
+/**
+ * Move a project's status FORWARD to `target`.
+ *
+ * Guarantees (safe to call twice, safe to call early):
+ *  - monotonic  — never moves a project to a lower-ranked status;
+ *  - idempotent — a second call for the same stage is a no-op;
+ *  - honest     — only advances when the DATA already justifies the stage
+ *                 (approved quotation / fully approved contract / approved BOQ /
+ *                 real task rows / real work orders), so the create forms that
+ *                 call this at CREATION time cannot push the project past reality;
+ *  - never closes, never touches a paused/closing/closed/cancelled project.
+ */
 export async function advanceProjectStage(id: string, target: string): Promise<Result> {
   try {
-    const ti = V2_STAGES.indexOf(target);
-    if (ti < 0) return fail("Unknown stage");
+    const stage = cleanText(target);
+    if (!V2_STAGES.includes(stage)) return fail("Unknown stage");
     const pid = Number(cleanText(id));
     if (!pid) return fail("Invalid project id");
     const cur = await query(`SELECT project_status FROM odg_projects WHERE id = $1`, [pid]);
-    const ci = V2_STAGES.indexOf(cleanText(cur.rows[0]?.project_status));
+    if (!cur.rows.length) return fail("Project not found");
+    const curStatus = cleanText(cur.rows[0]?.project_status);
+    if (FROZEN_STATUSES.has(curStatus)) return ok({ message: "skipped" });
+
+    const ti = STAGE_RANK[stage] ?? -1;
+    const ci = STAGE_RANK[curStatus] ?? 0; // unknown label → treat as the very start
     if (ti <= ci) return ok({ message: "skipped" }); // already at/past this stage
-    await query(`UPDATE odg_projects SET project_status = $1 WHERE id = $2`, [target, pid]);
+
+    if (!(await stageIsReal(pid, stage))) return ok({ message: "not-reached" });
+
+    // updateProjectStage also records odg_project_status_history (the timeline reads it).
+    await updateProjectStage(String(pid), { project_status: stage });
     invalidate("projects:");
-    await logActivity("project", String(pid), "ປ່ຽນຂັ້ນຕອນ", target);
+    await logActivity("project", String(pid), "ປ່ຽນຂັ້ນຕອນ", stage);
     return ok({ message: "advanced" });
+  } catch (e) { return fail((e as Error).message); }
+}
+
+/* ── Close-out: ໃບງານປິດຄົບ → ຮ້ອງຂໍປິດ → ຜູ້ຈັດການອະນຸມັດ → ປິດໂຄງການ ────────── */
+
+/** Work-order gate: every work order of the project must be closed. */
+async function workOrderCloseGate(pid: number): Promise<{ total: number; closed: number }> {
+  try {
+    const r = await query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (
+                WHERE closed_at IS NOT NULL
+                   OR lower(COALESCE(status, '')) = 'closed'
+                   OR COALESCE(status, '') = 'ປິດງານແລ້ວ'
+              )::int AS closed
+         FROM odg_work_order WHERE project_id::text = $1`,
+      [String(pid)],
+    );
+    return { total: Number(r.rows[0]?.total || 0), closed: Number(r.rows[0]?.closed || 0) };
+  } catch {
+    return { total: 0, closed: 0 };
+  }
+}
+
+async function projectStatusOf(pid: number): Promise<string | null> {
+  const r = await query(`SELECT project_status FROM odg_projects WHERE id = $1`, [pid]);
+  if (!r.rows.length) return null;
+  return cleanText(r.rows[0]?.project_status);
+}
+
+/**
+ * Request close-out (ລໍຖ້າອະນຸມັດປິດໂຄງການ) — the status the project lists already
+ * read. Requires projects.edit and EVERY work order of the project closed.
+ */
+export async function requestProjectClose(id: string, note = ""): Promise<Result> {
+  try {
+    const u = await requirePermission("projects", "edit");
+    const pid = Number(cleanText(id));
+    if (!pid) return fail("Invalid project id");
+    const status = await projectStatusOf(pid);
+    if (status === null) return fail("Project not found");
+    if (status === CLOSED_STATUS) return fail("ໂຄງການນີ້ປິດແລ້ວ");
+    if (status === PENDING_CLOSE_STATUS) return fail("ມີຄຳຮ້ອງຂໍປິດໂຄງການທີ່ລໍຖ້າອະນຸມັດຢູ່ແລ້ວ");
+
+    const gate = await workOrderCloseGate(pid);
+    if (!gate.total) return fail("ຍັງບໍ່ມີໃບງານ — ປິດໂຄງການບໍ່ໄດ້");
+    if (gate.closed < gate.total) {
+      return fail(`ຍັງມີໃບງານທີ່ຍັງບໍ່ປິດ (${gate.closed}/${gate.total})`);
+    }
+
+    await updateProjectStage(String(pid), {
+      project_status: PENDING_CLOSE_STATUS,
+      username: u.name || u.username,
+    });
+    invalidate("projects:");
+    await logActivity("project", String(pid), "ຮ້ອງຂໍປິດໂຄງການ", cleanText(note));
+    return ok({ message: "Close requested" });
+  } catch (e) { return fail((e as Error).message); }
+}
+
+/** Manager/admin approves the close-out → ປິດໂຄງການ (terminal). Re-checks the gate. */
+export async function approveProjectClose(id: string): Promise<Result> {
+  try {
+    const u = await requireManager();
+    const pid = Number(cleanText(id));
+    if (!pid) return fail("Invalid project id");
+    const status = await projectStatusOf(pid);
+    if (status === null) return fail("Project not found");
+    if (status === CLOSED_STATUS) return ok({ message: "already closed" });
+    if (status !== PENDING_CLOSE_STATUS) return fail("ຍັງບໍ່ມີຄຳຮ້ອງຂໍປິດໂຄງການ");
+
+    const gate = await workOrderCloseGate(pid);
+    if (!gate.total || gate.closed < gate.total) {
+      return fail(`ຍັງມີໃບງານທີ່ຍັງບໍ່ປິດ (${gate.closed}/${gate.total})`);
+    }
+
+    await updateProjectStage(String(pid), {
+      project_status: CLOSED_STATUS,
+      username: u.name || u.username,
+    });
+    invalidate("projects:");
+    await logActivity("project", String(pid), "ອະນຸມັດປິດໂຄງການ");
+    return ok({ message: "Closed" });
+  } catch (e) { return fail((e as Error).message); }
+}
+
+/** Manager/admin rejects the close request → back to the status it had before. */
+export async function rejectProjectClose(id: string, reason = ""): Promise<Result> {
+  try {
+    const u = await requireManager();
+    const pid = Number(cleanText(id));
+    if (!pid) return fail("Invalid project id");
+    const status = await projectStatusOf(pid);
+    if (status === null) return fail("Project not found");
+    if (status !== PENDING_CLOSE_STATUS) return fail("ຍັງບໍ່ມີຄຳຮ້ອງຂໍປິດໂຄງການ");
+
+    // Restore the status the close request replaced (from the status history).
+    let previous = INSTALL_STATUS;
+    try {
+      const h = await query(
+        `SELECT old_value FROM odg_project_status_history
+          WHERE project_id = $1 AND field_name = 'project_status' AND new_value = $2
+          ORDER BY changed_at DESC, id DESC LIMIT 1`,
+        [String(pid), PENDING_CLOSE_STATUS],
+      );
+      const old = cleanText(h.rows[0]?.old_value);
+      if (old && !FROZEN_STATUSES.has(old)) previous = old;
+    } catch {
+      /* no history — fall back to the installation status */
+    }
+
+    await updateProjectStage(String(pid), { project_status: previous, username: u.name || u.username });
+    invalidate("projects:");
+    await logActivity("project", String(pid), "ປະຕິເສດ ຄຳຮ້ອງຂໍປິດໂຄງການ", cleanText(reason));
+    return ok({ message: "Close rejected" });
   } catch (e) { return fail((e as Error).message); }
 }
 

@@ -102,8 +102,33 @@ export function allowedModules(u: AccessUser): ModuleDef[] {
   return MODULES.filter((m) => canView(u, m.key));
 }
 
+/**
+ * Document routes nested under /projects/[id]/… belong to the module of the
+ * DOCUMENT, not to `projects`. Without this, /projects/1/request/new resolved to
+ * `projects` and middleware blocked a user who has `requests` rights but no
+ * `projects` view right. /projects and /projects/[id] themselves stay `projects`.
+ * A survey is a project document — it has no module of its own, so it keeps
+ * `projects` (mirrors createSurvey/deleteSurvey, which use the projects perms).
+ */
+const PROJECT_DOC_MODULES: Record<string, string> = {
+  request: "requests",
+  quotation: "quotations",
+  contract: "contracts",
+  boq: "boq",
+  workorder: "work-orders",
+  tasks: "schedule",
+  survey: "projects",
+};
+
 /** The module that owns a given pathname (longest matching href prefix), or null. */
 export function moduleForPath(pathname: string): ModuleDef | null {
+  // /projects/<id>/<doc>/... → the document's own module.
+  const nested = /^\/projects\/[^/]+\/([^/]+)(?:\/|$)/.exec(pathname);
+  if (nested) {
+    const key = PROJECT_DOC_MODULES[nested[1]];
+    if (key) return MODULES.find((m) => m.key === key) ?? null;
+  }
+
   let best: ModuleDef | null = null;
   for (const m of MODULES) {
     if (pathname === m.href || pathname.startsWith(m.href + "/")) {

@@ -90,12 +90,12 @@ export default function MyActivitiesBell() {
     <div className="relative">
       <button
         onClick={() => { setOpen((o) => !o); load(); }}
-        className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition"
+        className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)] transition"
         title={tr("components.myActivities.title", "ກິດຈະກຳຂອງຂ້ອຍ")}
       >
         <CalendarClock size={17} />
         {dueCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9.5px] font-black text-white ring-2 ring-[var(--surface)]">
+          <span className="absolute -right-1 -top-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[9.5px] font-black text-white ring-2 ring-[var(--surface)]">
             {dueCount > 99 ? "99+" : dueCount}
           </span>
         )}
@@ -104,11 +104,11 @@ export default function MyActivitiesBell() {
       {open && (
         <>
           <button aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 origin-top-right overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_20px_45px_-12px_rgba(15,23,42,0.28)] animate-scale-up">
-            <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-soft)]/70 px-4 py-3">
-              <CalendarClock size={15} className="text-amber-600 dark:text-amber-400" />
+          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 origin-top-right overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
+            <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-4 py-3">
+              <CalendarClock size={15} className="text-[var(--warning)]" />
               <span className="text-[12.5px] font-black text-[var(--text)]">{tr("components.myActivities.title", "ກິດຈະກຳຂອງຂ້ອຍ")}</span>
-              <span className="ml-auto rounded-lg bg-[var(--surface-soft)] border border-[var(--border-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--text-soft)]">{items.length}</span>
+              <span className="ml-auto rounded-lg bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 text-[11px] font-bold text-[var(--text-soft)]">{items.length}</span>
             </div>
             <div className="max-h-[360px] overflow-y-auto">
               {items.length === 0 ? (
@@ -122,15 +122,15 @@ export default function MyActivitiesBell() {
                     <button
                       key={a.id}
                       onClick={() => goto(a)}
-                      className="flex w-full items-start gap-2.5 border-b border-[var(--border-soft)] px-4 py-2.5 text-left transition hover:bg-[var(--surface-soft)]"
+                      className="flex w-full items-start gap-2.5 border-b border-[var(--border-soft)] px-4 py-2.5 text-left transition hover:bg-[var(--surface-sunken)]"
                     >
-                      <span className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg ${overdue ? "bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400" : today ? "bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400" : "bg-[var(--surface-soft)] text-[var(--text-soft)]"}`}>
+                      <span className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg ${overdue ? "bg-[var(--danger-soft)] text-[var(--danger)]" : today ? "bg-[var(--warning-soft)] text-[var(--warning)]" : "bg-[var(--surface-sunken)] text-[var(--text-soft)]"}`}>
                         {TYPE_ICON[a.activity_type] || <ListTodo size={13} />}
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[12.5px] font-bold text-[var(--text)]">{a.summary}</div>
                         <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] font-semibold">
-                          <span className={overdue ? "text-rose-600 dark:text-rose-400" : today ? "text-amber-600 dark:text-amber-400" : "text-[var(--text-mute)]"}>
+                          <span className={overdue ? "text-[var(--danger)]" : today ? "text-[var(--warning)]" : "text-[var(--text-mute)]"}>
                             {a.due_date ? (overdue ? `${tr("components.activities.overdue", "ເລີຍກຳນົດ")} · ${a.due_date}` : today ? tr("components.activities.today", "ມື້ນີ້") : a.due_date) : tr("components.activities.noDueDate", "ບໍ່ກຳນົດ")}
                           </span>
                           {route && <span className="text-[var(--text-mute)]">· {ENTITY_LABEL[a.entity_type] ?? a.entity_type}</span>}

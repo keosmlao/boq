@@ -4,6 +4,7 @@ import { query } from "@/_lib/db";
 import { cleanText } from "@/_lib/http";
 import { cached } from "@/_lib/cache";
 import { requirePermission } from "@/_lib/server-auth";
+import { ensureTechnicianSchema } from "@/_lib/schemas/technicians";
 import {
   listBusinessModels,
   listBusinessTypes,
@@ -142,8 +143,9 @@ export async function getTasks(): Promise<Result<unknown[]>> {
 
 export async function getTechnicians(): Promise<Result<unknown[]>> {
   try {
+    await ensureTechnicianSchema();
     const result = await query(`
-      SELECT roworder, code, name_1, phone, role, helpers, created_at
+      SELECT roworder, code, name_1, phone, role, helpers, vehicle_id, vehicle_plate, vehicle_name, created_at
       FROM odg_technicians
       ORDER BY role DESC, name_1 ASC, code ASC
     `);
@@ -151,11 +153,24 @@ export async function getTechnicians(): Promise<Result<unknown[]>> {
   } catch (e) { return fail((e as Error).message); }
 }
 
-export async function createTechnician(payload: Record<string, unknown>): Promise<{ success: true; roworder: number } | Fail> {
+/** ລົດຊ່າງ — company fleet from the car-booking app (public.app_car_vehicles). */
+export async function getVehicles(): Promise<Result<unknown[]>> {
   try {
     const result = await query(`
-      INSERT INTO odg_technicians (code, name_1, phone, role, helpers)
-      VALUES ($1, $2, $3, $4, $5::jsonb)
+      SELECT id, plate_no, name, status
+      FROM app_car_vehicles
+      ORDER BY plate_no ASC
+    `);
+    return ok(result.rows);
+  } catch (e) { return fail((e as Error).message); }
+}
+
+export async function createTechnician(payload: Record<string, unknown>): Promise<{ success: true; roworder: number } | Fail> {
+  try {
+    await ensureTechnicianSchema();
+    const result = await query(`
+      INSERT INTO odg_technicians (code, name_1, phone, role, helpers, vehicle_id, vehicle_plate, vehicle_name)
+      VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
       RETURNING roworder
     `, [
       cleanText(payload?.code),
@@ -163,6 +178,9 @@ export async function createTechnician(payload: Record<string, unknown>): Promis
       cleanText(payload?.phone),
       cleanText(payload?.role) || "technician",
       JSON.stringify(Array.isArray(payload?.helpers) ? payload.helpers : []),
+      cleanText(payload?.vehicle_id) || null,
+      cleanText(payload?.vehicle_plate) || null,
+      cleanText(payload?.vehicle_name) || null,
     ]);
     return { success: true, roworder: result.rows[0]?.roworder };
   } catch (e) { return fail((e as Error).message); }
@@ -171,6 +189,7 @@ export async function createTechnician(payload: Record<string, unknown>): Promis
 export async function updateTechnician(id: number | string, payload: Record<string, unknown>): Promise<{ success: true } | Fail> {
   try {
     await requirePermission("tech-teams", "edit");
+    await ensureTechnicianSchema();
     const updates: string[] = [];
     const values: unknown[] = [];
 
@@ -193,6 +212,12 @@ export async function updateTechnician(id: number | string, payload: Record<stri
     if (payload?.helpers !== undefined) {
       values.push(JSON.stringify(Array.isArray(payload.helpers) ? payload.helpers : []));
       updates.push(`helpers = $${values.length}::jsonb`);
+    }
+    for (const col of ["vehicle_id", "vehicle_plate", "vehicle_name"] as const) {
+      if (payload?.[col] !== undefined) {
+        values.push(cleanText(payload[col]) || null);
+        updates.push(`${col} = $${values.length}`);
+      }
     }
 
     if (!updates.length) return { success: true };
