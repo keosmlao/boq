@@ -9,7 +9,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Save, Plus, Trash2, FileDown, Upload, FileText, Calculator } from "lucide-react";
 import * as XLSX from "xlsx";
 import { getProjectBasic } from "@/_actions/projects";
-import { createQuotation, getQuotations, getQuotation, updateQuotation } from "@/_actions/quotations";
+import { createQuotation, getQuotation, updateQuotation } from "@/_actions/quotations";
 import { getSurveys } from "@/_actions/survey";
 import { getCustomer } from "@/_actions/customers";
 import { Page, Card, Btn, Field, SectionHeader, inputCls, tblCls, thCls, tdCls } from "../../../../_components/ui";
@@ -17,7 +17,7 @@ import InventoryPicker from "../../../../_components/InventoryPicker";
 import RSelect from "../../../../_components/RSelect";
 import { useT } from "@/_lib/i18n";
 
-type Line = { itemCode?: string; description: string; unit?: string; qty: number; unitPrice: number };
+type Line = { itemCode?: string; description: string; brand?: string; category?: string; unit?: string; qty: number; unitPrice: number };
 
 const todayISO = () => {
   const d = new Date();
@@ -48,7 +48,6 @@ export default function CreateQuotationPage() {
   const editId = useSearchParams().get("edit");
 
   const [project, setProject] = useState<any>(null);
-  const [hasQuotation, setHasQuotation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -85,6 +84,8 @@ export default function CreateQuotationPage() {
                 its.map((it: any) => ({
                   itemCode: it.item_code || "",
                   description: String(it.description || it.item_name || ""),
+                  brand: String(it.brand || ""),
+                  category: String(it.category || ""),
                   unit: String(it.unit || ""),
                   qty: Number(it.qty) || 1,
                   unitPrice: Number(it.unit_price) || 0,
@@ -95,16 +96,14 @@ export default function CreateQuotationPage() {
           return;
         }
 
-        const [pRes, sRes, qRes]: any = await Promise.all([
+        const [pRes, sRes]: any = await Promise.all([
           getProjectBasic(String(id)),
           getSurveys(String(id)),
-          getQuotations({ projectId: String(id) }),
         ]);
         const p = pRes?.success ? pRes.data : null;
         if (!alive) return;
-        // 1 project = 1 quotation (a rejected one may be replaced).
-        const existingQuos = qRes?.success ? qRes.data || [] : [];
-        setHasQuotation(existingQuos.some((q: any) => (q.status || "") !== "ປະຕິເສດ"));
+        // A project may carry many quotations (one per brand), so we no longer
+        // block on an existing one.
         setProject(p);
         // Customer = the project's real customer (ar_customer via sml_code), not the coordinator.
         if (p?.sml_code) {
@@ -165,7 +164,7 @@ export default function CreateQuotationPage() {
 
   const downloadTemplate = () => {
     const ws = XLSX.utils.json_to_sheet([
-      { item_code: "", description: t("quotationNew.exampleItem", "ຕົວຢ່າງລາຍການ"), unit: t("quotationNew.unitSet", "ຊຸດ"), qty: 1, unit_price: 0 },
+      { item_code: "", description: t("quotationNew.exampleItem", "ຕົວຢ່າງລາຍການ"), brand: "DAIKIN", category: t("quotationNew.exampleCategory", "ແອອາກາດ"), unit: t("quotationNew.unitSet", "ຊຸດ"), qty: 1, unit_price: 0 },
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Items");
@@ -192,6 +191,8 @@ export default function CreateQuotationPage() {
         .map((r) => ({
           itemCode: String(pick(r, ["item_code", "code", "ລະຫັດ"]) || ""),
           description: String(pick(r, ["description", "name", "item_name", "ລາຍລະອຽດ", "ຊື່"]) || ""),
+          brand: String(pick(r, ["brand", "brand_name", "ຍີ່ຫໍ້", "ຫຍີ່ຫໍ້"]) || ""),
+          category: String(pick(r, ["category", "category_name", "ປະເພດ", "ປະເພດສິນຄ້າ"]) || ""),
           unit: String(pick(r, ["unit", "unit_code", "ໜ່ວຍ"]) || ""),
           qty: Number(pick(r, ["qty", "quantity", "ຈຳນວນ"])) || 0,
           unitPrice: Number(pick(r, ["unit_price", "price", "ລາຄາ"])) || 0,
@@ -238,6 +239,8 @@ export default function CreateQuotationPage() {
         items: validLines.map((l) => ({
           item_code: l.itemCode || null,
           description: l.description,
+          brand: l.brand || null,
+          category: l.category || null,
           unit: l.unit || null,
           qty: Number(l.qty) || 0,
           unit_price: Number(l.unitPrice) || 0,
@@ -260,21 +263,6 @@ export default function CreateQuotationPage() {
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--brand)]" />
         <span className="text-sm">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
       </div>
-    );
-  }
-
-  if (hasQuotation) {
-    return (
-      <Page max="max-w-[700px]">
-        <Card className="p-6 text-center">
-          <p className="text-[13px] text-[var(--text-soft)]">
-            {t("quotationNew.alreadyHasPrefix", "ໂຄງການນີ້")} <b className="text-[var(--text)]">{t("quotationNew.alreadyHasQuotation", "ມີໃບສະເໜີລາຄາແລ້ວ")}</b> {t("quotationNew.oneProjectOneQuotation", "— 1 ໂຄງການ ມີ 1 ໃບສະເໜີ.")}
-          </p>
-          <div className="mt-4 flex justify-center">
-            <Btn onClick={() => router.push(`/projects/${id}`)}>{t("quotationNew.backToViewQuotation", "ກັບໄປເບິ່ງໃບສະເໜີ")}</Btn>
-          </div>
-        </Card>
-      </Page>
     );
   }
 
@@ -378,6 +366,8 @@ export default function CreateQuotationPage() {
                 <tr>
                   <th className={`${thCls} w-8`}>#</th>
                   <th className={thCls}>{t("quotationNew.productOrDescription", "ສິນຄ້າ / ລາຍລະອຽດ")}</th>
+                  <th className={`${thCls} w-32`}>{t("quotationNew.brand", "ຍີ່ຫໍ້")}</th>
+                  <th className={`${thCls} w-32`}>{t("quotationNew.category", "ປະເພດສິນຄ້າ")}</th>
                   <th className={`${thCls} w-20`}>{t("common.unit", "ໜ່ວຍ")}</th>
                   <th className={`${thCls} w-24 text-right`}>{t("common.qty", "ຈຳນວນ")}</th>
                   <th className={`${thCls} w-32 text-right`}>{t("quotationNew.unitPrice", "ລາຄາ/ໜ່ວຍ")}</th>
@@ -397,11 +387,19 @@ export default function CreateQuotationPage() {
                           setLine(i, {
                             itemCode: it.code,
                             description: it.name,
+                            brand: it.brand || l.brand,
+                            category: it.category || l.category,
                             unit: it.unit || l.unit,
                             unitPrice: it.price || l.unitPrice,
                           })
                         }
                       />
+                    </td>
+                    <td className={tdCls}>
+                      <input value={l.brand ?? ""} onChange={(e) => setLine(i, { brand: e.target.value })} className={`${inputCls} h-8`} placeholder={t("quotationNew.brand", "ຍີ່ຫໍ້")} />
+                    </td>
+                    <td className={tdCls}>
+                      <input value={l.category ?? ""} onChange={(e) => setLine(i, { category: e.target.value })} className={`${inputCls} h-8`} placeholder={t("quotationNew.category", "ປະເພດສິນຄ້າ")} />
                     </td>
                     <td className={tdCls}>
                       <input value={l.unit ?? ""} onChange={(e) => setLine(i, { unit: e.target.value })} className={`${inputCls} h-8`} placeholder={t("common.unit", "ໜ່ວຍ")} />

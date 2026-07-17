@@ -49,12 +49,8 @@ export async function createQuotation(body: any): Promise<{ success: true; data:
     await ensureQuotationSchema();
     if (!body?.quotation_no) return fail("quotation_no is required");
 
-    // Enforce 1 project = 1 quotation (a rejected one may be replaced).
-    if (body.project_id) {
-      const existing = await query(`SELECT id, status FROM odg_quotation WHERE project_id = $1`, [String(body.project_id)]);
-      const active = existing.rows.find((r: any) => (r.status || "") !== "ປະຕິເສດ");
-      if (active) return fail("ໂຄງການນີ້ມີໃບສະເໜີແລ້ວ (1 ໂຄງການ = 1 ໃບສະເໜີ)");
-    }
+    // A project may now carry MANY quotations (e.g. one per brand: DAIKIN,
+    // MITSUBISHI, …), so there is no longer a 1-project-1-quotation guard here.
 
     const result = await query(
       `INSERT INTO odg_quotation (

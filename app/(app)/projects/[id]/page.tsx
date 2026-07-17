@@ -666,13 +666,13 @@ export default function V2PipelinePage() {
           )}
           {tab === "quotations" && (
             <div>
-              {!hasActiveQuo && (
-                <div className="mb-4 flex justify-end">
-                  <Btn variant="go" onClick={() => router.push(`/projects/${id}/quotation/new`)}>
-                    <Plus size={14} /> {t("projectDetail.createQuotationShort", "ສ້າງໃບສະເໜີ")}
-                  </Btn>
-                </div>
-              )}
+              {/* A project can carry many quotations (one per brand), so this
+                  button stays available even after one already exists. */}
+              <div className="mb-4 flex justify-end">
+                <Btn variant="go" onClick={() => router.push(`/projects/${id}/quotation/new`)}>
+                  <Plus size={14} /> {t("projectDetail.createQuotationShort", "ສ້າງໃບສະເໜີ")}
+                </Btn>
+              </div>
               <QuotationList quotations={quotations} onSetStatus={setQuoStatus} onDelete={canDeleteQuotation ? delQuotation : undefined} />
             </div>
           )}

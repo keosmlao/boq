@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
-import { ArrowLeft, FolderKanban, CheckCircle2, XCircle, ListChecks, Loader2 } from "lucide-react";
+import { ArrowLeft, FolderKanban, CheckCircle2, XCircle, ListChecks, Loader2, Printer } from "lucide-react";
 import { getQuotation, deleteQuotation, approveQuotation } from "@/_actions/quotations";
 import { advanceProjectStage } from "@/_actions/projects";
 import {
@@ -124,6 +124,9 @@ export default function QuotationDetailPage() {
                 </Btn>
               </>
             )}
+            <Btn variant="outline" onClick={() => window.open(`/print/quotations/${id}`, "_blank")}>
+              <Printer size={14} /> {t("quotations.printBill", "ພິມບິນ")}
+            </Btn>
             <DocActions
               editHref={q.project_id ? `/projects/${q.project_id}/quotation/new?edit=${id}` : undefined}
               onDelete={() => deleteQuotation(String(id))}
@@ -170,6 +173,8 @@ export default function QuotationDetailPage() {
                 <tr>
                   <th className={`${thCls} w-12 pl-5`}>#</th>
                   <th className={thCls}>{t("quotations.items", "ລາຍການ")}</th>
+                  <th className={`${thCls} w-28`}>{t("quotations.brand", "ຍີ່ຫໍ້")}</th>
+                  <th className={`${thCls} w-28`}>{t("quotations.category", "ປະເພດສິນຄ້າ")}</th>
                   <th className={`${thCls} w-24`}>{t("common.unit", "ໜ່ວຍ")}</th>
                   <th className={`${thCls} w-24 text-right`}>{t("common.qty", "ຈຳນວນ")}</th>
                   <th className={`${thCls} w-32 text-right`}>{t("common.price", "ລາຄາ")}</th>
@@ -181,6 +186,8 @@ export default function QuotationDetailPage() {
                   <tr key={i} className={trHover}>
                     <td className={`${tdCls} pl-5 tabular-nums text-[var(--text-mute)]`}>{i + 1}</td>
                     <td className={`${tdCls} font-semibold text-[var(--text)]`}>{it.description || it.item_name || "-"}</td>
+                    <td className={tdCls}>{it.brand || "-"}</td>
+                    <td className={tdCls}>{it.category || "-"}</td>
                     <td className={tdCls}>{it.unit || "-"}</td>
                     <td className={`${tdCls} text-right tabular-nums`}>{money(it.qty)}</td>
                     <td className={`${tdCls} text-right tabular-nums`}>{money(it.unit_price)}</td>

@@ -12,7 +12,7 @@ import { Search, X, Package } from "lucide-react";
 import { getInventory } from "@/_actions/lookups";
 import { useT } from "@/_lib/i18n";
 
-export type InvItem = { code: string; name: string; unit: string; price: number };
+export type InvItem = { code: string; name: string; unit: string; price: number; brand: string; category: string };
 
 const num = (v: unknown) => {
   const n = Number(v);
@@ -68,6 +68,9 @@ export default function InventoryPicker({
       name: String(it.name_1 ?? it.item_name ?? it.code ?? ""),
       unit: String(it.unit ?? it.unit_code ?? it.unit_name ?? ""),
       price: num(it.sale_price ?? it.unit_cost),
+      // ERP brand/category (ic_brand / ic_category), joined in getInventory.
+      brand: String(it.brand_name ?? ""),
+      category: String(it.category_name ?? ""),
     });
     setOpen(false);
   };

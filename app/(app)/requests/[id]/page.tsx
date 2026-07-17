@@ -16,6 +16,8 @@ import {
   Warehouse,
   MapPin,
   XCircle,
+  Printer,
+  Pencil,
 } from "lucide-react";
 import { getRequestDetail, deleteRequest, approveSubstitute, setAppRequestStatus, setRequestStatus } from "@/_actions/request-v2";
 import {
@@ -197,6 +199,18 @@ export default function RequestDetailPage() {
         actions={
           <>
             <Pill tone={statusTone}>{statusLabel}</Pill>
+
+            <Btn variant="outline" onClick={() => window.open(`/print/requests/${encodeURIComponent(String(id))}`, "_blank")}>
+              <Printer size={14} /> {t("requests.printBill", "ພິມບິນ")}
+            </Btn>
+
+            {/* Edit a craftsman app request BEFORE approval (dedicated page — app
+                requests are otherwise read-only on web). v2/legacy use DocActions. */}
+            {isApp && appStatus === "pending" && can(user, "requests", "edit") && (
+              <Btn variant="ink" onClick={() => router.push(`/requests/${encodeURIComponent(String(id))}/edit`)}>
+                <Pencil size={14} /> {t("common.edit", "ແກ້ໄຂ")}
+              </Btn>
+            )}
 
             {/* Step 2: ຫົວໜ້າຊ່າງ / supervisor (requests.approve) approves the template. */}
             {isApp && appStatus === "pending" && canApproveReq && (

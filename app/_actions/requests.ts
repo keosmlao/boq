@@ -11,6 +11,8 @@ function fail(message: string): Fail { return { success: false, message }; }
 // Material request (ໃບຂໍເບີກ) — ERP convention.
 const IC_TRANS_REQUEST_TYPE = 3;
 const IC_TRANS_REQUEST_FLAG = 122;
+// SML shows a blank branch unless branch_code is set; the head office is "00".
+const IC_TRANS_BRANCH_CODE = "00";
 
 /** Mirror a material request into ic_trans + ic_trans_detail so the ERP picks
  *  it up alongside odg_requests. Uses the same doc_no for both systems. */
@@ -33,9 +35,9 @@ async function syncRequestToIcTrans(client: any, opts: {
   await client.query(
     `INSERT INTO ic_trans (
       trans_type, trans_flag, doc_date, doc_no, doc_ref,
-      cust_code, wh_from, location_from,
+      cust_code, wh_from, location_from, branch_code,
       creator_code, user_request, remark, doc_success
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9,$10,0)`,
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10,$11,0)`,
     [
       IC_TRANS_REQUEST_TYPE,
       IC_TRANS_REQUEST_FLAG,
@@ -45,6 +47,7 @@ async function syncRequestToIcTrans(client: any, opts: {
       opts.custCode || "",
       opts.whFrom || "",
       opts.locationFrom || "",
+      IC_TRANS_BRANCH_CODE,
       opts.creatorCode || "",
       opts.remark || "",
     ],
@@ -57,8 +60,8 @@ async function syncRequestToIcTrans(client: any, opts: {
       `INSERT INTO ic_trans_detail (
         trans_type, trans_flag, doc_date, doc_no, doc_ref, cust_code,
         item_code, item_name, unit_code, qty,
-        wh_code, shelf_code, line_number, remark
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+        wh_code, shelf_code, branch_code, line_number, remark
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
       [
         IC_TRANS_REQUEST_TYPE,
         IC_TRANS_REQUEST_FLAG,
@@ -72,6 +75,7 @@ async function syncRequestToIcTrans(client: any, opts: {
         Number(it.qty) || 0,
         opts.whFrom || "",
         opts.locationFrom || "",
+        IC_TRANS_BRANCH_CODE,
         i + 1,
         it.remark || "",
       ],

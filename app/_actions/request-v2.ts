@@ -31,6 +31,9 @@ const REQUEST_STATUSES = new Set(["requested", "withdrawn", "rejected"]);
 // SML picks up v2 requests in ic_trans alongside the old ones.
 const IC_TRANS_REQUEST_TYPE = 3;
 const IC_TRANS_REQUEST_FLAG = 122;
+// SML shows a blank branch unless branch_code is set; ic_warehouse.branch_code is
+// mostly null so it cannot be derived from the warehouse — the head office is "00".
+const IC_TRANS_BRANCH_CODE = "00";
 
 /** Resolve the ERP customer code (sml_code) for a project — used as ic_trans.cust_code. */
 async function projectCustCode(projectId: string): Promise<string> {
@@ -68,10 +71,10 @@ async function mirrorRequestToSml(client: any, opts: {
   await client.query(
     `INSERT INTO ic_trans (
       trans_type, trans_flag, doc_date, doc_no, doc_ref,
-      cust_code, wh_from, location_from,
+      cust_code, wh_from, location_from, branch_code,
       creator_code, user_request, remark, doc_success
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9,$10,0)`,
-    [IC_TRANS_REQUEST_TYPE, IC_TRANS_REQUEST_FLAG, opts.docDate, opts.docNo, "", opts.custCode || "", whFrom, locFrom, opts.creator || "", opts.remark || ""],
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10,$11,0)`,
+    [IC_TRANS_REQUEST_TYPE, IC_TRANS_REQUEST_FLAG, opts.docDate, opts.docNo, "", opts.custCode || "", whFrom, locFrom, IC_TRANS_BRANCH_CODE, opts.creator || "", opts.remark || ""],
   );
   let line = 0;
   for (const it of opts.items) {
@@ -82,12 +85,12 @@ async function mirrorRequestToSml(client: any, opts: {
       `INSERT INTO ic_trans_detail (
         trans_type, trans_flag, doc_date, doc_no, doc_ref, cust_code,
         item_code, item_name, unit_code, qty,
-        wh_code, shelf_code, line_number, remark
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+        wh_code, shelf_code, branch_code, line_number, remark
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
       [
         IC_TRANS_REQUEST_TYPE, IC_TRANS_REQUEST_FLAG, opts.docDate, opts.docNo, "", opts.custCode || "",
         String(it.item_code || ""), String(it.description || it.item_name || ""), String(it.unit || it.unit_code || ""), num(it.qty),
-        String(it.wh_code || whFrom), String(it.shelf_code || locFrom), line, lineRemark,
+        String(it.wh_code || whFrom), String(it.shelf_code || locFrom), IC_TRANS_BRANCH_CODE, line, lineRemark,
       ],
     );
   }
@@ -291,6 +294,88 @@ export async function setAppRequestStatus(appId: string, status: string, note?: 
       await logActivity("request", appId, "ປ່ຽນສະຖານະໃບຂໍເບີກ", status);
     }
     return res as { success: true; data: any } | Fail;
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/**
+ * Load an app request (odg_wo_material_request) for editing on the WEB, before
+ * the ຫົວໜ້າຊ່າງ approves it. Returns the RAW item fields (name, unit, qty,
+ * item_code, boq_qty) — unlike getRequestDetail which reshapes them read-only.
+ * Gated by requests.edit and only while still pending.
+ */
+export async function getAppRequestForEdit(appId: string): Promise<{ success: true; data: any } | Fail> {
+  try {
+    await requirePermission("requests", "edit");
+    const realId = String(appId).startsWith("app-") ? String(appId).slice(4) : String(appId);
+    if (!/^\d+$/.test(realId)) return fail("ໃບຂໍເບີກບໍ່ຖືກຕ້ອງ");
+    const r = await query(`SELECT * FROM odg_wo_material_request WHERE id = $1 LIMIT 1`, [realId]);
+    if (!r.rows.length) return fail("ບໍ່ພົບໃບຂໍເບີກ");
+    const x: any = r.rows[0];
+    if (String(x.status || "pending") !== "pending") return fail("ໃບນີ້ດຳເນີນການໄປແລ້ວ ແກ້ໄຂບໍ່ໄດ້");
+    let projectName = "";
+    try {
+      const p = await query(`SELECT project_name FROM odg_projects WHERE id::text = $1 OR sml_code = $1 LIMIT 1`, [String(x.project_id || "")]);
+      projectName = p.rows[0]?.project_name || "";
+    } catch {/* ignore */}
+    return {
+      success: true,
+      data: {
+        id: `app-${x.id}`,
+        request_no: `APP-${x.id}`,
+        project_id: x.project_id != null ? String(x.project_id) : "",
+        project_name: projectName,
+        requester: x.requested_by || null,
+        note: x.note || "",
+        items: (Array.isArray(x.items) ? x.items : []).map((it: any) => ({
+          item_code: String(it.item_code || ""),
+          name: String(it.name || it.description || ""),
+          unit: String(it.unit || ""),
+          qty: num(it.qty),
+          boq_qty: num(it.boq_qty),
+        })),
+      },
+    };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/**
+ * Save edits to a pending app request (items + note) from the WEB. Gated by
+ * requests.edit; refuses once the request has left the pending state (so an
+ * already-approved / pulled / issued request can never be altered underneath
+ * the approval). Preserves item_code + boq_qty carried by the client.
+ */
+export async function updateAppRequest(
+  appId: string,
+  body: { items?: Array<{ item_code?: string; name?: string; unit?: string; qty?: number; boq_qty?: number }>; note?: string },
+): Promise<{ success: true } | Fail> {
+  try {
+    await requirePermission("requests", "edit");
+    const realId = String(appId).startsWith("app-") ? String(appId).slice(4) : String(appId);
+    if (!/^\d+$/.test(realId)) return fail("ໃບຂໍເບີກບໍ່ຖືກຕ້ອງ");
+    const cur = await query(`SELECT status FROM odg_wo_material_request WHERE id = $1 LIMIT 1`, [realId]);
+    if (!cur.rows.length) return fail("ບໍ່ພົບໃບຂໍເບີກ");
+    if (String(cur.rows[0].status || "pending") !== "pending") return fail("ໃບນີ້ດຳເນີນການໄປແລ້ວ ແກ້ໄຂບໍ່ໄດ້");
+    const clean = (Array.isArray(body.items) ? body.items : [])
+      .map((m) => ({
+        item_code: String(m?.item_code || "").trim(),
+        name: String(m?.name || "").trim(),
+        unit: String(m?.unit || "").trim(),
+        qty: num(m?.qty),
+        boq_qty: num(m?.boq_qty),
+      }))
+      .filter((m) => m.name && m.qty > 0);
+    if (!clean.length) return fail("ກະລຸນາໃສ່ລາຍການວັດສະດຸຢ່າງໜ້ອຍ 1 ແຖວ (ມີຊື່ ແລະ ຈຳນວນ)");
+    await query(
+      `UPDATE odg_wo_material_request SET items = $2::jsonb, note = $3 WHERE id = $1`,
+      [realId, JSON.stringify(clean), body.note ? String(body.note) : null],
+    );
+    invalidate("req:");
+    await logActivity("request", `app-${realId}`, "ແກ້ໄຂໃບຂໍເບີກ (ກ່ອນອະນຸມັດ)");
+    return { success: true };
   } catch (e) {
     return fail((e as Error).message);
   }
