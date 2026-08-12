@@ -5,6 +5,7 @@ import { cleanText } from "@/_lib/http";
 import { cached } from "@/_lib/cache";
 import { requirePermission } from "@/_lib/server-auth";
 import { ensureTechnicianSchema } from "@/_lib/schemas/technicians";
+import { ensureTechVehicleSchema } from "@/_lib/schemas/tech-vehicle";
 import {
   listBusinessModels,
   listBusinessTypes,
@@ -153,13 +154,33 @@ export async function getTechnicians(): Promise<Result<unknown[]>> {
   } catch (e) { return fail((e as Error).message); }
 }
 
-/** ລົດຊ່າງ — company fleet from the car-booking app (public.app_car_vehicles). */
+/**
+ * ລົດຊ່າງ — only the craftsman vehicles, not the whole company register.
+ *
+ * `app_car_vehicles` holds every vehicle the group owns; the pickers that call
+ * this (ໜ້າຈັດການທີມຊ່າງ, ໃບສັ່ງງານ) are about craftsman vehicles only. A vehicle
+ * counts as one when the office marked it on ໜ້າລົດຊ່າງ, or when a craftsman
+ * already holds it — the same rule the vehicle list uses. Marks are keyed by
+ * IMEI where the register has one, so both keys are accepted.
+ */
 export async function getVehicles(): Promise<Result<unknown[]>> {
   try {
+    await ensureTechVehicleSchema();
+    await ensureTechnicianSchema();
     const result = await query(`
-      SELECT id, plate_no, name, status
-      FROM app_car_vehicles
-      ORDER BY plate_no ASC
+      SELECT v.id, v.plate_no, v.name, v.status
+      FROM app_car_vehicles v
+      WHERE EXISTS (
+              SELECT 1 FROM odg_tech_vehicle tv
+               WHERE tv.vehicle_id = v.id::text
+                  OR tv.vehicle_id = NULLIF(trim(COALESCE(v.gps_imei, '')), '')
+            )
+         OR EXISTS (
+              SELECT 1 FROM odg_technicians t
+               WHERE NULLIF(trim(COALESCE(t.vehicle_id, '')), '') IN
+                     (v.id::text, NULLIF(trim(COALESCE(v.gps_imei, '')), ''))
+            )
+      ORDER BY v.plate_no ASC
     `);
     return ok(result.rows);
   } catch (e) { return fail((e as Error).message); }
