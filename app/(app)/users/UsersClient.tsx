@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Plus,
   Pencil,
+  Search,
   Trash2,
   ShieldCheck,
   X,
@@ -33,7 +34,27 @@ import {
 } from "@/_lib/permissions";
 import { getV2User } from "../../_lib/session";
 import { isManager } from "@/_lib/permissions";
-import { Page, PageHeader, Card, Btn, Field, Pill, SectionHeader, inputCls, tblCls, thCls, tdCls, trHover, type PillTone } from "../_components/ui";
+import {
+  Page,
+  PageHeader,
+  Card,
+  Btn,
+  Field,
+  Pill,
+  RowBar,
+  RowBarTh,
+  Segmented,
+  SectionHeader,
+  SortTh,
+  Toolbar,
+  TwoLine,
+  inputCls,
+  tblCls,
+  thCls,
+  tdCls,
+  trHover,
+  type PillTone,
+} from "../_components/ui";
 import { useT } from "@/_lib/i18n";
 
 type Draft = {
@@ -55,6 +76,16 @@ const ROLE_TONE: Record<string, PillTone> = {
   staff: "neutral",
 };
 
+/** Left-edge status bar (ODS list): colour by role, greyed out when disabled. */
+const ROLE_BAR: Record<string, "brand" | "info" | "success" | "neutral"> = {
+  admin: "brand",
+  manager: "info",
+  head_craftsman: "success",
+  staff: "neutral",
+};
+
+type SortKey = "name" | "role" | "active";
+
 export default function UsersClient({ initialRows }: { initialRows: AppUserRow[] }) {
   const t = useT();
   const router = useRouter();
@@ -63,6 +94,10 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [draftQ, setDraftQ] = useState("");
+  const [q, setQ] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("all");
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
 
   // Client-side guard (middleware also enforces this server-side).
   useEffect(() => {
@@ -162,6 +197,42 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
     return { total: rows.length, admin, manager, staff };
   }, [rows]);
 
+  const roleTabs = useMemo(
+    () => [
+      { value: "all", label: t("common.all", "ທັງໝົດ") },
+      { value: "admin", label: ROLE_LABELS.admin },
+      { value: "manager", label: ROLE_LABELS.manager },
+      { value: "head_craftsman", label: ROLE_LABELS.head_craftsman },
+      { value: "staff", label: ROLE_LABELS.staff },
+    ],
+    [t],
+  );
+
+  const tabCounts = useMemo(() => {
+    const c: Record<string, number> = { all: rows.length };
+    for (const tab of roleTabs) if (tab.value !== "all") c[tab.value] = rows.filter((r) => r.role === tab.value).length;
+    return c;
+  }, [rows, roleTabs]);
+
+  /** Search + role tab + sort, the same pipeline every ODS list page uses. */
+  const viewRows = useMemo(() => {
+    const kw = q.trim().toLowerCase();
+    const list = rows.filter((u) => {
+      if (activeTab !== "all" && u.role !== activeTab) return false;
+      if (!kw) return true;
+      return `${u.username} ${u.name ?? ""}`.toLowerCase().includes(kw);
+    });
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      if (sort.key === "active") return Number(a.active) > Number(b.active) ? dir : -dir;
+      if (sort.key === "role") return String(a.role) > String(b.role) ? dir : -dir;
+      return String(a.name || a.username).localeCompare(String(b.name || b.username)) * dir;
+    });
+  }, [rows, activeTab, q, sort]);
+
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+
   return (
     <Page max="max-w-none w-full">
       <PageHeader
@@ -179,13 +250,45 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
         }
       />
 
+      <Toolbar>
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
+          <Search size={15} className="text-[var(--text-mute)]" />
+          <input
+            value={draftQ}
+            onChange={(e) => setDraftQ(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && setQ(draftQ)}
+            placeholder={t("users.searchPlaceholder", "ຄົ້ນຫາ ຊື່, username...")}
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
+          />
+        </label>
+        <Btn variant="ink" onClick={() => setQ(draftQ)}>
+          <Search size={14} /> {t("common.search", "ຄົ້ນຫາ")}
+        </Btn>
+      </Toolbar>
+
+      <div className="mb-4 overflow-x-auto">
+        <Segmented
+          value={activeTab}
+          onChange={setActiveTab}
+          options={roleTabs.map((tab) => ({
+            value: tab.value,
+            label: (
+              <span className="flex items-center gap-1.5">
+                {tab.label}
+                <span className="rounded-full bg-black/10 px-1.5 text-[10px] font-black dark:bg-white/15">{tabCounts[tab.value] ?? 0}</span>
+              </span>
+            ),
+          }))}
+        />
+      </div>
+
       <Card className="overflow-hidden">
         {loading ? (
           <div className="flex h-56 items-center justify-center gap-2 text-[var(--text-mute)]">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm font-semibold">{t("common.loading", "ກຳລັງໂຫຼດ...")}</span>
           </div>
-        ) : rows.length === 0 ? (
+        ) : viewRows.length === 0 ? (
           <div className="flex h-56 flex-col items-center justify-center gap-2 text-[var(--text-mute)]">
             <UsersIcon className="h-8 w-8 opacity-40" />
             <span className="text-sm font-semibold">{t("users.noUsers", "ຍັງບໍ່ມີຜູ້ໃຊ້")}</span>
@@ -195,29 +298,50 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
             <table className={tblCls}>
               <thead>
                 <tr>
-                  <th className={thCls}>{t("users.colUser", "ຜູ້ໃຊ້")}</th>
-                  <th className={`${thCls} w-32`}>{t("users.colRole", "ສິດທິ")}</th>
-                  <th className={`${thCls} w-24 text-center`}>{t("common.status", "ສະຖານະ")}</th>
+                  <RowBarTh />
+                  <SortTh
+                    label={t("users.colUser", "ຜູ້ໃຊ້")}
+                    active={sort.key === "name"}
+                    dir={sort.dir}
+                    onClick={() => toggleSort("name")}
+                  />
+                  <SortTh
+                    label={t("users.colRole", "ສິດທິ")}
+                    active={sort.key === "role"}
+                    dir={sort.dir}
+                    onClick={() => toggleSort("role")}
+                    className="w-32"
+                  />
+                  <SortTh
+                    label={t("common.status", "ສະຖານະ")}
+                    active={sort.key === "active"}
+                    dir={sort.dir}
+                    onClick={() => toggleSort("active")}
+                    className="w-24 text-center"
+                  />
                   <th className={`${thCls} w-24 text-right`}>{t("common.actions", "ການດຳເນີນ")}</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((u) => (
+                {viewRows.map((u) => (
                   <tr key={u.username} className={`${trHover} group`}>
+                    <RowBar tone={u.active ? ROLE_BAR[u.role] || "neutral" : "neutral"} />
                     <td className={tdCls}>
                       <div className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[11px] font-black text-[var(--brand-strong)]">
+                        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-[11px] font-black text-[var(--brand-strong)]">
                           {(u.name || u.username).charAt(0).toUpperCase()}
                         </span>
-                        <div className="min-w-0">
-                          <div className="truncate font-semibold text-[var(--text)]">{u.name || u.username}</div>
-                          <div className="truncate font-mono text-[11px] text-[var(--text-mute)]">
-                            {u.username}
-                            {u.source === "erp" && (
-                              <span className="ml-1.5 rounded bg-[var(--surface-sunken)] px-1 py-0.5 text-[9px]">ERP</span>
-                            )}
-                          </div>
-                        </div>
+                        <TwoLine
+                          primary={u.name || u.username}
+                          secondary={
+                            <span className="font-mono">
+                              {u.username}
+                              {u.source === "erp" && (
+                                <span className="ml-1.5 rounded bg-[var(--surface-sunken)] px-1 py-0.5 text-[9px]">ERP</span>
+                              )}
+                            </span>
+                          }
+                        />
                       </div>
                     </td>
                     <td className={tdCls}>
@@ -272,7 +396,7 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
 
             <div className="space-y-4 p-5">
               {err && (
-                <div className="rounded-xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12px] font-semibold text-[var(--danger)]">
+                <div className="rounded-lg border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12px] font-semibold text-[var(--danger)]">
                   {err}
                 </div>
               )}
@@ -300,7 +424,7 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
                       key={r}
                       type="button"
                       onClick={() => setDraft({ ...draft, role: r })}
-                      className={`h-9 rounded-xl text-xs font-bold transition-all ${
+                      className={`h-9 rounded-lg text-xs font-bold transition-all ${
                         draft.role === r
                           ? "bg-[var(--ink)] text-[var(--ink-text)]"
                           : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]"
@@ -335,7 +459,7 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
                   </div>
                   <div className="space-y-1.5">
                     {MODULES.map((m) => (
-                      <div key={m.key} className="rounded-xl border border-[var(--border)] p-2.5">
+                      <div key={m.key} className="rounded-lg border border-[var(--border)] p-2.5">
                         <div className="mb-1.5 text-[12px] font-bold text-[var(--text-soft)]">{m.label}</div>
                         <div className="flex flex-wrap gap-1.5">
                           {m.actions.map((a) => {
@@ -361,7 +485,7 @@ export default function UsersClient({ initialRows }: { initialRows: AppUserRow[]
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-[var(--info-soft)] bg-[var(--info-soft)] px-3 py-2.5 text-[12px] font-semibold text-[var(--info)]">
+                <div className="rounded-lg border border-[var(--info-soft)] bg-[var(--info-soft)] px-3 py-2.5 text-[12px] font-semibold text-[var(--info)]">
                   {t("users.adminNote", "ຜູ້ດູແລລະບົບ ເຂົ້າເຖິງໄດ້ທຸກ module ແລະ ຈັດການຜູ້ໃຊ້ (ບໍ່ຕ້ອງກຳນົດສິດ).")}
                 </div>
               )}

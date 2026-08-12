@@ -171,7 +171,7 @@ export default function BoqDetailPage() {
       />
 
       {!canApprove && pending && b.is_first === false && !canApproveNext && can(acl, "boq", "approve") && (
-        <div className="mb-4 rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-4 py-2.5 text-[11.5px] font-bold text-[var(--warning)]">
+        <div className="mb-4 rounded-lg border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-4 py-2.5 text-[11.5px] font-bold text-[var(--warning)]">
           {t("boq.secondNeedsAdmin", "ໃບ BOQ ທີ 2 ຂຶ້ນໄປ ຕ້ອງໃຫ້ຜູ້ດູແລລະບົບ ຫຼື ຜູ້ມີສິດອະນຸມັດໃບຕໍ່ໄປ")}
         </div>
       )}
@@ -252,7 +252,7 @@ export default function BoqDetailPage() {
       {confirmStatus !== null && (
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-[20vh]" onClick={() => !busy && setConfirmStatus(null)}>
           <div
-            className="w-full max-w-sm overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
+            className="w-full max-w-sm overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 pt-6 pb-4 text-center">
@@ -294,8 +294,8 @@ export default function BoqDetailPage() {
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: any }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-2.5">
-      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-mute)]">
+    <div className="flex items-center gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-2.5">
+      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-mute)]">
         {icon}
       </span>
       <div className="min-w-0">

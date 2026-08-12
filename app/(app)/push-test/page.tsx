@@ -25,7 +25,7 @@ function StatusBox({ ok, icon, title, value }: { ok?: boolean | null; icon: Reac
         ? "border-[var(--success-soft)] bg-[var(--success-soft)]"
         : "border-[var(--danger-soft)] bg-[var(--danger-soft)]";
   return (
-    <div className={`flex items-center gap-2.5 rounded-xl border p-3 ${cls}`}>
+    <div className={`flex items-center gap-2.5 rounded-lg border p-3 ${cls}`}>
       {icon}
       <div>
         <div className="text-[12px] font-bold text-[var(--text)]">{title}</div>
@@ -188,7 +188,7 @@ export default function PushTestPage() {
         ) : (
           <div className="space-y-2">
             {status.devices.map((d) => (
-              <div key={d.employee_code} className="flex items-center gap-3 rounded-xl border border-[var(--border)] p-2.5">
+              <div key={d.employee_code} className="flex items-center gap-3 rounded-lg border border-[var(--border)] p-2.5">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--info-soft)] bg-[var(--info-soft)] text-[var(--info)]">
                   <Bell size={16} />
                 </span>

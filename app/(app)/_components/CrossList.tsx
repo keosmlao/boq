@@ -171,7 +171,7 @@ export default function CrossList({
       <Card className="overflow-hidden">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] p-3">
-          <label className="flex h-9 w-full max-w-xs items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
+          <label className="flex h-9 w-full max-w-xs items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
             <Search className="h-4 w-4 text-[var(--text-mute)]" />
             <input
               value={q}
@@ -183,7 +183,7 @@ export default function CrossList({
           {groupBy && (
             <button
               onClick={() => setGrouped((g) => !g)}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-[11.5px] font-bold transition-all active:scale-[0.98] ${
+              className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[11.5px] font-bold transition-all active:scale-[0.98] ${
                 grouped
                   ? "bg-[var(--ink)] text-[var(--ink-text)]"
                   : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]"
@@ -218,10 +218,10 @@ export default function CrossList({
         ) : useGrouped ? (
           <div className="space-y-4 border-t border-[var(--border-soft)] bg-[var(--surface-sunken)] p-3">
             {groups.map((g, gi) => (
-              <div key={gi} className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]">
+              <div key={gi} className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]">
                 <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-4 py-2.5">
                   <div className="flex items-center gap-2.5">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[11px] font-black text-[var(--brand-strong)]">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-[11px] font-black text-[var(--brand-strong)]">
                       {g.name.charAt(0).toUpperCase()}
                     </span>
                     <span className="text-[12.5px] font-extrabold text-[var(--text)]">{g.name}</span>

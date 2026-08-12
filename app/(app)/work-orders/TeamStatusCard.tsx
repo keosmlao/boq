@@ -88,7 +88,7 @@ export default function TeamStatusCard() {
 
       <div className="grid grid-cols-2 gap-2.5 p-3 sm:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-sunken)] px-3 py-2">
+          <div key={s.label} className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-sunken)] px-3 py-2">
             <div className={`text-[16px] font-black leading-none ${s.tone}`}>{s.value}</div>
             <div className="mt-1.5 text-[10.5px] font-semibold text-[var(--text-mute)]">{s.label}</div>
           </div>

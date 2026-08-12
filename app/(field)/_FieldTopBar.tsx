@@ -13,7 +13,7 @@ export default function FieldTopBar() {
     window.location.href = "/login";
   };
   return (
-    <header className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-[#0f766e] px-4 py-3 text-white shadow-sm">
+    <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-[var(--brand-hover)] px-4 py-3 text-white shadow-sm">
       <div className="flex items-center gap-2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/ODG.png" alt="ODG" className="h-7 w-auto object-contain" />

@@ -171,7 +171,7 @@ export default function WorkOrderDetailPage() {
           {w.notes && (
             <div className="mt-5 border-t border-[var(--border-soft)] pt-3">
               <span className="mb-1 block text-[11px] font-bold tracking-wider text-[var(--text-mute)]">{t("common.note", "ໝາຍເຫດ")}</span>
-              <p className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-2.5 text-[12.5px] leading-relaxed text-[var(--text-soft)]">
+              <p className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-2.5 text-[12.5px] leading-relaxed text-[var(--text-soft)]">
                 {w.notes}
               </p>
             </div>
@@ -264,7 +264,7 @@ export default function WorkOrderDetailPage() {
 function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: any }) {
   return (
     <div className="flex items-start gap-2.5">
-      <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] text-[var(--text-mute)]">
+      <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] text-[var(--text-mute)]">
         {icon}
       </span>
       <div className="min-w-0">

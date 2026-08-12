@@ -3,7 +3,7 @@
 /** Manage craftsman teams — technicians + their helpers (odg_technicians). */
 import { useEffect, useMemo, useState } from "react";
 import { Car, Check, Loader2, Pencil, Phone, Plus, RefreshCw, Search, Trash2, UsersRound, Wrench, X } from "lucide-react";
-import { Page, PageHeader, Card, Btn, Field, Pill, Segmented, Stat, inputCls } from "../_components/ui";
+import { Page, PageHeader, Card, Btn, Field, Pill, Segmented, Stat, Toolbar, inputCls } from "../_components/ui";
 import RSelect from "../_components/RSelect";
 import { getTechnicians, createTechnician, updateTechnician, deleteTechnician, getVehicles } from "@/_actions/lookups";
 import { getTeamAvailability, type TeamAvailability } from "@/_actions/team-availability";
@@ -53,7 +53,17 @@ const roleTone = (r?: string | null): "brand" | "green" | "amber" | "neutral" =>
 
 const emptyDraft = (): Draft => ({ code: "", name_1: "", phone: "", role: "technician", helpers: [], vehicle_id: "", isNew: true });
 
-const vehicleLabel = (v: Vehicle) => `${v.plate_no || "-"}${v.name ? ` — ${v.name}` : ""}${v.status && v.status !== "available" ? ` (${v.status})` : ""}`;
+/** Tab label with its count chip — the ODS list convention. */
+const tabLabel = (label: string, count: number) => (
+  <span className="flex items-center gap-1.5">
+    {label}
+    <span className="rounded-full bg-black/10 px-1.5 text-[10px] font-black dark:bg-white/15">{count}</span>
+  </span>
+);
+
+/** How a vehicle is named in pickers: the name people use, then the plate. */
+const vehicleLabel = (v: Vehicle) =>
+  `${v.name || v.plate_no || "-"}${v.name && v.plate_no ? ` — ${v.plate_no}` : ""}${v.status && v.status !== "available" ? ` (${v.status})` : ""}`;
 
 const woStatusLabel = (t: Translator, status: string): string =>
   ({
@@ -215,24 +225,30 @@ export default function TechTeamsPage() {
         <Stat icon={<Wrench size={18} />} label={t("techTeams.inProgress", "ກຳລັງເຮັດ")} value={counts.working} />
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="relative max-w-xs flex-1">
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-mute)]" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("techTeams.searchPlaceholder", "ຄົ້ນຫາຊື່ / ລະຫັດ / ເບີໂທ")} className={`${inputCls} pl-9`} />
-        </div>
+      <Toolbar>
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
+          <Search size={15} className="text-[var(--text-mute)]" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("techTeams.searchPlaceholder", "ຄົ້ນຫາຊື່ / ລະຫັດ / ເບີໂທ")}
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
+          />
+        </label>
         <Segmented<"all" | "free" | "busy">
+          className="ml-auto"
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
-            { value: "all", label: t("common.all", "ທັງໝົດ") },
-            { value: "free", label: t("techTeams.free", "ວ່າງ") },
-            { value: "busy", label: t("techTeams.hasWork", "ມີວຽກ") },
+            { value: "all", label: tabLabel(t("common.all", "ທັງໝົດ"), techs.length) },
+            { value: "free", label: tabLabel(t("techTeams.free", "ວ່າງ"), counts.free) },
+            { value: "busy", label: tabLabel(t("techTeams.hasWork", "ມີວຽກ"), counts.busy) },
           ]}
         />
-      </div>
+      </Toolbar>
 
       {error && (
-        <p className="mb-3 rounded-xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12px] font-semibold text-[var(--danger)]">{error}</p>
+        <p className="mb-3 rounded-lg border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12px] font-semibold text-[var(--danger)]">{error}</p>
       )}
 
       {loading ? (
@@ -250,7 +266,7 @@ export default function TechTeamsPage() {
             <Card key={tech.roworder} className="p-4">
               <div className="flex items-start gap-3">
                 <span
-                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
+                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${
                     st.busy ? "bg-[var(--info-soft)] text-[var(--info)]" : "bg-[var(--success-soft)] text-[var(--success)]"
                   }`}
                 >
@@ -273,7 +289,7 @@ export default function TechTeamsPage() {
                   <div className="mt-1 flex items-center gap-1 text-[11.5px] font-semibold text-[var(--text-soft)]">
                     <Car size={12} className="text-[var(--text-mute)]" />
                     {tech.vehicle_plate || tech.vehicle_name ? (
-                      <span>{[tech.vehicle_plate, tech.vehicle_name].filter(Boolean).join(" — ")}</span>
+                      <span>{[tech.vehicle_name, tech.vehicle_plate].filter(Boolean).join(" — ")}</span>
                     ) : (
                       <span className="font-normal text-[var(--text-mute)]">{t("techTeams.noVehicle", "ຍັງບໍ່ໄດ້ກຳນົດລົດ")}</span>
                     )}
@@ -331,7 +347,7 @@ export default function TechTeamsPage() {
       {/* Editor */}
       {draft && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-[2px] sm:items-center sm:px-4">
-          <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] sm:rounded-2xl">
+          <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] sm:rounded-lg">
             <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-5 py-4">
               <h2 className="text-[14px] font-black text-[var(--text)]">{draft.isNew ? t("techTeams.addTech", "ເພີ່ມຊ່າງ") : t("techTeams.editTech", "ແກ້ໄຂຊ່າງ")}</h2>
               <button
@@ -362,7 +378,7 @@ export default function TechTeamsPage() {
                       key={r.key}
                       type="button"
                       onClick={() => setDraft({ ...draft, role: r.key })}
-                      className={`h-9 rounded-xl text-[11px] font-bold transition-all ${
+                      className={`h-9 rounded-lg text-[11px] font-bold transition-all ${
                         draft.role === r.key
                           ? "bg-[var(--ink)] text-[var(--ink-text)]"
                           : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]"
@@ -387,7 +403,7 @@ export default function TechTeamsPage() {
               <div>
                 <div className="mb-1.5 text-[11px] font-bold tracking-wider text-[var(--text-mute)]">{t("techTeams.helpersLabel", "ລູກທີມ / ຜູ້ຊ່ວຍ")}</div>
                 <p className="mb-2 text-[11px] text-[var(--text-mute)]">{t("techTeams.helpersHint", "ເລືອກຊ່າງຄົນອື່ນເຂົ້າທີມຂອງຄົນນີ້")}</p>
-                <div className="max-h-44 space-y-1 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2">
+                <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
                   {techs.filter((x) => x.code && x.roworder !== draft.roworder).length === 0 ? (
                     <p className="px-1 py-2 text-center text-[11px] text-[var(--text-mute)]">{t("techTeams.noOtherTech", "ບໍ່ມີຊ່າງຄົນອື່ນໃຫ້ເລືອກ")}</p>
                   ) : (

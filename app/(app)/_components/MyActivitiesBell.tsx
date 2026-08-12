@@ -90,7 +90,7 @@ export default function MyActivitiesBell() {
     <div className="relative">
       <button
         onClick={() => { setOpen((o) => !o); load(); }}
-        className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)] transition"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)] transition"
         title={tr("components.myActivities.title", "ກິດຈະກຳຂອງຂ້ອຍ")}
       >
         <CalendarClock size={17} />
@@ -104,7 +104,7 @@ export default function MyActivitiesBell() {
       {open && (
         <>
           <button aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 origin-top-right overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
+          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 origin-top-right overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
             <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-4 py-3">
               <CalendarClock size={15} className="text-[var(--warning)]" />
               <span className="text-[12.5px] font-black text-[var(--text)]">{tr("components.myActivities.title", "ກິດຈະກຳຂອງຂ້ອຍ")}</span>
@@ -112,7 +112,7 @@ export default function MyActivitiesBell() {
             </div>
             <div className="max-h-[360px] overflow-y-auto">
               {items.length === 0 ? (
-                <div className="px-4 py-8 text-center text-[12px] font-semibold text-[var(--text-mute)]">{tr("components.myActivities.empty", "ບໍ່ມີກິດຈະກຳຄ້າງ")} 🎉</div>
+                <div className="px-4 py-8 text-center text-[12px] font-semibold text-[var(--text-mute)]">{tr("components.myActivities.empty", "ບໍ່ມີກິດຈະກຳຄ້າງ")}</div>
               ) : (
                 items.map((a) => {
                   const overdue = a.due_date && a.due_date < t;

@@ -251,7 +251,7 @@ export default function ContractDetailPage() {
         </div>
         {items.length === 0 ? (
           <div className="flex h-40 flex-col items-center justify-center gap-3 text-[var(--text-mute)]">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface-sunken)] text-[var(--text-mute)]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[var(--text-mute)]">
               <ListChecks className="h-7 w-7" />
             </div>
             <span className="text-[12.5px] font-semibold">{t("boq.noItems", "ບໍ່ມີລາຍການ")}</span>
@@ -344,7 +344,7 @@ function ApprovalRow({
   const blocked = !!locked && !approved;
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+      className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
         approved
           ? "border-[var(--success-soft)] bg-[var(--success-soft)]"
           : blocked

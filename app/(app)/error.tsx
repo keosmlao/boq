@@ -30,7 +30,7 @@ export default function Error({
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="w-full max-w-md text-center animate-fade-in">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] text-[var(--danger)]">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-lg border border-[var(--danger-soft)] bg-[var(--danger-soft)] text-[var(--danger)]">
           <AlertTriangle size={28} />
         </div>
         <h1 className="text-xl font-black tracking-tight text-[var(--text)]">{t("error.title", "ເກີດຂໍ້ຜິດພາດ")}</h1>

@@ -167,7 +167,7 @@ export default function SurveyPage() {
               <ArrowLeft size={14} /> {t("surveyNew.toProject", "ໄປໂຄງການ")}
             </button>
             <h1 className="flex items-center gap-2.5 text-[19px] font-black leading-tight tracking-tight text-[var(--text)]">
-              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                 <ClipboardCheck size={16} />
               </span>
               {editId ? t("surveyNew.editTitle", "ແກ້ໄຂການສຳຫຼວດ") : t("surveyNew.title", "ສຳຫຼວດໜ້າງານ")}
@@ -186,7 +186,7 @@ export default function SurveyPage() {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">{error}</div>
+          <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">{error}</div>
         )}
 
         {/* Basic */}
@@ -306,13 +306,13 @@ export default function SurveyPage() {
             {photos.map((p, i) => (
               <div key={i} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt="" className="h-20 w-full rounded-xl object-cover ring-1 ring-[var(--border)]" />
+                <img src={p.url} alt="" className="h-20 w-full rounded-lg object-cover ring-1 ring-[var(--border)]" />
                 <button type="button" onClick={() => setPhotos((a) => a.filter((_, idx) => idx !== i))} className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white">
                   <X size={11} />
                 </button>
               </div>
             ))}
-            <label className="flex h-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-sunken)] text-[var(--text-mute)] transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]">
+            <label className="flex h-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-sunken)] text-[var(--text-mute)] transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]">
               <ImagePlus size={20} />
               <span className="text-[10px] font-semibold">{t("surveyNew.addPhoto", "ເພີ່ມຮູບ")}</span>
               <input type="file" accept="image/*" multiple className="hidden" onChange={onPickPhotos} />

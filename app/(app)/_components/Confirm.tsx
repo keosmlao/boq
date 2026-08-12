@@ -46,7 +46,7 @@ export default function ConfirmProvider({ children }: { children: React.ReactNod
       {opts && (
         <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/40 backdrop-blur-[2px] px-4 pt-[20vh]" onClick={() => close(false)}>
           <div
-            className="w-full max-w-sm overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
+            className="w-full max-w-sm overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 pb-5 pt-6 text-center">

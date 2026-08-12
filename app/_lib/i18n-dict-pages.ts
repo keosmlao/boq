@@ -1019,7 +1019,7 @@ export const PAGE_DICT: Record<string, Entry> = {
   "overview.teamFree": { lo: "ວ່າງ", th: "ว่าง", en: "Free" },
   "overview.teamBusy": { lo: "ມີວຽກ", th: "มีงาน", en: "Busy" },
   "overview.teamWorking": { lo: "ກຳລັງເຮັດ", th: "กำลังทำ", en: "Working" },
-  "overview.allTeamsFree": { lo: "ທຸກທີມວ່າງ 🎉", th: "ทุกทีมว่าง 🎉", en: "All teams free 🎉" },
+  "overview.allTeamsFree": { lo: "ທຸກທີມວ່າງ", th: "ทุกทีมว่าง", en: "All teams free" },
   "overview.teamsUnit": { lo: "ທີມ", th: "ทีม", en: "teams" },
   "overview.installTracking": { lo: "ຕິດຕາມການຕິດຕັ້ງ", th: "ติดตามการติดตั้ง", en: "Install tracking" },
   "overview.viewAll": { lo: "ເບິ່ງທັງໝົດ", th: "ดูทั้งหมด", en: "View all" },

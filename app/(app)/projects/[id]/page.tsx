@@ -7,6 +7,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ActivityFeed from "../../_components/ActivityFeed";
 import {
   ArrowLeft,
+  ArrowRight,
   Phone,
   MapPin,
   User,
@@ -30,6 +31,7 @@ import {
   FolderKanban,
   Wallet,
   GitBranch,
+  Lock,
 } from "lucide-react";
 import {
   Page,
@@ -477,6 +479,32 @@ export default function V2PipelinePage() {
 
   const location = [project.village_name, project.district_name, project.province_name].filter(Boolean).join(" · ");
 
+  /**
+   * Project health — the five questions someone opening a project actually has,
+   * answered from the documents this page already loaded (no extra queries):
+   * is the BOQ approved, is the contract signed off, is any material short,
+   * what is still waiting to be withdrawn, and how much work is still open.
+   */
+  const health = (() => {
+    const boqApproved = allBoqs.some((b: any) => Number(b.approve_status) === 1);
+    const contractComplete = allContracts.some((c: any) => {
+      const isErp = c.src === "erp";
+      const sales = isErp ? Number(c.approve_status_1) === 1 : !!c.sales_approved;
+      const acc = isErp
+        ? Math.max(Number(c.approve_status_2) || 0, Number(c.acc_approve) || 0) === 1
+        : !!c.accounting_approved;
+      return sales && acc;
+    });
+    // A BOQ line still owing material: nothing requested and nothing withdrawn.
+    const shortMaterials = materials.filter((m: any) => Number(m.remaining) > 0).length;
+    const openRequests = requests.filter((r: any) => String(r.status || "requested") === "requested").length;
+    const openWorkOrders = workorders.filter((w: any) => {
+      const s = String(w.status || "").trim();
+      return !["closed", "Closed", "ປິດງານແລ້ວ", "rejected", "ບໍ່ອະນຸມັດ"].includes(s);
+    }).length;
+    return { boqApproved, contractComplete, shortMaterials, openRequests, openWorkOrders };
+  })();
+
   return (
     <Page max="max-w-none">
       <PageHeader
@@ -518,11 +546,72 @@ export default function V2PipelinePage() {
       />
 
       {loadError && (
-        <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-4 py-3 text-xs font-bold text-[var(--danger)]">
+        <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-4 py-3 text-xs font-bold text-[var(--danger)]">
           <AlertTriangle size={15} />
           <span>{t("projectDetail.partialLoadError", "ໂຫຼດຂໍ້ມູນບາງສ່ວນບໍ່ສຳເລັດ")}: {loadError}</span>
         </div>
       )}
+
+      {/* ── Next step + project health ──────────────────────────────────────
+          The project is the subject of this system, so the first thing its page
+          answers is "what happens next, and is anything blocking it". */}
+      <Card className="mb-4 overflow-hidden">
+        <div className="flex flex-wrap items-center gap-3 border-b border-[var(--border-soft)] px-4 py-3">
+          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+            <ArrowRight size={14} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <span className="block text-[10.5px] font-black uppercase tracking-[0.18em] text-[var(--text-mute)]">
+              {t("projectDetail.nextStep", "ຂັ້ນຕໍ່ໄປ")}
+            </span>
+            <span className="block truncate text-[13px] font-bold text-[var(--text)]">
+              {showCta
+                ? stageAction[current!.key]!.label
+                : current
+                  ? `${t("projectDetail.stageNow", "ຢູ່ຂັ້ນ")} ${current.label}`
+                  : t("projectDetail.noNextStep", "ບໍ່ມີຂັ້ນຕອນຄ້າງ")}
+            </span>
+          </div>
+          {showCta && (
+            <Btn variant="go" onClick={() => router.push(stageAction[current!.key]!.href)}>
+              <Plus size={14} /> {stageAction[current!.key]!.label}
+            </Btn>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-x-6 gap-y-2 px-4 py-3">
+          <HealthChip
+            ok={health.boqApproved}
+            okLabel={t("projectDetail.healthBoqOk", "BOQ ອະນຸມັດແລ້ວ")}
+            warnLabel={t("projectDetail.healthBoqPending", "BOQ ຍັງບໍ່ອະນຸມັດ")}
+            onClick={() => selectTab("boq")}
+          />
+          <HealthChip
+            ok={health.contractComplete}
+            okLabel={t("projectDetail.healthContractOk", "ສັນຍາອະນຸມັດຄົບ")}
+            warnLabel={t("projectDetail.healthContractPending", "ສັນຍາຍັງບໍ່ຄົບ")}
+            onClick={() => selectTab("contracts")}
+          />
+          <HealthChip
+            ok={health.shortMaterials === 0}
+            okLabel={t("projectDetail.healthMaterialsOk", "ວັດສະດຸເບີກຄົບ")}
+            warnLabel={`${t("projectDetail.healthMaterialsLeft", "ວັດສະດຸຍັງບໍ່ເບີກ")} ${health.shortMaterials}`}
+            onClick={() => selectTab("materials")}
+          />
+          <HealthChip
+            ok={health.openRequests === 0}
+            okLabel={t("projectDetail.healthRequestsOk", "ບໍ່ມີໃບຂໍເບີກຄ້າງ")}
+            warnLabel={`${t("projectDetail.healthRequestsOpen", "ໃບຂໍເບີກຄ້າງ")} ${health.openRequests}`}
+            onClick={() => selectTab("requests")}
+          />
+          <HealthChip
+            ok={health.openWorkOrders === 0}
+            okLabel={t("projectDetail.healthWorkOrdersOk", "ໃບງານປິດຄົບ")}
+            warnLabel={`${t("projectDetail.healthWorkOrdersOpen", "ໃບງານຍັງເປີດ")} ${health.openWorkOrders}`}
+            onClick={() => selectTab("workorders")}
+          />
+        </div>
+      </Card>
 
       {/* Two-column workspace: info rail (left) + tabbed content (right) */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[330px_minmax(0,1fr)]">
@@ -551,12 +640,12 @@ export default function V2PipelinePage() {
             {/* ── Close-out (ກວດຮັບ/ປິດງານ) — real preconditions only ── */}
             <div className="mt-4 border-t border-[var(--border-soft)] pt-3">
               {closeState.closed ? (
-                <div className="flex items-center gap-2 rounded-xl border border-[var(--success-soft)] bg-[var(--success-soft)] px-3 py-2 text-[11.5px] font-bold text-[var(--success)]">
+                <div className="flex items-center gap-2 rounded-lg border border-[var(--success-soft)] bg-[var(--success-soft)] px-3 py-2 text-[11.5px] font-bold text-[var(--success)]">
                   <Check size={14} /> {t("projectDetail.projectClosed", "ປິດໂຄງການແລ້ວ")}
                 </div>
               ) : closeState.pendingClose ? (
                 <div className="space-y-2">
-                  <div className="rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-3 py-2 text-[11.5px] font-bold text-[var(--warning)]">
+                  <div className="rounded-lg border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-3 py-2 text-[11.5px] font-bold text-[var(--warning)]">
                     {t("projectDetail.waitManagerClose", "ລໍຖ້າຜູ້ຈັດການອະນຸມັດປິດໂຄງການ")}
                   </div>
                   {canDecideClose && (
@@ -618,7 +707,7 @@ export default function V2PipelinePage() {
                 <Row label={t("projectDetail.workHours", "ຊົ່ວໂມງເຮັດງານ")} value={install ? `${install.worked_hours.toFixed(1)} ${t("overview.hoursUnit", "ຊມ")}` : "—"} />
               </dl>
               {install && (
-                <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] p-4">
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] p-4">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-[12px] font-black text-[var(--text)]">{t("projectDetail.installPauseStatus", "ສະຖານະການຕິດຕັ້ງ / ການພັກ")}</h3>
                     {install.paused
@@ -703,7 +792,7 @@ export default function V2PipelinePage() {
                 </div>
               )}
               {!hasAnyContract && (
-                <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-4 py-3 text-xs font-bold text-[var(--warning)]">
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-4 py-3 text-xs font-bold text-[var(--warning)]">
                   <AlertTriangle size={14} />
                   <span>{t("projectDetail.needContractFirst", "ຕ້ອງມີສັນຍາກ່ອນ ຈຶ່ງສ້າງ BOQ ໄດ້.")}</span>
                 </div>
@@ -764,7 +853,7 @@ export default function V2PipelinePage() {
       {confirmDel && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[12vh] backdrop-blur-xs" onClick={() => !deleting && setConfirmDel(false)}>
           <div
-            className="animate-fade-in w-full max-w-sm overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
+            className="animate-fade-in w-full max-w-sm overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 pt-6 pb-4 text-center">
@@ -780,7 +869,7 @@ export default function V2PipelinePage() {
               </p>
             </div>
             {relatedTotal > 0 && (
-              <div className="mx-5 mb-4 max-h-56 overflow-y-auto rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-3 py-2.5 text-left">
+              <div className="mx-5 mb-4 max-h-56 overflow-y-auto rounded-lg border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-3 py-2.5 text-left">
                 <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black tracking-wide text-[var(--warning)]">
                   {t("projectDetail.relatedDocs", "ເອກະສານກ່ຽວຂ້ອງ")} ({relatedTotal})
                 </div>
@@ -865,7 +954,7 @@ function SmlFinance({ loading, data }: { loading: boolean; data: any }) {
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] px-3 py-2.5">
+          <div key={c.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] px-3 py-2.5">
             <div className="text-[10px] font-bold tracking-wide text-[var(--text-mute)]">{c.label}</div>
             <div className="mt-0.5 text-sm font-black tabular-nums" style={{ color: c.color }}>{fmtMoney(c.value)}</div>
           </div>
@@ -937,7 +1026,7 @@ function SmlFinance({ loading, data }: { loading: boolean; data: any }) {
 
 function SmlSection({ title, count, empty, children }: { title: string; count: number; empty: string; children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
       <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-3 py-2">
         <span className="h-3.5 w-1 rounded bg-[var(--brand)]" />
         <h3 className="text-[12px] font-black text-[var(--text)]">{title}</h3>
@@ -962,7 +1051,7 @@ function QuotationList({
     return <Empty icon={<FileText size={32} />} text={t("projectDetail.noQuotations", "ຍັງບໍ່ມີໃບສະເໜີລາຄາ")} />;
   }
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)]">
       <table className={tblCls}>
         <thead>
           <tr>
@@ -1024,7 +1113,7 @@ function RequestList({ requests }: { requests: any[] }) {
   const stLabel = (s: string) => (s === "withdrawn" ? t("projectDetail.withdrawn", "ເບີກແລ້ວ") : s === "rejected" ? t("common.reject", "ປະຕິເສດ") : t("projectDetail.requested", "ຮ້ອງຂໍ"));
   const stTone = (s: string): PillTone => (s === "withdrawn" ? "green" : s === "rejected" ? "red" : "amber");
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)]">
       <table className={tblCls}>
         <thead>
           <tr>
@@ -1068,7 +1157,7 @@ function MaterialsSummary({ rows }: { rows: any[] }) {
   }
   const sum = (k: string) => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0);
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)]">
       <table className={tblCls}>
         <thead>
           <tr>
@@ -1161,7 +1250,7 @@ function WorkOrderList({ workorders, onEdit, onDelete }: { workorders: any[]; on
     return <Empty icon={<Wrench size={32} />} text={t("projectDetail.noWorkOrders", "ຍັງບໍ່ມີໃບງານ")} />;
   }
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)]">
       <table className={tblCls}>
         <thead>
           <tr>
@@ -1206,7 +1295,7 @@ function TaskList({ tasks }: { tasks: any[] }) {
   const totalDays = tasks.reduce((s, tk) => s + (Number(tk.est_days) || 0), 0);
   const totalHours = tasks.reduce((s, tk) => s + (Number(tk.est_hours) || 0), 0);
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)]">
       <table className={tblCls}>
         <thead>
           <tr>
@@ -1265,7 +1354,7 @@ function BoqList({ boqs, onSetStatus, onDelete, canApproveNext = false }: { boqs
     return <Empty icon={<ListChecks size={32} />} text={t("projectDetail.noBoq", "ຍັງບໍ່ມີ BOQ")} />;
   }
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)]">
       <table className={tblCls}>
         <thead>
           <tr>
@@ -1355,7 +1444,7 @@ function ContractList({
         // "ສົມບູນ" only when BOTH approvals are in — same rule as the stepper.
         const full = isContractApproved(c);
         return (
-          <div key={c.id ?? c.contract_no ?? i} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div key={c.id ?? c.contract_no ?? i} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-soft)] pb-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -1430,11 +1519,11 @@ function ApprovalCell({
   const t = useT();
   const blocked = !!locked && !approved;
   return (
-    <div className={`flex flex-wrap items-center gap-2.5 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-sunken)] px-3 py-2 text-xs ${blocked ? "opacity-70" : ""}`}>
+    <div className={`flex flex-wrap items-center gap-2.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-sunken)] px-3 py-2 text-xs ${blocked ? "opacity-70" : ""}`}>
       <span className="font-bold text-[var(--text-mute)]">{label}:</span>
       {approved ? (
         <div className="flex items-center gap-2">
-          <Pill tone="green">✓ {t("status.approved", "ອະນຸມັດແລ້ວ")}</Pill>
+          <Pill tone="green"><span className="inline-flex items-center gap-1"><Check size={11} strokeWidth={3} /> {t("status.approved", "ອະນຸມັດແລ້ວ")}</span></Pill>
           {approver && <span className="text-[10px] font-bold text-[var(--text-mute)]">{t("projectDetail.by", "ໂດຍ")}: {approver}</span>}
           {onUndo && (
             <button onClick={onUndo} className="text-[10px] font-bold text-[var(--text-mute)] transition-colors hover:text-[var(--danger)]">
@@ -1443,7 +1532,7 @@ function ApprovalCell({
           )}
         </div>
       ) : blocked ? (
-        <span className="text-[10px] font-bold text-[var(--text-mute)]">🔒 {lockedHint || t("projectDetail.waitPrevStep", "ລໍຖ້າຂັ້ນຕອນກ່ອນໜ້າ")}</span>
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--text-mute)]"><Lock size={11} /> {lockedHint || t("projectDetail.waitPrevStep", "ລໍຖ້າຂັ້ນຕອນກ່ອນໜ້າ")}</span>
       ) : onApprove ? (
         <MiniBtn tone="go" onClick={onApprove}>
           <Check size={12} /> {t("common.approve", "ອະນຸມັດ")}
@@ -1469,7 +1558,7 @@ function SurveyList({ surveys, onEdit, onDelete }: { surveys: any[]; onEdit?: (i
         const photos = Array.isArray(d.photos) ? d.photos : [];
         const c = d.checklist || {};
         return (
-          <div key={s.id ?? i} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div key={s.id ?? i} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-soft)] pb-3">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-extrabold text-[var(--text)]">
@@ -1493,7 +1582,7 @@ function SurveyList({ surveys, onEdit, onDelete }: { surveys: any[]; onEdit?: (i
                 <div className="mb-2 text-[10px] font-bold tracking-wider text-[var(--text-mute)]">{t("projectDetail.measurements", "ຜົນການວັດແທກ")}</div>
                 <div className="flex flex-wrap gap-2">
                   {meas.map((m: any, j: number) => (
-                    <span key={j} className="rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] px-3 py-1 text-xs text-[var(--text-soft)]">
+                    <span key={j} className="rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] px-3 py-1 text-xs text-[var(--text-soft)]">
                       {m.label}: <b className="font-bold text-[var(--brand)]">{m.value}</b> {m.unit}
                     </span>
                   ))}
@@ -1502,7 +1591,7 @@ function SurveyList({ surveys, onEdit, onDelete }: { surveys: any[]; onEdit?: (i
             )}
 
             {mats.length > 0 && (
-              <div className="mb-3.5 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-3">
+              <div className="mb-3.5 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-3">
                 <span className="mb-1.5 block text-xs font-bold text-[var(--text)]">{t("projectDetail.initialMaterials", "ວັດສະດຸເບື້ອງຕົ້ນ")}:</span>
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--text-soft)]">
                   {mats.map((m: any, j: number) => (
@@ -1533,14 +1622,14 @@ function SurveyList({ surveys, onEdit, onDelete }: { surveys: any[]; onEdit?: (i
                 <div className="flex flex-wrap gap-2">
                   {photos.map((url: string, j: number) => (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img key={j} src={url} alt="" className="h-16 w-16 cursor-zoom-in rounded-xl object-cover ring-1 ring-[var(--border)] transition-all duration-300 hover:scale-105 hover:ring-[var(--brand)]" />
+                    <img key={j} src={url} alt="" className="h-16 w-16 cursor-zoom-in rounded-lg object-cover ring-1 ring-[var(--border)] transition-all duration-300 hover:scale-105 hover:ring-[var(--brand)]" />
                   ))}
                 </div>
               </div>
             )}
 
             {s.findings && (
-              <div className="mt-3 rounded-xl border border-[var(--border-soft)] bg-[var(--brand-tint)] p-3 text-xs font-medium leading-relaxed text-[var(--text-soft)]">
+              <div className="mt-3 rounded-lg border border-[var(--border-soft)] bg-[var(--brand-tint)] p-3 text-xs font-medium leading-relaxed text-[var(--text-soft)]">
                 <span className="mb-0.5 block font-bold text-[var(--brand-strong)]">{t("projectDetail.additionalNotes", "ຂໍ້ສັງເກດເພີ່ມເຕີມ")}:</span>
                 {s.findings}
               </div>
@@ -1554,7 +1643,7 @@ function SurveyList({ surveys, onEdit, onDelete }: { surveys: any[]; onEdit?: (i
 
 function CheckCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-2.5 text-xs">
+    <div className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-2.5 text-xs">
       <span className="block text-[10px] font-semibold text-[var(--text-mute)]">{label}:</span>
       <span className="font-bold text-[var(--text)]">{value}</span>
     </div>
@@ -1617,6 +1706,38 @@ function Row({ label, value }: { label: string; value?: string | null }) {
 }
 
 /** Info row inside the identity card (left rail). */
+/**
+ * One health answer. Green when the answer is "yes, nothing to do"; amber when
+ * something is still open — and clicking it jumps to the tab that shows what.
+ */
+function HealthChip({
+  ok,
+  okLabel,
+  warnLabel,
+  onClick,
+}: {
+  ok: boolean;
+  okLabel: string;
+  warnLabel: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 text-[11.5px] font-bold transition-colors ${
+        ok ? "text-[var(--success)]" : "text-[var(--warning)]"
+      } ${onClick ? "hover:underline" : "cursor-default"}`}
+    >
+      <span
+        className="h-2 w-2 flex-shrink-0 rounded-full"
+        style={{ background: ok ? "var(--success)" : "var(--warning)" }}
+      />
+      {ok ? okLabel : warnLabel}
+    </button>
+  );
+}
+
 function RailRow({ icon, label, value, mono }: { icon: React.ReactNode; label: string; value?: string | null; mono?: boolean }) {
   if (!value) return null;
   return (

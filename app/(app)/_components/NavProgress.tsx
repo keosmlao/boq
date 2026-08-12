@@ -97,7 +97,7 @@ function Bar() {
       style={{ opacity: active ? 1 : 0, transition: "opacity 220ms ease" }}
     >
       <div
-        className="h-full rounded-r-full bg-gradient-to-r from-blue-500 via-blue-600 to-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.55)]"
+        className="h-full rounded-r-full bg-[var(--brand)] shadow-[0_0_10px_rgba(0,155,131,0.4)]"
         style={{ width: `${progress}%`, transition: "width 200ms cubic-bezier(0.16,1,0.3,1)" }}
       />
     </div>

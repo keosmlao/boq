@@ -9,7 +9,7 @@
  * seeded via props — this removes the old mount→useEffect→server-action
  * waterfall. The reload button still calls load() to re-fetch client-side.
  */
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -23,8 +23,8 @@ import {
   Trash2,
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import { getCustomers, deleteCustomer } from "@/_actions/customers";
-import { getProjects } from "@/_actions/projects";
+import { getCustomersPage, deleteCustomer } from "@/_actions/customers";
+import type { Paged } from "@/_lib/paging";
 import RSelect from "../_components/RSelect";
 import {
   Btn,
@@ -47,7 +47,6 @@ import { useT } from "@/_lib/i18n";
 
 const PER_PAGE = 25;
 
-const arr = (res: any): any[] => (res?.success ? res.data || [] : Array.isArray(res) ? res : []);
 
 const FILTERS = [
   { key: "all", i18nKey: "common.all", label: "ທັງໝົດ" },
@@ -58,95 +57,66 @@ const FILTERS = [
 type Customer = Record<string, any> & { projects: any[] };
 type SortKey = "name" | "code" | "phone" | "projects";
 
-/** Build the sml_code → projects[] map exactly as the old client did. */
-const buildProjMap = (projects: any[]): Record<string, any[]> => {
-  const map: Record<string, any[]> = {};
-  projects.forEach((p: any) => {
-    const code = String(p.sml_code ?? "");
-    if (!code) return;
-    (map[code] ||= []).push(p);
-  });
-  return map;
-};
 
 export default function CustomersClient({
-  initialCustomers,
-  initialProjects,
+  initial,
 }: {
-  initialCustomers: any[];
-  initialProjects: any[];
+  initial: Paged<Customer> | null;
 }) {
   const t = useT();
   const router = useRouter();
-  const [rows, setRows] = useState<any[]>(initialCustomers);
-  const [projMap, setProjMap] = useState<Record<string, any[]>>(() => buildProjMap(initialProjects));
+  const [data, setData] = useState<Paged<Customer> | null>(initial);
   const [loading, setLoading] = useState(false);
   const [draftQ, setDraftQ] = useState("");
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "projects", dir: "desc" });
+  const first = useRef(true);
+
+  /** One server call per interaction; the response IS the page. */
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await getCustomersPage({ q, tab: filter, page, sort: sort.key, dir: sort.dir });
+      if (res.success) setData(res.data as Paged<Customer>);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, filter, page, sort]);
 
   const runSearch = () => {
     setQ(draftQ);
     setPage(1);
   };
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [cRes, pRes]: any = await Promise.all([getCustomers(), getProjects({ summary: true })]);
-      setRows(cRes?.success ? cRes.data || [] : []);
-      setProjMap(buildProjMap(arr(pRes)));
-    } catch {
-      setRows([]);
-      setProjMap({});
-    } finally {
-      setLoading(false);
-    }
-  };
+  const counts = data?.counts ?? { all: 0, has: 0, none: 0 };
 
-  const customers: Customer[] = useMemo(
-    () => rows.map((c) => ({ ...c, projects: projMap[String(c.code)] || [] })),
-    [rows, projMap],
-  );
+  // Search, tab, sort and paging are resolved on the server.
+  const pageRows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const perPage = data?.perPage ?? PER_PAGE;
+  const current = data?.page ?? 1;
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
 
-  const counts = useMemo(() => {
-    const withP = customers.filter((c) => c.projects.length > 0).length;
-    return { all: customers.length, has: withP, none: customers.length - withP };
-  }, [customers]);
-
-  const filtered = useMemo(() => {
-    const kw = q.trim().toLowerCase();
-    const list = customers.filter((c) => {
-      if (filter === "has" && c.projects.length === 0) return false;
-      if (filter === "none" && c.projects.length > 0) return false;
-      if (!kw) return true;
-      const inCust = [c.name, c.code, c.phone].some((x) => (x ?? "").toString().toLowerCase().includes(kw));
-      const inProj = c.projects.some((p) => (p.project_name ?? "").toString().toLowerCase().includes(kw));
-      return inCust || inProj;
-    });
-    const dir = sort.dir === "asc" ? 1 : -1;
-    return [...list].sort((a, b) => {
-      if (sort.key === "projects") {
-        if (a.projects.length !== b.projects.length) return a.projects.length > b.projects.length ? dir : -dir;
-        return String(a.name ?? "").localeCompare(String(b.name ?? ""));
-      }
-      return String(a[sort.key] ?? "") > String(b[sort.key] ?? "") ? dir : -dir;
-    });
-  }, [customers, q, filter, sort]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const current = Math.min(page, pageCount);
-  const pageRows = filtered.slice((current - 1) * PER_PAGE, current * PER_PAGE);
-
-  const toggleSort = (key: SortKey) =>
+  const toggleSort = (key: SortKey) => {
+    setPage(1);
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  };
 
   const del = async (code: string) => {
     if (!window.confirm(t("customers.deleteConfirm", "ລົບລູກຄ້ານີ້? ກູ້ຄືນບໍ່ໄດ້."))) return;
     const res: any = await deleteCustomer(code);
-    if (res?.success) setRows((a) => a.filter((x) => String(x.code) !== String(code)));
+    if (res?.success) await load(); // the page (and its counts) come from the server
     else alert(res?.message || t("customers.deleteFailed", "ລົບບໍ່ສຳເລັດ"));
   };
 
@@ -165,7 +135,7 @@ export default function CustomersClient({
   /** Excel export of exactly what is on screen (current filter + sort, all pages). */
   const exportExcel = () => {
     const sheet = XLSX.utils.json_to_sheet(
-      filtered.map((c) => ({
+      pageRows.map((c) => ({
         [t("customers.code", "ລະຫັດ")]: c.code || "",
         [t("customers.title", "ລູກຄ້າ")]: c.name || "",
         [t("customers.phone", "ເບີໂທ")]: c.phone || "",
@@ -181,13 +151,13 @@ export default function CustomersClient({
     <Page max="max-w-none">
       <PageHeader
         title={t("customers.title", "ລູກຄ້າ")}
-        subtitle={`${t("customers.totalPrefix", "ທັງໝົດ")} ${filtered.length} ${t("customers.itemsUnit", "ລາຍການ")} · ${t("common.page", "ໜ້າ")} ${current}/${pageCount}`}
+        subtitle={`${t("customers.totalPrefix", "ທັງໝົດ")} ${total} ${t("customers.itemsUnit", "ລາຍການ")} · ${t("common.page", "ໜ້າ")} ${current}/${pageCount}`}
         actions={
           <>
             <Btn variant="go" onClick={() => router.push("/customers/new")}>
               <Plus size={14} /> {t("customers.createCustomer", "ສ້າງລູກຄ້າ")}
             </Btn>
-            <Btn variant="outline" onClick={exportExcel} disabled={filtered.length === 0}>
+            <Btn variant="outline" onClick={exportExcel} disabled={pageRows.length === 0}>
               <FileSpreadsheet size={14} /> Excel
             </Btn>
             <Btn variant="outline" onClick={() => void load()} disabled={loading}>
@@ -198,7 +168,7 @@ export default function CustomersClient({
       />
 
       <Toolbar>
-        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
           <Search size={15} className="text-[var(--text-mute)]" />
           <input
             value={draftQ}
@@ -280,7 +250,7 @@ export default function CustomersClient({
               </tr>
             </thead>
             <tbody>
-              {loading && customers.length === 0 ? (
+              {loading && pageRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-[var(--text-mute)]">
                     <Loader2 size={20} className="mx-auto animate-spin" />
@@ -289,7 +259,7 @@ export default function CustomersClient({
               ) : pageRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-[12.5px] text-[var(--text-mute)]">
-                    {rows.length ? t("customers.noMatch", "ບໍ່ພົບລູກຄ້າ") : t("customers.empty", "ຍັງບໍ່ມີລູກຄ້າ")}
+                    {q || filter !== "all" ? t("customers.noMatch", "ບໍ່ພົບລູກຄ້າ") : t("customers.empty", "ຍັງບໍ່ມີລູກຄ້າ")}
                   </td>
                 </tr>
               ) : (

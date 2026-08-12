@@ -4,7 +4,7 @@
  * ສັນຍາ — flat list (ODIEN SERVICE layout): toolbar → approval-stage tabs → one table.
  * Rows carry a status bar down the left edge; no customer/project grouping.
  */
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BellRing,
@@ -40,7 +40,8 @@ import {
   trHover,
   type PillTone,
 } from "../_components/ui";
-import { getAllContractsForList } from "@/_actions/contracts";
+import { getContractsPage } from "@/_actions/contracts";
+import type { Paged } from "@/_lib/paging";
 import { useT } from "@/_lib/i18n";
 
 const PER_PAGE = 25;
@@ -86,12 +87,13 @@ const STAGE_PILL: Record<string, PillTone> = {
 
 type SortKey = "contract_no" | "created_at" | "customer_name" | "total_amount";
 
-export default function ContractsClient({ initialRows }: { initialRows: Contract[] }) {
+export default function ContractsClient({ initial, initialTab = "all" }: { initial: Paged<Contract> | null; initialTab?: string }) {
   const t = useT();
   const router = useRouter();
   const [pick, setPick] = useState(false);
-  const [allRows, setAllRows] = useState<Contract[]>(initialRows ?? []);
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const [data, setData] = useState<Paged<Contract> | null>(initial);
+  const first = useRef(true);
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [draftQ, setDraftQ] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -104,48 +106,39 @@ export default function ContractsClient({ initialRows }: { initialRows: Contract
     setPage(1);
   };
 
+  /** One server call per interaction; the response IS the page. */
   const reload = async () => {
     setLoading(true);
     try {
-      const res: any = await getAllContractsForList();
-      setAllRows(res?.success ? res.data || [] : Array.isArray(res) ? res : []);
-    } catch {
-      setAllRows([]);
+      const res = await getContractsPage({ q, tab: activeTab, page, sort: sort.key, dir: sort.dir });
+      if (res.success) setData(res.data as Paged<Contract>);
     } finally {
       setLoading(false);
     }
   };
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: allRows.length };
-    for (const key of ["awaiting_sales", "awaiting_accounting", "complete"]) {
-      c[key] = allRows.filter((r) => stageKey(r) === key).length;
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
     }
-    return c;
-  }, [allRows]);
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, activeTab, page, sort]);
 
-  const rows = useMemo(() => {
-    const kw = q.trim().toLowerCase();
-    const list = allRows.filter((r) => {
-      if (activeTab !== "all" && stageKey(r) !== activeTab) return false;
-      if (!kw) return true;
-      return `${r.contract_no ?? ""} ${r.project_name ?? ""} ${r.customer_name ?? ""}`.toLowerCase().includes(kw);
-    });
-    const dir = sort.dir === "asc" ? 1 : -1;
-    return [...list].sort((a, b) => {
-      const av = a[sort.key];
-      const bv = b[sort.key];
-      if (sort.key === "total_amount") return (Number(av) || 0) > (Number(bv) || 0) ? dir : -dir;
-      return String(av ?? "") > String(bv ?? "") ? dir : -dir;
-    });
-  }, [allRows, activeTab, q, sort]);
+  // Counts, rows and paging all come from the server response.
+  const counts = data?.counts ?? { all: 0 };
+  const rows = data?.rows ?? [];
+  const pageRows = rows;
+  const total = data?.total ?? 0;
+  const perPage = data?.perPage ?? PER_PAGE;
+  const current = data?.page ?? 1;
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
 
-  const pageCount = Math.max(1, Math.ceil(rows.length / PER_PAGE));
-  const current = Math.min(page, pageCount);
-  const pageRows = rows.slice((current - 1) * PER_PAGE, current * PER_PAGE);
-
-  const toggleSort = (key: SortKey) =>
+  const toggleSort = (key: SortKey) => {
+    setPage(1);
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  };
 
   const href = (r: Contract) =>
     r.src === "erp" ? `/contracts/${encodeURIComponent(r.contract_no || "")}` : `/contracts/${r.id}`;
@@ -217,7 +210,7 @@ export default function ContractsClient({ initialRows }: { initialRows: Contract
       />
 
       <Toolbar>
-        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
           <Search size={15} className="text-[var(--text-mute)]" />
           <input
             value={draftQ}

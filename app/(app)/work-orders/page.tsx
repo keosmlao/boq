@@ -1,22 +1,19 @@
 /**
- * Work-orders list — SERVER component.
- *
- * The rows are fetched here, on the server, during render and handed to the
- * interactive client list as `initialRows`. This removes the old client-side
- * mount→useEffect→server-action waterfall: the data is already in the first
- * HTML/RSC payload, so navigating to /work-orders no longer shows a second
- * in-page spinner after the route JS loads. Manual refresh still re-pulls.
- *
- * `force-dynamic` keeps the list fresh per request (and avoids a build-time DB
- * hit).
+ * ໃບງານ list — SERVER component. Only the first page is rendered here; every
+ * search / tab / sort / page change calls getWorkOrdersPage() and returns one
+ * page, so the browser never holds every work order ever raised.
  */
-import { getWorkOrders } from "@/_actions/workorder";
+import { getWorkOrdersPage } from "@/_actions/workorder";
 import WorkOrdersClient from "./WorkOrdersClient";
+import { resolveQueuePage } from "@/_lib/queue-tab";
 
 export const dynamic = "force-dynamic";
 
 export default async function WorkOrdersListPage() {
-  const res: any = await getWorkOrders({});
-  const initialRows = res?.success ? res.data || [] : Array.isArray(res) ? res : [];
-  return <WorkOrdersClient initialRows={initialRows} />;
+  // The list opens on the tab that belongs to this user, unless that queue is
+  // already clear — then it shows everything (see resolveQueuePage).
+  const { tab, data } = await resolveQueuePage("work-orders", (queueTab) =>
+    getWorkOrdersPage({ ...{ page: 1, sort: "work_date", dir: "desc" }, tab: queueTab }),
+  );
+  return <WorkOrdersClient initial={data} initialTab={tab} />;
 }

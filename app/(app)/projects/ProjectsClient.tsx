@@ -9,7 +9,7 @@
  * rows are already present in the first render. The manual refresh button
  * still re-pulls via the server action on demand.
  */
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
@@ -47,14 +47,15 @@ import {
   trHover,
   type PillTone,
 } from "../_components/ui";
-import { getProjects } from "@/_actions/projects";
+import { getProjectsPage } from "@/_actions/projects";
+import type { Paged } from "@/_lib/paging";
 import { getInstallTracking, type InstallRow } from "@/_actions/install-tracking";
 import { useT } from "@/_lib/i18n";
 
 const ProjectsMap = dynamic(() => import("./ProjectsMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[560px] items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-mute)]">
+    <div className="flex h-[560px] items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-mute)]">
       <Loader2 size={22} className="animate-spin" />
     </div>
   ),
@@ -102,15 +103,16 @@ const STAGE_PILL: Record<string, PillTone> = {
 };
 
 export default function ProjectsClient({
-  initialRows,
+  initial,
   initialView = "table",
 }: {
-  initialRows: any[];
+  initial: Paged<any> | null;
   initialView?: "table" | "map";
 }) {
   const router = useRouter();
   const t = useT();
-  const [rows, setRows] = useState<any[]>(initialRows ?? []);
+  const [data, setData] = useState<Paged<any> | null>(initial);
+  const first = useRef(true);
   const [metrics, setMetrics] = useState<Map<string, InstallRow>>(new Map());
   const [loading, setLoading] = useState(false);
   const [draftQ, setDraftQ] = useState("");
@@ -121,17 +123,38 @@ export default function ProjectsClient({
   const [currentPage, setCurrentPage] = useState(1);
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "project_name", dir: "asc" });
 
+  /**
+   * One server call per interaction. The table shows a page; the board, the map
+   * and the group-by-customer view need every row, so those modes ask for a
+   * large page instead of making the table pay for them.
+   */
+  const wantsFullSet = viewMode !== "table" || groupByCustomer;
+
   const load = async () => {
     setLoading(true);
     try {
-      const res: any = await getProjects({ summary: true });
-      setRows(res?.success ? res.data || [] : Array.isArray(res) ? res : []);
-    } catch {
-      setRows([]);
+      const res = await getProjectsPage({
+        q,
+        tab: statusFilter,
+        page: wantsFullSet ? 1 : currentPage,
+        perPage: wantsFullSet ? 200 : PER_PAGE,
+        sort: sort.key,
+        dir: sort.dir,
+      });
+      if (res.success) setData(res.data);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, statusFilter, currentPage, sort, viewMode, groupByCustomer]);
 
   React.useEffect(() => {
     getInstallTracking().then((r: any) => {
@@ -144,50 +167,22 @@ export default function ProjectsClient({
     setCurrentPage(1);
   };
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: rows.length };
-    for (const key of ["open", "waiting", "closed"]) c[key] = rows.filter((r) => matchesStatus(r, key)).length;
-    return c;
-  }, [rows]);
+  // Counts, rows and paging all come from the server response.
+  const counts = data?.counts ?? { all: 0 };
+  const filtered = data?.rows ?? [];
+  const paginated = filtered;
+  const total = data?.total ?? 0;
+  const perPage = data?.perPage ?? PER_PAGE;
+  const current = data?.page ?? 1;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
 
-  const filtered = useMemo(() => {
-    const kw = q.trim().toLowerCase();
-    const list = rows.filter((r) => {
-      if (!matchesStatus(r, statusFilter)) return false;
-      if (!kw) return true;
-      return [r.project_name, r.customer_name, r.coordinator, r.sml_code, r.village_name, r.district_name, r.province_name, r.project_status]
-        .map((x) => (x ?? "").toString().toLowerCase())
-        .some((x) => x.includes(kw));
-    });
-    const dir = sort.dir === "asc" ? 1 : -1;
-    const num = (r: any, key: "wo_count" | "worked_hours") => Number(metrics.get(String(r.id))?.[key] ?? 0) || 0;
-    return [...list].sort((a, b) => {
-      if (sort.key === "wo_count" || sort.key === "worked_hours") {
-        return num(a, sort.key) > num(b, sort.key) ? dir : -dir;
-      }
-      const av =
-        sort.key === "install_started_at" ? metrics.get(String(a.id))?.install_started_at ?? "" : a[sort.key];
-      const bv =
-        sort.key === "install_started_at" ? metrics.get(String(b.id))?.install_started_at ?? "" : b[sort.key];
-      return String(av ?? "") > String(bv ?? "") ? dir : -dir;
-    });
-  }, [rows, q, statusFilter, sort, metrics]);
-
-  React.useEffect(() => {
+  const toggleSort = (key: SortKey) => {
     setCurrentPage(1);
-  }, [q, groupByCustomer, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const current = Math.min(currentPage, totalPages);
-  const paginated = useMemo(
-    () => filtered.slice((current - 1) * PER_PAGE, current * PER_PAGE),
-    [filtered, current],
-  );
-
-  const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  };
 
-  const grouped = useMemo(() => {
+  /** Group-by-customer runs over the rows the server returned for this view. */
+  const grouped = (() => {
     const groups: Record<string, any[]> = {};
     filtered.forEach((r) => {
       const cName = r.customer_name || r.sml_code || t("projects.noCustomer", "(ບໍ່ລະບຸລູກຄ້າ)");
@@ -195,7 +190,7 @@ export default function ProjectsClient({
       groups[cName].push(r);
     });
     return Object.entries(groups).map(([customerName, projects]) => ({ customerName, projects }));
-  }, [filtered, t]);
+  })();
 
   const stages = [
     { value: "all", label: t("common.all", "ທັງໝົດ") },
@@ -343,7 +338,7 @@ export default function ProjectsClient({
       />
 
       <Toolbar>
-        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
           <Search size={15} className="text-[var(--text-mute)]" />
           <input
             value={draftQ}

@@ -44,6 +44,7 @@ export const MODULES: ModuleDef[] = [
   { key: "requests", label: "ຂໍເບີກ", href: "/requests", actions: ["view", "create", "edit", "delete", "approve", "approve_substitute"] },
   { key: "finance", label: "ບັນຊີ / ງວດຈ່າຍ", href: "/finance", actions: ["view"] },
   { key: "inventory", label: "ສິນຄ້າ / ສະຕັອກ", href: "/inventory", actions: ["view"] },
+  { key: "purchase", label: "ຂໍຊື້", href: "/purchase", actions: ["view", "create", "edit", "delete"] },
   { key: "reports", label: "ລາຍງານ & ສະຖິຕິ", href: "/reports", actions: ["view"] },
   // Not a sidebar page — only grants who receives system movement notifications.
   { key: "notifications", label: "ການແຈ້ງເຕືອນ", href: "/notifications", actions: ["receive"] },

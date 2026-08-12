@@ -1,27 +1,18 @@
 /**
- * Inventory / stock browser — SERVER component.
+ * ສະຕັອກຕາມ BOQ — SERVER component.
  *
- * The initial (empty-search) inventory rows are fetched here, on the server,
- * during render and handed to the interactive client list as `initialRows`.
- * This removes the old client-side mount→useEffect→server-action→DB waterfall:
- * the data is already in the first HTML/RSC payload, so navigating to
- * /inventory no longer shows a second in-page spinner after the route JS loads.
- *
- * The client (InventoryClient) keeps its debounced search refetch — it skips
- * the seeded first render and refetches whenever the user types a search.
- *
- * `force-dynamic` keeps the list fresh per request (and avoids a build-time DB
- * hit).
+ * The list is driven by the BOQ of the projects that are still open, NOT by the
+ * ERP product catalogue: the only stock question this office has is "do we hold
+ * enough of what the live jobs still need". Search, tabs, sorting and paging all
+ * happen inside getBoqStock() on the server, so one page load carries one page
+ * of rows.
  */
-import { getInventory } from "@/_actions/lookups";
+import { getBoqStock } from "@/_actions/purchase";
 import InventoryClient from "./InventoryClient";
 
 export const dynamic = "force-dynamic";
 
-const LIMIT = 100;
-
 export default async function InventoryPage() {
-  const res: any = await getInventory({ search: "", limit: LIMIT });
-  const initialRows = res?.success ? res.data || [] : Array.isArray(res) ? res : [];
-  return <InventoryClient initialRows={initialRows} />;
+  const res = await getBoqStock({ page: 1, tab: "all", sort: "shortfall_qty", dir: "desc" });
+  return <InventoryClient initial={res.success ? res.data : null} />;
 }

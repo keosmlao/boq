@@ -5,6 +5,7 @@ import { logActivity } from "./chatter";
 import { cached, invalidate } from "@/_lib/cache";
 import { requirePermission } from "@/_lib/server-auth";
 import { dateOrNull, ensureQuotationSchema, num } from "@/_lib/schemas/quotations";
+import { byNumber, byText, byTime, paginate, type PageQuery, type Paged } from "@/_lib/paging";
 
 type Fail = { success: false; message: string };
 function fail(message: string): Fail { return { success: false, message }; }
@@ -14,6 +15,48 @@ const TTL = 10_000;
 // Quotation approval states (odg_quotation.status holds the Lao label).
 const QUOTATION_PENDING = "ລໍຖ້າອະນຸມັດ";
 const QUOTATION_REJECTED = "ປະຕິເສດ";
+
+const QUOTATION_APPROVED = "ອະນຸມັດແລ້ວ";
+
+/** Tab bucket for a quotation — anything unknown counts as awaiting approval. */
+const quotationStatusKey = (r: any) => {
+  const s = String(r?.status || QUOTATION_PENDING);
+  return s === QUOTATION_APPROVED ? QUOTATION_APPROVED : s === QUOTATION_REJECTED ? QUOTATION_REJECTED : QUOTATION_PENDING;
+};
+
+/**
+ * One page of the quotations list: searched, tab-filtered, sorted and sliced on
+ * the server so the browser receives a page instead of the whole book.
+ */
+export async function getQuotationsPage(
+  params: PageQuery & { projectId?: string } = {},
+): Promise<{ success: true; data: Paged<any> } | Fail> {
+  try {
+    const res: any = await getQuotations({ projectId: params.projectId });
+    const all: any[] = res?.success ? res.data || [] : [];
+    return {
+      success: true,
+      data: paginate(all, params, {
+        search: (r, kw) => `${r.quotation_no ?? ""} ${r.project_name ?? ""} ${r.customer_name ?? ""}`.toLowerCase().includes(kw),
+        tabs: {
+          [QUOTATION_PENDING]: (r) => quotationStatusKey(r) === QUOTATION_PENDING,
+          [QUOTATION_APPROVED]: (r) => quotationStatusKey(r) === QUOTATION_APPROVED,
+          [QUOTATION_REJECTED]: (r) => quotationStatusKey(r) === QUOTATION_REJECTED,
+        },
+        sorters: {
+          quotation_no: byText((r) => r.quotation_no),
+          customer_name: byText((r) => r.customer_name),
+          quotation_date: byTime((r) => r.quotation_date ?? r.created_at),
+          total_amount: byNumber((r) => r.total_amount),
+        },
+        defaultSort: "quotation_date",
+        defaultDir: "desc",
+      }),
+    };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
 
 export async function getQuotations(opts: { projectId?: string; status?: string; search?: string } = {}): Promise<{ success: true; data: unknown[] } | Fail> {
   try {

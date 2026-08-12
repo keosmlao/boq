@@ -55,7 +55,7 @@ export default function ScheduleClient({ initialRows }: { initialRows: any[] }) 
       />
 
       <Toolbar>
-        <label className="flex h-9 min-w-[240px] max-w-[360px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+        <label className="flex h-9 min-w-[240px] max-w-[360px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
           <Search size={15} className="text-[var(--text-mute)]" />
           <input
             value={q}
@@ -88,7 +88,7 @@ export default function ScheduleClient({ initialRows }: { initialRows: any[] }) 
                     onClick={() => g.project_id && router.push(`/projects/${g.project_id}`)}
                     className="group flex min-w-0 flex-1 items-center gap-2.5 text-left"
                   >
-                    <span className="flex h-7.5 w-7.5 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+                    <span className="flex h-7.5 w-7.5 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                       <FolderKanban size={14} />
                     </span>
                     <span className="truncate text-[14px] font-black text-[var(--text)] transition-colors group-hover:text-[var(--brand)]">

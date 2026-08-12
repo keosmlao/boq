@@ -109,7 +109,7 @@ export default function ActivityFeed({
   return (
     <div className="grid items-start gap-4 lg:grid-cols-2 xl:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
       <ActivitiesPanel entityType={entityType} entityId={id} />
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)]">
       <div className="flex items-center gap-2 border-b border-[var(--border-soft)] px-5 py-3.5">
         <MessageSquare size={16} className="text-[var(--brand)]" />
         <h2 className="text-[13px] font-black text-[var(--text)]">{titleText}</h2>
@@ -147,8 +147,8 @@ export default function ActivityFeed({
                 <span className="flex-shrink-0 text-[10.5px] text-[var(--text-mute)]">{relTime(it.created_at)}</span>
               </div>
             ) : (
-              <div key={it.id} className="group flex gap-2.5 rounded-xl px-2 py-2 transition-colors hover:bg-[var(--surface-sunken)]">
-                <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-[12px] font-black ${toneFor(it.username || it.user_name || "?")}`}>
+              <div key={it.id} className="group flex gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-[var(--surface-sunken)]">
+                <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[12px] font-black ${toneFor(it.username || it.user_name || "?")}`}>
                   {initial(it.user_name || it.username || "?")}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -186,12 +186,12 @@ export default function ActivityFeed({
           }}
           rows={1}
           placeholder={t("components.activityFeed.composerPlaceholder", "ຂຽນຂໍ້ຄວາມ... (Ctrl/⌘ + Enter ສົ່ງ)")}
-          className="max-h-28 min-h-[40px] flex-1 resize-y rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-[13px] text-[var(--text)] outline-none transition placeholder:text-[var(--text-mute)] focus:border-[var(--brand)] focus:ring-3 focus:ring-[var(--brand-ring)]"
+          className="max-h-28 min-h-[40px] flex-1 resize-y rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-[13px] text-[var(--text)] outline-none transition placeholder:text-[var(--text-mute)] focus:border-[var(--brand)] focus:ring-3 focus:ring-[var(--brand-ring)]"
         />
         <button
           onClick={submit}
           disabled={!text.trim() || sending}
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--ink)] text-[var(--ink-text)] shadow-[var(--shadow-xs)] transition hover:bg-[var(--ink-hover)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--ink)] text-[var(--ink-text)] shadow-[var(--shadow-xs)] transition hover:bg-[var(--ink-hover)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
         </button>

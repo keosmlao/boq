@@ -1,14 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Noto+Sans+Lao:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* Dark mode is driven by the theme toggle (data-theme on <html>), not the OS. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme {
-  --font-sans: 'Plus Jakarta Sans', var(--font-lao), "Noto Sans Lao", system-ui, sans-serif;
-  /* Display / numeric face — used on stats, doc numbers & the wordmark.
-     Latin-only; Lao text falls through to Noto Sans Lao. */
-  --font-display: 'Space Grotesk', 'Plus Jakarta Sans', var(--font-lao), system-ui, sans-serif;
+  /* Montserrat (Brand Guideline p.06) first, so Latin + numerals are the brand
+     face; Lao glyphs it lacks fall through to Noto Sans Lao automatically. */
+  --font-sans: var(--font-latin), var(--font-lao), "Noto Sans Lao", system-ui, sans-serif;
+  /* Display / numeric face — stats, doc numbers & the wordmark. Same family:
+     the guideline uses one typeface at Black weight for display. */
+  --font-display: var(--font-latin), var(--font-lao), system-ui, sans-serif;
 
   /* Token-driven colour utilities: bg-brand, text-ink, border-line, … */
   --color-brand:       var(--brand);
@@ -26,22 +27,39 @@
 }
 
 /* =========================================================================
-   Design tokens — Modern Minimal
+   Design tokens — ODIEN Brand Guideline (p.16 Color Pallet, p.17 Gradient)
    Light is the default. Dark overrides via [data-theme="dark"].
+
+   The guideline gives exactly five colours; every brand token below is one of
+   them or a tint of one ("Do not alter or substitute any colors outside of the
+   official palette", p.08):
+
+       Sky Blue    #4BC7EF   light accent, glows, on-navy text
+       Deep Blue   #2C6FB6   PRIMARY — buttons, links, focus, active nav
+       Navy        #003260   brand field (sidebar / login panel), commit controls
+       Orange      #F6921E   accent — create/document actions, attention
+       Warm Yellow #FFD071   soft accent, gradient midpoint
+
+   Tints are the guideline's own 20/40/60% steps (p.16), not new hues.
+
+   Status colours (success green / danger red) are deliberately NOT brand
+   colours: they encode meaning, not identity, and green-done / red-rejected is
+   the convention the warehouse and sales staff already read. Everything that
+   speaks for the brand — chrome, CTAs, navigation — is on-palette.
    ========================================================================= */
 
 :root,
 [data-theme="light"] {
   /* Surfaces — quiet neutral canvas keeps content in focus */
-  --bg:            #f6f7f9;
-  --bg-subtle:     #fafafa;
+  --bg:            #f4f6f9;
+  --bg-subtle:     #fafbfc;
   --surface:       #ffffff;
-  --surface-soft:  #f8fafc;
-  --surface-sunken:#f1f5f9;
+  --surface-soft:  #f7f9fc;
+  --surface-sunken:#f0f3f8;
 
   /* Borders */
-  --border:        #e2e8f0;
-  --border-soft:   #f1f5f9;
+  --border:        #e3e8ef;
+  --border-soft:   #eef1f6;
   --border-strong: #cbd5e1;
 
   /* Text */
@@ -50,103 +68,127 @@
   --text-mute:     #94a3b8;
   --text-inverse:  #f8fafc;
 
-  /* Brand — teal */
-  --brand:         #009b83;
-  --brand-hover:   #007f6c;
-  --brand-strong:  #006b5b;
-  --brand-soft:    #d9f5ef;
-  --brand-tint:    #effbf8;
-  --brand-ring:    rgba(0, 155, 131, 0.18);
+  /* Brand — Deep Blue #2C6FB6 (guideline primary), deepening to Navy #003260.
+     Deep Blue on white is 5.18:1 → passes WCAG AA for body text. */
+  --brand:         #2c6fb6;
+  --brand-hover:   #1e5b9a;
+  --brand-strong:  #003260;
+  --brand-soft:    #dff5fc;   /* Sky Blue 20% */
+  --brand-tint:    #f1fafe;   /* Sky Blue ~8% */
+  --brand-ring:    rgba(44, 111, 182, 0.18);
+  --brand-sky:     #4bc7ef;   /* Sky Blue — backgrounds & on-navy accents only */
+  --brand-yellow:  #ffd071;   /* Warm Yellow — gradient midpoint, soft accent */
 
-  /* Ink — the dark navy used for solid "commit" controls & active segments */
-  --ink:           #0f172a;
-  --ink-hover:     #1e293b;
+  /* Ink — Navy, the guideline's anchor: solid commit controls & active segments */
+  --ink:           #003260;
+  --ink-hover:     #0f477d;
   --ink-text:      #ffffff;
-  --ink-ring:      rgba(15, 23, 42, 0.16);
+  --ink-ring:      rgba(0, 50, 96, 0.18);
 
-  /* Go — the green used for document / primary create actions */
-  --go:            #15a05f;
-  --go-hover:      #0f8a50;
-  --go-soft:       #e7f7ee;
+  /* Go — Orange, the guideline's energy accent: create / document actions */
+  --go:            #f6921e;
+  --go-hover:      #d17c1a;
+  --go-soft:       #fef6ed;
 
-  /* Semantic */
+  /* Semantic — status, not identity (see the note above) */
   --success:       #059669;
   --success-soft:  #ecfdf5;
-  --warning:       #d97706;
-  --warning-soft:  #fffbeb;
+  /* Warm Yellow is too light for text; this is its AA-safe dark step. */
+  --warning:       #9f5f14;
+  --warning-soft:  #fdebd7;
   --danger:        #e11d48;
   --danger-soft:   #fff1f2;
-  --info:          #0284c7;
-  --info-soft:     #f0f9ff;
+  --info:          #2c6fb6;
+  --info-soft:     #dff5fc;
 
-  /* Elevation */
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
-  --shadow-sm: 0 2px 5px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03);
-  --shadow-md: 0 8px 20px rgba(15, 23, 42, 0.05), 0 2px 6px rgba(15, 23, 42, 0.03);
-  --shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.03);
+  /* Elevation — flat, corporate */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.08);
 
-  /* Radius */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  /* Radius — classic, slightly square */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  /* Shell-specific — light pastel sidebar */
-  --sidebar-bg:    #050b1d;
-  --topbar-bg:     rgba(255, 255, 255, 0.85);
-  --selection-bg:  rgba(59, 130, 246, 0.16);
+  /* Shell — the brand field: Navy #003260, the guideline's anchor colour. The
+     login panel, the sidebar and the dashboard hero are all this one surface. */
+  --sidebar-bg:       #003260;
+  --sidebar-fg:       rgba(255, 255, 255, 0.74);
+  --sidebar-fg-soft:  rgba(255, 255, 255, 0.48);
+  --sidebar-border:   rgba(255, 255, 255, 0.10);
+  --sidebar-hover:    rgba(255, 255, 255, 0.08);
+  --sidebar-active:   rgba(75, 199, 239, 0.20);
+  /* Sky Blue — the guideline's own light step; Deep Blue is unreadable on Navy. */
+  --sidebar-accent:   #4bc7ef;
+  --topbar-bg:        rgba(255, 255, 255, 0.9);
+  --selection-bg:     rgba(75, 199, 239, 0.26);
 }
 
 [data-theme="dark"] {
-  --bg:            #090d16;
+  --bg:            #0b1120;
   --bg-subtle:     #0f172a;
-  --surface:       #1e293b;
-  --surface-soft:  #334155;
-  --surface-sunken:#0f172a;
+  --surface:       #1a2434;
+  --surface-soft:  #232f42;
+  --surface-sunken:#131c2e;
 
-  --border:        #334155;
-  --border-soft:   #1e293b;
-  --border-strong: #475569;
+  --border:        #2c3a4f;
+  --border-soft:   #223049;
+  --border-strong: #3b4a63;
 
   --text:          #f8fafc;
   --text-soft:     #cbd5e1;
   --text-mute:     #64748b;
-  --text-inverse:  #090d16;
+  --text-inverse:  #0b1120;
 
-  --brand:         #2dd4bf;
-  --brand-hover:   #14b8a6;
-  --brand-strong:  #5eead4;
-  --brand-soft:    rgba(45, 212, 191, 0.16);
-  --brand-tint:    rgba(45, 212, 191, 0.08);
-  --brand-ring:    rgba(45, 212, 191, 0.28);
+  /* Deep Blue is too dark on a dark canvas — the palette steps up to Sky Blue,
+     which is the guideline's own lighter member of the same ramp. */
+  --brand:         #4bc7ef;
+  --brand-hover:   #93ddf5;
+  --brand-strong:  #93ddf5;
+  --brand-soft:    rgba(75, 199, 239, 0.16);
+  --brand-tint:    rgba(75, 199, 239, 0.08);
+  --brand-ring:    rgba(75, 199, 239, 0.28);
+  --brand-sky:     #4bc7ef;
+  --brand-yellow:  #ffd071;
 
   /* On dark the "ink" control inverts to a light slab so it still reads as solid. */
   --ink:           #e2e8f0;
   --ink-hover:     #cbd5e1;
-  --ink-text:      #0f172a;
+  --ink-text:      #003260;
   --ink-ring:      rgba(226, 232, 240, 0.22);
 
-  --go:            #22c55e;
-  --go-hover:      #16a34a;
-  --go-soft:       rgba(34, 197, 94, 0.14);
+  /* Orange lifted one step (Warm Yellow side) so it holds up on the dark canvas. */
+  --go:            #fbb148;
+  --go-hover:      #ffd071;
+  --go-soft:       rgba(246, 146, 30, 0.16);
 
   --success:       #34d399;
   --success-soft:  rgba(52, 211, 153, 0.12);
-  --warning:       #fbbf24;
-  --warning-soft:  rgba(251, 191, 36, 0.12);
+  --warning:       #ffd071;
+  --warning-soft:  rgba(255, 208, 113, 0.14);
   --danger:        #fb7185;
   --danger-soft:   rgba(251, 113, 133, 0.12);
-  --info:          #38bdf8;
-  --info-soft:     rgba(56, 189, 248, 0.12);
+  --info:          #4bc7ef;
+  --info-soft:     rgba(75, 199, 239, 0.14);
 
-  --shadow-xs: 0 1px 2px rgba(0,0,0,0.5);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.4);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.7), 0 4px 8px rgba(0,0,0,0.5);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 28px rgba(0,0,0,0.55), 0 4px 8px rgba(0,0,0,0.4);
 
-  --sidebar-bg:    #050b1d;
-  --topbar-bg:     rgba(9, 13, 22, 0.85);
-  --selection-bg:  rgba(129, 140, 248, 0.2);
+  /* Navy, one step deeper so the brand field still separates from a dark canvas. */
+  --sidebar-bg:       #00223f;
+  --sidebar-fg:       rgba(255, 255, 255, 0.72);
+  --sidebar-fg-soft:  rgba(255, 255, 255, 0.45);
+  --sidebar-border:   rgba(255, 255, 255, 0.08);
+  --sidebar-hover:    rgba(255, 255, 255, 0.07);
+  --sidebar-active:   rgba(75, 199, 239, 0.18);
+  --sidebar-accent:   #4bc7ef;
+  --topbar-bg:     rgba(11, 17, 32, 0.85);
+  --selection-bg:  rgba(75, 199, 239, 0.22);
 }
 
 /* =========================================================================
@@ -203,9 +245,21 @@ html[data-theme="dark"] {
   color-scheme: dark;
 }
 
+/* One stack for the whole app. Order matters: Montserrat (Brand Guideline p.06)
+   carries Latin + numerals, and every Lao glyph it lacks falls through to Noto
+   Sans Lao. Listing the Lao face first would swallow Latin too — Noto Sans Lao
+   ships Latin glyphs — and the brand face would never appear.
+   Form controls do NOT inherit font-family, so they are named explicitly. */
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-latin), var(--font-lao), "Noto Sans Lao", system-ui, sans-serif;
+}
+
 body {
-  font-family: var(--font-lao), "Noto Sans Lao", 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   min-height: 100vh;
   background: var(--bg);
@@ -279,19 +333,19 @@ body {
 /* Typography */
 .theme-section-title {
   color: var(--text);
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 .theme-section-copy {
   color: var(--text-soft);
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
 }
 
 .theme-kicker {
   color: var(--text-mute);
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -317,7 +371,7 @@ body {
 
 .theme-stat-label {
   color: var(--text-mute);
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -325,7 +379,7 @@ body {
 
 .theme-stat-value {
   color: var(--text);
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -346,7 +400,7 @@ body {
 .theme-table-head th {
   border-bottom: 1px solid var(--border);
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   letter-spacing: 0.02em;
   text-transform: none;
   padding: 10px 14px;
@@ -647,53 +701,45 @@ body {
 
 /* Premium Utilities */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: var(--surface);
+  border: 1px solid var(--border);
 }
 
 [data-theme="dark"] .glass-panel {
-  background: rgba(18, 19, 26, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(51, 65, 85, 0.5);
+  background: var(--surface);
+  border: 1px solid var(--border);
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(241, 245, 249, 0.9);
+  background: var(--surface);
+  border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .glass-card:hover {
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--surface);
   box-shadow: var(--shadow-md);
-  border-color: rgba(59, 130, 246, 0.22);
-  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
 }
 
 [data-theme="dark"] .glass-card {
-  background: rgba(30, 41, 59, 0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(51, 65, 85, 0.4);
+  background: var(--surface);
+  border: 1px solid var(--border);
 }
 
 [data-theme="dark"] .glass-card:hover {
-  background: rgba(30, 41, 59, 0.75);
-  border-color: rgba(96, 165, 250, 0.32);
+  background: var(--surface);
+  border-color: var(--border-strong);
 }
 
 .premium-gradient {
-  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 52%, #60a5fa 100%);
+  background: var(--brand);
 }
 
 .premium-gradient-hover:hover {
-  background: linear-gradient(135deg, #1e40af 0%, #2563eb 52%, #3b82f6 100%);
+  background: var(--brand-hover);
 }
 
 .premium-border-glow {
@@ -706,7 +752,7 @@ body {
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(to bottom right, rgba(59, 130, 246, 0.35), rgba(96, 165, 250, 0.06));
+  background: linear-gradient(to bottom right, rgba(0, 155, 131, 0.35), rgba(0, 155, 131, 0.06));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -715,7 +761,7 @@ body {
 }
 
 .premium-border-glow:hover::after {
-  background: linear-gradient(to bottom right, rgba(59, 130, 246, 0.6), rgba(96, 165, 250, 0.2));
+  background: linear-gradient(to bottom right, rgba(0, 155, 131, 0.6), rgba(0, 155, 131, 0.2));
 }
 
 .hover-glow {
@@ -723,7 +769,7 @@ body {
 }
 
 .hover-glow:hover {
-  box-shadow: 0 0 22px rgba(59, 130, 246, 0.16);
+  box-shadow: 0 0 22px rgba(0, 155, 131, 0.14);
   transform: scale(1.01);
 }
 
@@ -736,44 +782,59 @@ body {
   color: var(--text-soft);
 }
 
-/* One compact type scale across old and new screens. */
+/* One readable type scale across old and new screens. */
 .system-content :is(.text-\[8px\], .text-\[8\.5px\], .text-\[9px\], .text-\[9\.5px\]) {
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.4;
 }
 
 .system-content :is(.text-\[10px\], .text-\[10\.5px\]) {
-  font-size: 9.5px;
+  font-size: 11.5px;
   line-height: 1.4;
 }
 
 .system-content :is(.text-\[11px\], .text-\[11\.5px\]) {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
 .system-content :is(.text-\[12px\], .text-\[12\.5px\]) {
-  font-size: 10.5px;
+  font-size: 12.5px;
   line-height: 1.45;
 }
 
 .system-content :is(.text-\[13px\], .text-\[13\.5px\]) {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
-.system-content :is(.text-sm, .text-base) {
-  font-size: 11.5px;
+.system-content .text-xs {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.system-content .text-sm {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.system-content .text-base {
+  font-size: 16px;
   line-height: 1.5;
 }
 
 .system-content :is(.text-lg) {
-  font-size: 13px;
+  font-size: 18px;
   line-height: 1.35;
 }
 
-.system-content :is(.text-xl, .text-2xl) {
-  font-size: 15px;
+.system-content .text-xl {
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.system-content .text-2xl {
+  font-size: 24px;
   line-height: 1.25;
 }
 
@@ -821,7 +882,7 @@ body {
 }
 
 .system-content table {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-soft);
 }
 
@@ -838,12 +899,12 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Map legacy blue accents to the teal reference palette. */
+/* Map legacy hard-coded blue accents onto the brand tokens. */
 .system-content .bg-blue-600 { background-color: var(--brand); }
 .system-content .hover\:bg-blue-700:hover { background-color: var(--brand-hover); }
 .system-content :is(.text-blue-600, .text-blue-700) { color: var(--brand-strong); }
 .system-content :is(.bg-blue-50, .bg-blue-50\/40, .bg-blue-50\/60) { background-color: var(--brand-tint); }
-.system-content :is(.border-blue-100, .border-blue-200, .border-blue-300) { border-color: #b7e8de; }
+.system-content :is(.border-blue-100, .border-blue-200, .border-blue-300) { border-color: var(--brand-soft); }
 .system-content [class*="bg-gradient-to-"] {
   background-image: none;
   background-color: var(--brand);
@@ -861,16 +922,16 @@ body {
 }
 
 /* =========================================================================
-   Bold identity helpers — ODG "Tangerine on Ink"
+   Identity helpers — ODIEN "Sky on Navy" (Brand Guideline p.16)
    ========================================================================= */
 
-/* Short accent rule under section/page titles. */
+/* Short accent rule under section/page titles — solid brand bar. */
 .accent-rule {
   display: block;
   height: 3px;
   width: 2.25rem;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--brand), #60a5fa);
+  border-radius: 2px;
+  background: var(--brand);
 }
 
 /* Numeric / wordmark face. */
@@ -880,20 +941,17 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Solid ink panel (headers, hero) with a faint warm grain. */
+/* Brand field (headers, hero): Navy lit by Sky Blue — guideline gradient p.17. */
 .ink-panel {
   background:
-    radial-gradient(120% 140% at 100% 0%, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0) 45%),
-    linear-gradient(135deg, #15151f 0%, #0b0b12 60%, #0b0b12 100%);
+    radial-gradient(120% 140% at 100% 0%, rgba(75, 199, 239, 0.22) 0%, rgba(75, 199, 239, 0) 45%),
+    linear-gradient(135deg, #003260 0%, #00284d 60%, #00223f 100%);
   color: #fff;
 }
 
-/* Hot brand gradient text (use sparingly — numerals/short labels). */
+/* Brand-coloured emphasis text (use sparingly — numerals/short labels). */
 .brand-gradient-text {
-  background: linear-gradient(92deg, #2563eb, #60a5fa);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--brand-strong);
 }
 
 /* =========================================================================

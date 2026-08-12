@@ -2,11 +2,24 @@
 
 import { query, withTransaction } from "@/_lib/db";
 import { logActivity } from "./chatter";
-import { invalidate } from "@/_lib/cache";
+import { cached, invalidate } from "@/_lib/cache";
+import { byNumber, byText, byTime, paginate, type PageQuery, type Paged } from "@/_lib/paging";
+import { getSmlUnits } from "@/_lib/sml-units";
+
+/** How long a merged request list may be reused before it is rebuilt. */
+const REQUEST_LIST_TTL = 60 * 1000;
 import { ensureRequestSchema } from "@/_lib/schemas/request";
 import { requirePermission } from "@/_lib/server-auth";
 import { getProjectMaterials } from "@/_actions/boq-v2";
 import { setMaterialRequestStatusAs } from "@/_lib/workorder-core";
+import {
+  IC_TRANS_BRANCH_CODE,
+  IC_TRANS_REQUEST_FLAG,
+  IC_TRANS_REQUEST_TYPE,
+  erpWithdrawalDocMap,
+  erpWithdrawalDocNos,
+  erpWithdrawnRequestNos,
+} from "@/_lib/erp-requests";
 import {
   getRequests as getLegacyRequests,
   deleteRequest as deleteLegacyRequest,
@@ -28,12 +41,8 @@ const isV2Id = (id: unknown) => /^\d+$/.test(String(id));
 const REQUEST_STATUSES = new Set(["requested", "withdrawn", "rejected"]);
 
 // Material request (ໃບຂໍເບີກ) — ERP/SML convention, matching the legacy flow so
-// SML picks up v2 requests in ic_trans alongside the old ones.
-const IC_TRANS_REQUEST_TYPE = 3;
-const IC_TRANS_REQUEST_FLAG = 122;
-// SML shows a blank branch unless branch_code is set; ic_warehouse.branch_code is
-// mostly null so it cannot be derived from the warehouse — the head office is "00".
-const IC_TRANS_BRANCH_CODE = "00";
+// SML picks up v2 requests in ic_trans alongside the old ones. Shared with the
+// BOQ drawdown via @/_lib/erp-requests.
 
 /** Resolve the ERP customer code (sml_code) for a project — used as ic_trans.cust_code. */
 async function projectCustCode(projectId: string): Promise<string> {
@@ -94,6 +103,132 @@ async function mirrorRequestToSml(client: any, opts: {
       ],
     );
   }
+}
+
+/**
+ * The ERP-served lookup (erpWithdrawnRequestNos), plus a write-back of that truth
+ * into odg_request.status so the list, the BOQ drawdown and the print view all
+ * agree without each re-deriving it. Without this the web status only ever moved
+ * when somebody pressed ໝາຍວ່າເບີກແລ້ວ by hand, so a request already issued in
+ * SML stayed ຮ້ອງຂໍ. Guarded on status = 'requested', so a rejected row is never
+ * resurrected.
+ * This deliberately skips the substitute-approval gate in setRequestStatus: the
+ * material has physically left the warehouse, we are recording it, not approving it.
+ *
+ * Only `linked` (a real doc_ref / doc_success link) is written back — a request
+ * merely named in a remark still reads ເບີກແລ້ວ, but is re-derived on every load
+ * instead of being frozen into the column.
+ */
+async function syncWithdrawnFromErp(requestNos: unknown[], opts: { deep?: boolean } = {}): Promise<Set<string>> {
+  const { all, linked } = await erpWithdrawnRequestNos(requestNos, opts);
+  if (linked.size) {
+    try {
+      const r = await query(
+        `UPDATE odg_request SET status = 'withdrawn', updated_at = now()
+          WHERE request_no = ANY($1::text[]) AND status = 'requested'`,
+        [[...linked]],
+      );
+      if (r.rowCount) invalidate("req:");
+    } catch {
+      /* write-back is best effort — the derived status below still shows through */
+    }
+  }
+  return all;
+}
+
+/**
+ * Withdrawal slips (ໃບເບີກ) the warehouse raised against a request doc_no.
+ * Which documents those are is resolved by erpWithdrawalDocNos (doc_ref on the
+ * header or the lines, or a remark naming the request); line detail is read from
+ * odg_withdraw_info (resolved names) and falls back to raw ic_trans_detail.
+ */
+async function loadWithdrawals(docNo: string): Promise<any[]> {
+  const withdrawals: any[] = [];
+  if (!docNo) return withdrawals;
+  const slipNos = await erpWithdrawalDocNos(docNo);
+  if (!slipNos.length) return withdrawals;
+  try {
+    const wt = await query(
+      `SELECT doc_no, doc_date, doc_time, remark FROM ic_trans
+        WHERE doc_no = ANY($1::text[]) ORDER BY doc_date, doc_time`,
+      [slipNos],
+    );
+    for (const w of wt.rows as any[]) {
+      let info: any[] = [];
+      try {
+        info = (
+          await query(
+            `SELECT item_code, item_name, unit_code, qty, wh_name, shelf_name, createuser FROM odg_withdraw_info WHERE doc_no = $1`,
+            [w.doc_no],
+          )
+        ).rows as any[];
+      } catch {
+        /* ignore */
+      }
+      if (!info.length) {
+        try {
+          info = (
+            await query(
+              `SELECT item_code, item_name, unit_code, qty, wh_code AS wh_name, shelf_code AS shelf_name, NULL AS createuser FROM ic_trans_detail WHERE doc_no = $1 ORDER BY line_number NULLS LAST, roworder`,
+              [w.doc_no],
+            )
+          ).rows as any[];
+        } catch {
+          /* ignore */
+        }
+      }
+      const uniq = (k: string) => [...new Set(info.map((x) => x[k]).filter(Boolean))];
+      withdrawals.push({
+        doc_no: w.doc_no,
+        doc_date: w.doc_date,
+        doc_time: w.doc_time,
+        remark: w.remark,
+        withdrawerCodes: uniq("createuser"),
+        wh_name: uniq("wh_name").join(", "),
+        shelf_name: uniq("shelf_name").join(", "),
+        items: info,
+      });
+    }
+  } catch {
+    /* ic_trans not reachable */
+  }
+  return withdrawals;
+}
+
+/**
+ * Resolve employee codes -> names (odg_employee.employee_code -> fullname_lo),
+ * filling each slip's `withdrawer`. Returns the map so the caller can resolve
+ * its own extra codes (e.g. the request creator) from the same round-trip.
+ */
+async function attachWithdrawerNames(withdrawals: any[], extraCodes: unknown[] = []): Promise<Record<string, string>> {
+  const empMap: Record<string, string> = {};
+  try {
+    const codes = [
+      ...new Set([...withdrawals.flatMap((w) => w.withdrawerCodes || []), ...extraCodes].filter(Boolean).map(String)),
+    ];
+    if (codes.length) {
+      const e = await query(`SELECT employee_code, fullname_lo FROM odg_employee WHERE employee_code = ANY($1::text[])`, [codes]);
+      for (const row of e.rows as any[]) empMap[String(row.employee_code)] = row.fullname_lo;
+    }
+  } catch {
+    /* odg_employee not reachable */
+  }
+  for (const w of withdrawals) {
+    w.withdrawer = (w.withdrawerCodes || []).map((c: string) => empMap[String(c)] || c).join(", ");
+  }
+  return empMap;
+}
+
+/** Total issued qty per item_code across a request's withdrawal slips. */
+function withdrawnByItemCode(withdrawals: any[]): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const withdrawal of withdrawals) {
+    for (const item of Array.isArray(withdrawal.items) ? withdrawal.items : []) {
+      const code = String(item.item_code || "").trim();
+      if (code) totals.set(code, (totals.get(code) || 0) + num(item.qty));
+    }
+  }
+  return totals;
 }
 
 async function validateLocationStock(items: any[]): Promise<string | null> {
@@ -186,30 +321,28 @@ export async function getRequests(opts: { projectId?: string } = {}): Promise<{ 
       : await query(`SELECT * FROM odg_request ORDER BY created_at DESC LIMIT 500`);
     const rows: any[] = r.rows.map((x: any) => ({ ...x, src: "v2" }));
 
+    // A v2 request the warehouse already issued in SML must read ເບີກແລ້ວ even
+    // if nobody closed it out on the web (syncWithdrawnFromErp also persists it).
+    // Only the still-open ones need checking, and only via the indexed probes —
+    // the remark scan is left to the request page (deep).
+    const erpWithdrawn = await syncWithdrawnFromErp(
+      rows.filter((x) => x.status === "requested").map((x) => x.request_no),
+    );
+    for (const row of rows) {
+      if (row.status === "requested" && erpWithdrawn.has(String(row.request_no || ""))) row.status = "withdrawn";
+    }
+
     // Merge legacy requests (odg_requests). "ເບີກແລ້ວ" = there is an ic_trans
     // withdrawal document referencing the request doc_no (ic_trans.doc_ref).
     try {
       const legacy: any[] = (await getLegacyRequests({ projectId: opts.projectId })) as any[];
-      const docNos = (legacy || []).map((r) => r.doc_no).filter(Boolean);
-      let withdrawn = new Set<string>();
-      if (docNos.length) {
-        try {
-          const wt = await query(
-            `SELECT DISTINCT doc_ref FROM ic_trans WHERE doc_ref = ANY($1::text[]) AND COALESCE(is_cancel,0) = 0`,
-            [docNos],
-          );
-          withdrawn = new Set((wt.rows as any[]).map((x) => String(x.doc_ref)));
-        } catch {
-          /* ic_trans not reachable — fall back to no-withdrawn */
-        }
-      }
       for (const lr of legacy || []) {
         rows.push({
           id: lr.doc_no,
           request_no: lr.doc_no,
           project_id: lr.project_id != null ? String(lr.project_id) : "",
           project_name: lr.project_name || null,
-          status: withdrawn.has(String(lr.doc_no)) ? "withdrawn" : "requested",
+          status: "requested", // resolved from ic_trans below, together with the v2 rows
           items: (Array.isArray(lr.list) ? lr.list : []).map((x: any) => ({
             item_code: x.item_code,
             description: x.item_name,
@@ -222,6 +355,16 @@ export async function getRequests(opts: { projectId?: string } = {}): Promise<{ 
       }
     } catch {
       /* legacy requests table/cols differ — v2 still returned */
+    }
+
+    // The warehouse slips behind every request (v2 + legacy) in one lookup, so
+    // a row that reads ເບີກແລ້ວ can show WHICH ໃບເບີກ closed it without opening it.
+    const slips = await erpWithdrawalDocMap(rows.filter((x) => x.src !== "app").map((x) => x.request_no));
+    for (const row of rows) {
+      if (row.src === "app") continue;
+      const docs = slips.get(String(row.request_no || "")) || [];
+      row.withdraw_docs = docs;
+      if (docs.length && row.status === "requested") row.status = "withdrawn";
     }
 
     // Mobile app requests (odg_wo_material_request) — raised by craftsmen in the
@@ -263,10 +406,17 @@ export async function getRequests(opts: { projectId?: string } = {}): Promise<{ 
     // App requests the head craftsman has APPROVED (awaiting pull) float to the
     // very top so admin sees what to issue; everything else by newest date.
     const awaitingPull = (r: any) => (r.src === "app" && r.app_status === "approved" ? 0 : 1);
+    // Compare as timestamps: created_at is a Date for v2/app rows but a string
+    // for legacy ERP rows, and String(Date) sorts alphabetically ("Wed Jun…"),
+    // which buried the newest requests in the middle of the list.
+    const at = (v: unknown) => {
+      const ms = new Date(v as any).getTime();
+      return Number.isFinite(ms) ? ms : 0;
+    };
     rows.sort((a, b) => {
       const ap = awaitingPull(a), bp = awaitingPull(b);
       if (ap !== bp) return ap - bp;
-      return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+      return at(b.created_at) - at(a.created_at);
     });
     return { success: true, data: rows };
   } catch (e) {
@@ -381,6 +531,55 @@ export async function updateAppRequest(
   }
 }
 
+/**
+ * One page of the ຂໍເບີກ list. The row set is merged from three sources
+ * (v2 + legacy ERP + mobile app) so it cannot be paged in SQL — instead it is
+ * built once, cached for a minute, then searched/filtered/sorted/sliced HERE.
+ * The browser receives 25 rows, not the whole book.
+ */
+export async function getRequestsPage(
+  params: PageQuery & { projectId?: string } = {},
+): Promise<{ success: true; data: Paged<any> } | Fail> {
+  try {
+    const key = `req:list:${params.projectId || "all"}`;
+    const all = await cached(key, REQUEST_LIST_TTL, async () => {
+      const res = await getRequests({ projectId: params.projectId });
+      return res.success ? res.data : [];
+    });
+
+    const stageOf = (r: any) => {
+      if (r.src === "app" && r.app_status === "approved") return "awaiting_pull";
+      if (r.src === "app" && r.app_status === "pending") return "awaiting_head";
+      const s = String(r.status || "requested");
+      return s === "withdrawn" ? "withdrawn" : s === "rejected" ? "rejected" : "requested";
+    };
+
+    return {
+      success: true,
+      data: paginate(all, params, {
+        search: (r, kw) => `${r.request_no ?? ""} ${r.project_name ?? ""} ${r.requester ?? ""}`.toLowerCase().includes(kw),
+        tabs: {
+          awaiting_pull: (r) => stageOf(r) === "awaiting_pull",
+          awaiting_head: (r) => stageOf(r) === "awaiting_head",
+          requested: (r) => stageOf(r) === "requested",
+          withdrawn: (r) => stageOf(r) === "withdrawn",
+          rejected: (r) => stageOf(r) === "rejected",
+        },
+        sorters: {
+          request_no: byText((r) => r.request_no),
+          project_name: byText((r) => r.project_name),
+          created_at: byTime((r) => r.created_at),
+          items: byNumber((r) => (Array.isArray(r.items) ? r.items.length : 0)),
+        },
+        defaultSort: "created_at",
+        defaultDir: "desc",
+      }),
+    };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
 export async function getRequestDetail(id: string): Promise<{ success: true; data: any } | Fail> {
   try {
     await ensureRequestSchema();
@@ -452,20 +651,42 @@ export async function getRequestDetail(id: string): Promise<{ success: true; dat
       const r = await query(`SELECT * FROM odg_request WHERE id = $1 LIMIT 1`, [sid]);
       if (r.rows.length) {
         const x: any = r.rows[0];
-        const isWithdrawn = String(x.status) === "withdrawn";
+        const requestNo = String(x.request_no || "");
+        // The warehouse issues against the SML mirror of this request, so the
+        // real ເບີກແລ້ວ state lives in ic_trans — read it back (and persist it)
+        // instead of trusting the web-only status column on its own.
+        const erpWithdrawn =
+          String(x.status) === "requested" ? await syncWithdrawnFromErp([requestNo], { deep: true }) : new Set<string>();
+        const withdrawals = await loadWithdrawals(requestNo);
+        await attachWithdrawerNames(withdrawals);
+        const remaining = withdrawnByItemCode(withdrawals);
+        // No slip lines to apportion (doc_success flipped, or marked on the web):
+        // treat every line as fully issued, as the app request path already does.
+        // With slips present the real per-item quantities win over both.
+        const fullyIssued = !withdrawals.length && (String(x.status) === "withdrawn" || erpWithdrawn.has(requestNo));
+        const items = (Array.isArray(x.items) ? x.items : []).map((item: any) => {
+          const requestedQty = num(item.qty);
+          const code = String(item.item_code || "").trim();
+          const withdrawnQty = fullyIssued
+            ? requestedQty
+            : Math.min(requestedQty, remaining.get(code) || 0);
+          if (!fullyIssued && code) remaining.set(code, Math.max((remaining.get(code) || 0) - withdrawnQty, 0));
+          return {
+            ...item,
+            withdrawn_qty: withdrawnQty,
+            item_status: withdrawnQty >= requestedQty && requestedQty > 0 ? "withdrawn" : withdrawnQty > 0 ? "partial" : "requested",
+            substituted: isSubstituteLine(item),
+          };
+        });
+        const status =
+          String(x.status) === "rejected"
+            ? "rejected"
+            : String(x.status) === "withdrawn" || erpWithdrawn.has(requestNo) || withdrawals.length
+              ? "withdrawn"
+              : "requested";
         return {
           success: true,
-          data: {
-            ...x,
-            items: (Array.isArray(x.items) ? x.items : []).map((item: any) => ({
-              ...item,
-              withdrawn_qty: isWithdrawn ? num(item.qty) : 0,
-              item_status: isWithdrawn ? "withdrawn" : "requested",
-              substituted: isSubstituteLine(item),
-            })),
-            withdrawals: [],
-            src: "v2",
-          },
+          data: { ...x, status, items, withdrawals, src: "v2" },
         };
       }
     }
@@ -487,78 +708,10 @@ export async function getRequestDetail(id: string): Promise<{ success: true; dat
       [sid],
     );
 
-    const withdrawals: any[] = [];
-    try {
-      const wt = await query(
-        `SELECT doc_no, doc_date, doc_time, remark FROM ic_trans WHERE doc_ref = $1 AND COALESCE(is_cancel,0) = 0 ORDER BY doc_date, doc_time`,
-        [sid],
-      );
-      for (const w of wt.rows as any[]) {
-        // Resolved names (warehouse, shelf, withdrawer) from odg_withdraw_info.
-        let info: any[] = [];
-        try {
-          info = (
-            await query(
-              `SELECT item_code, item_name, unit_code, qty, wh_name, shelf_name, createuser FROM odg_withdraw_info WHERE doc_no = $1`,
-              [w.doc_no],
-            )
-          ).rows as any[];
-        } catch {
-          /* ignore */
-        }
-        if (!info.length) {
-          try {
-            info = (
-              await query(
-                `SELECT item_code, item_name, unit_code, qty, wh_code AS wh_name, shelf_code AS shelf_name, NULL AS createuser FROM ic_trans_detail WHERE doc_no = $1 ORDER BY line_number NULLS LAST, roworder`,
-                [w.doc_no],
-              )
-            ).rows as any[];
-          } catch {
-            /* ignore */
-          }
-        }
-        const uniq = (k: string) => [...new Set(info.map((x) => x[k]).filter(Boolean))];
-        withdrawals.push({
-          doc_no: w.doc_no,
-          doc_date: w.doc_date,
-          doc_time: w.doc_time,
-          remark: w.remark,
-          withdrawerCodes: uniq("createuser"),
-          wh_name: uniq("wh_name").join(", "),
-          shelf_name: uniq("shelf_name").join(", "),
-          items: info,
-        });
-      }
-    } catch {
-      /* ic_trans not reachable */
-    }
-
-    // Resolve employee codes -> names (odg_employee.employee_code -> fullname_lo).
-    const empMap: Record<string, string> = {};
-    try {
-      const codes = [
-        ...new Set([...withdrawals.flatMap((w) => w.withdrawerCodes || []), head.creator_code].filter(Boolean).map(String)),
-      ];
-      if (codes.length) {
-        const e = await query(`SELECT employee_code, fullname_lo FROM odg_employee WHERE employee_code = ANY($1::text[])`, [codes]);
-        for (const row of e.rows as any[]) empMap[String(row.employee_code)] = row.fullname_lo;
-      }
-    } catch {
-      /* odg_employee not reachable */
-    }
-    for (const w of withdrawals) {
-      w.withdrawer = (w.withdrawerCodes || []).map((c: string) => empMap[String(c)] || c).join(", ");
-    }
+    const withdrawals = await loadWithdrawals(sid);
+    const empMap = await attachWithdrawerNames(withdrawals, [head.creator_code]);
     const requesterName = empMap[String(head.creator_code)] || head.requester_name || head.creator_code || null;
-    const withdrawnByItem = new Map<string, number>();
-    for (const withdrawal of withdrawals) {
-      for (const item of Array.isArray(withdrawal.items) ? withdrawal.items : []) {
-        const code = String(item.item_code || "").trim();
-        if (code) withdrawnByItem.set(code, (withdrawnByItem.get(code) || 0) + num(item.qty));
-      }
-    }
-    const remainingWithdrawnByItem = new Map(withdrawnByItem);
+    const remainingWithdrawnByItem = withdrawnByItemCode(withdrawals);
     const requestItems = (det.rows as any[]).map((x) => {
       const requestedQty = num(x.qty);
       const code = String(x.item_code || "").trim();
@@ -611,8 +764,16 @@ export async function createRequest(body: any): Promise<{ success: true; data: a
     await requirePermission("requests", "create");
     await ensureRequestSchema();
     if (!body?.project_id) return fail("project_id is required");
-    const items = (Array.isArray(body.items) ? body.items : []).filter((it: any) => num(it.qty) > 0);
-    if (!items.length) return fail("ກະລຸນາໃສ່ລາຍການທີ່ຕ້ອງເບີກ");
+    const rawItems = (Array.isArray(body.items) ? body.items : []).filter((it: any) => num(it.qty) > 0);
+    if (!rawItems.length) return fail("ກະລຸນາໃສ່ລາຍການທີ່ຕ້ອງເບີກ");
+    // SML's item master owns the unit. Stamping it at save time keeps the
+    // document, the SML mirror and the stock balance on one scale — a BOQ line
+    // typed in a different unit no longer propagates into the warehouse.
+    const smlUnits = await getSmlUnits(rawItems.map((it: any) => String(it.item_code || "")));
+    const items = rawItems.map((it: any) => {
+      const master = smlUnits.get(String(it.item_code || "").trim());
+      return master ? { ...it, unit: master } : it;
+    });
     const boqError = await validateBoqAvailability(String(body.project_id), items);
     if (boqError) return fail(boqError);
     const stockError = await validateLocationStock(items);
@@ -622,13 +783,18 @@ export async function createRequest(body: any): Promise<{ success: true; data: a
     const reqNo = body.request_no || `RQ-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
     const hasSub = items.some(isSubstituteLine);
     const custCode = await projectCustCode(String(body.project_id));
-    const docDate = d.toISOString().slice(0, 10);
+    // The form decides the issue date (defaulting to today); SML and the
+    // requisition row must carry the SAME date or the two drift apart.
+    const docDate = /^\d{4}-\d{2}-\d{2}$/.test(String(body.doc_date || ""))
+      ? String(body.doc_date)
+      : d.toISOString().slice(0, 10);
     let created: any = null;
     await withTransaction(async (client: any) => {
       const r = await client.query(
-        `INSERT INTO odg_request (request_no, project_id, project_name, status, items, notes, requester, used_by_code, used_by_name)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-        [reqNo, String(body.project_id), body.project_name || null, body.status || "requested", JSON.stringify(items), body.notes || null, body.requester || null, body.used_by_code || null, body.used_by_name || null],
+        `INSERT INTO odg_request (request_no, project_id, project_name, status, items, notes, requester, used_by_code, used_by_name, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, COALESCE($10::date + (now() - date_trunc('day', now())), now()))
+         RETURNING *`,
+        [reqNo, String(body.project_id), body.project_name || null, body.status || "requested", JSON.stringify(items), body.notes || null, body.requester || null, body.used_by_code || null, body.used_by_name || null, docDate],
       );
       created = r.rows[0];
       // Push to SML now unless it needs substitution approval first.

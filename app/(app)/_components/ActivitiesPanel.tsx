@@ -181,12 +181,12 @@ export default function ActivitiesPanel({ entityType, entityId }: { entityType: 
             const dm = dueMeta(a.due_date);
             return (
               <div key={a.id} className="group flex items-start gap-3 border-b border-[var(--border-soft)] px-4 py-3 last:border-b-0">
-                <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl ${tm.tone}`}>{tm.icon}</span>
+                <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${tm.tone}`}>{tm.icon}</span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-bold text-[var(--text)]">{a.summary}</div>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
                     <Pill tone={dm.tone}>{dm.label}</Pill>
-                    {a.assignee_name && <Pill tone="neutral">👤 {a.assignee_name}</Pill>}
+                    {a.assignee_name && <Pill tone="neutral"><span className="inline-flex items-center gap-1"><Users size={11} /> {a.assignee_name}</span></Pill>}
                   </div>
                   {a.note && <p className="mt-1 text-[11.5px] text-[var(--text-soft)]">{a.note}</p>}
                 </div>

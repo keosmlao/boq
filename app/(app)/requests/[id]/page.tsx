@@ -281,7 +281,7 @@ export default function RequestDetailPage() {
       <div className="space-y-5">
         {/* Waiting for the supervisor (viewer can't approve). */}
         {isApp && appStatus === "pending" && !canApproveReq && (
-          <div className="rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-4 py-2.5 text-[12px] font-bold text-[var(--warning)]">
+          <div className="rounded-lg border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-4 py-2.5 text-[12px] font-bold text-[var(--warning)]">
             {t("requests.awaitingHeadApproval", "ລໍຖ້າຫົວໜ້າຊ່າງ (supervisor) ອະນຸມັດ")}
           </div>
         )}
@@ -289,13 +289,13 @@ export default function RequestDetailPage() {
         {/* Substitution approval */}
         {isV2 && hasSubstitute && (
           substituteApproved ? (
-            <div className="flex items-center gap-2 rounded-xl border border-[var(--success-soft)] bg-[var(--success-soft)] px-4 py-2.5 text-[12px] font-bold text-[var(--success)]">
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--success-soft)] bg-[var(--success-soft)] px-4 py-2.5 text-[12px] font-bold text-[var(--success)]">
               <CheckCircle2 size={14} />
               {t("requests.substituteApproved", "ອະນຸມັດການປ່ຽນແທນແລ້ວ")}
               {r.substitute_approver ? ` · ${r.substitute_approver}` : ""}
             </div>
           ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-4 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-4 py-2.5">
               <span className="text-[12px] font-bold text-[var(--warning)]">
                 {t("requests.substituteNeedsApproval", "ມີການປ່ຽນສິນຄ້າ — ຕ້ອງອະນຸມັດກ່ອນເບີກ")}
               </span>
@@ -332,7 +332,7 @@ export default function RequestDetailPage() {
           {r.notes && (
             <div className="mt-5 border-t border-[var(--border-soft)] pt-3">
               <span className="mb-1 block text-[11px] font-bold tracking-wider text-[var(--text-mute)]">{t("common.note", "ໝາຍເຫດ")}</span>
-              <p className="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-2.5 text-[12.5px] leading-relaxed text-[var(--text-soft)]">
+              <p className="rounded-lg border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-2.5 text-[12.5px] leading-relaxed text-[var(--text-soft)]">
                 {r.notes}
               </p>
             </div>
@@ -456,7 +456,7 @@ export default function RequestDetailPage() {
             ))
           ) : (
             <Card className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] text-[var(--text-mute)]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] text-[var(--text-mute)]">
                 <Truck size={22} />
               </div>
               <div>
@@ -498,7 +498,7 @@ function ItemStatus({ status }: { status: unknown }) {
 function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: any }) {
   return (
     <div className="flex items-start gap-2.5">
-      <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] text-[var(--text-mute)]">
+      <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] text-[var(--text-mute)]">
         {icon}
       </span>
       <div className="min-w-0">

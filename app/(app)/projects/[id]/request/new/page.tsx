@@ -3,7 +3,7 @@
 /** v2 — Material request (ຂໍເບີກ). Request BOQ materials (within remaining). */
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Save, PackageOpen, Plus, Search, Trash2, X, Repeat, Warehouse } from "lucide-react";
+import { ArrowLeft, FileText, Loader2, Save, PackageOpen, Plus, Search, Trash2, X, Repeat, Warehouse } from "lucide-react";
 import { getProjectBasic } from "@/_actions/projects";
 import { getCustomer } from "@/_actions/customers";
 import { getProjectMaterials } from "@/_actions/boq-v2";
@@ -56,6 +56,11 @@ export default function RequestPage() {
   const [substResults, setSubstResults] = useState<any[]>([]);
   const [substLoading, setSubstLoading] = useState(false);
   const [notes, setNotes] = useState("");
+  // Document header — the number and the issue date are decided HERE and sent
+  // to the server, so what the user signs off on is what gets saved (the server
+  // used to mint both silently at save time).
+  const [requestNo, setRequestNo] = useState("");
+  const [docDate, setDocDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -157,6 +162,12 @@ export default function RequestPage() {
               if (firstItem?.wh_code) setWhCode(String(firstItem.wh_code));
               if (firstItem?.shelf_code) setShelfCode(String(firstItem.shelf_code));
               setNotes(detRes.data?.notes || "");
+              // Editing keeps the document's own number and date; pulling an
+              // app request starts a fresh document, so they stay as generated.
+              if (editId) {
+                if (detRes.data?.request_no) setRequestNo(String(detRes.data.request_no));
+                if (detRes.data?.created_at) setDocDate(new Date(detRes.data.created_at).toISOString().slice(0, 10));
+              }
               if (detRes.data?.used_by_code) setUsedByCode(String(detRes.data.used_by_code));
               if (detRes.data?.used_by_name) setUsedByName(String(detRes.data.used_by_name));
               // Pulling an app request → create NEW (not edit); remember the source.
@@ -176,6 +187,18 @@ export default function RequestPage() {
     })();
     return () => { alive = false; };
   }, [editId, id]);
+
+  // Reserve the document number for a NEW request as soon as the page opens —
+  // same RQ-YYYYMMDD-HHMMSS shape the server used to mint, but visible before
+  // saving so the user can write it down / quote it.
+  useEffect(() => {
+    if (editId || requestNo) return;
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    setRequestNo(
+      `RQ-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`,
+    );
+  }, [editId, requestNo]);
 
   // Load shelves whenever the selected warehouse changes.
   useEffect(() => {
@@ -334,7 +357,17 @@ export default function RequestPage() {
       const usedBy = { used_by_code: usedByCode || null, used_by_name: (usedTech?.name_1 || usedByName) || null };
       const res: any = editId
         ? await updateRequest(String(editId), { items, notes: notes || null, ...usedBy })
-        : await createRequest({ project_id: String(id), project_name: project?.project_name || null, items, notes: notes || null, requester, ...usedBy, from_app_id: fromAppId || null });
+        : await createRequest({
+            project_id: String(id),
+            project_name: project?.project_name || null,
+            items,
+            notes: notes || null,
+            requester,
+            request_no: requestNo || undefined,
+            doc_date: docDate || undefined,
+            ...usedBy,
+            from_app_id: fromAppId || null,
+          });
       if (res?.success) router.push(editId ? `/requests/${encodeURIComponent(String(editId))}` : `/projects/${id}?tab=requests`);
       else setError(res?.message || t("requestNew.saveFailed", "ບັນທຶກບໍ່ສຳເລັດ"));
     } catch (err: any) {
@@ -362,7 +395,7 @@ export default function RequestPage() {
               <ArrowLeft size={14} /> {t("requestNew.toProject", "ໄປໂຄງການ")}
             </button>
             <h1 className="flex items-center gap-2.5 text-[19px] font-black leading-tight tracking-tight text-[var(--text)]">
-              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                 <PackageOpen size={16} />
               </span>
               {editId ? t("requestNew.editRequest", "ແກ້ໄຂໃບຂໍເບີກ") : t("requestNew.requestMaterials", "ຂໍເບີກວັດສະດຸ")}
@@ -381,10 +414,39 @@ export default function RequestPage() {
           </Btn>
         </div>
 
-        {error && <div className="mb-4 rounded-xl border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">{error}</div>}
+        {error && <div className="mb-4 rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">{error}</div>}
+
+        {/* Document header — the number and issue date of the ໃບຂໍເບີກ itself,
+            visible (and editable) before it is saved. */}
+        <Card className="mb-4 p-5">
+          <SectionHeader icon={<FileText size={15} />} title={t("requestNew.docSection", "ຂໍ້ມູນໃບຂໍເບີກ")} tone="brand" />
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
+            <Field label={t("requestNew.docNo", "ເລກທີ່ໃບຂໍເບີກ")}>
+              <input
+                value={requestNo}
+                onChange={(e) => setRequestNo(e.target.value)}
+                readOnly={!!editId}
+                className={`${inputCls} font-mono ${editId ? "cursor-not-allowed opacity-70" : ""}`}
+                placeholder="RQ-…"
+              />
+            </Field>
+            <Field label={t("requestNew.docDate", "ວັນທີອອກໃບຂໍເບີກ")} required>
+              <input
+                type="date"
+                value={docDate}
+                onChange={(e) => setDocDate(e.target.value)}
+                readOnly={!!editId}
+                className={`${inputCls} ${editId ? "cursor-not-allowed opacity-70" : ""}`}
+              />
+            </Field>
+            <Field label={t("requestNew.projectLabel", "ໂຄງການ")}>
+              <input value={project?.project_name || ""} readOnly className={`${inputCls} cursor-not-allowed opacity-70`} />
+            </Field>
+          </div>
+        </Card>
 
         {fromAppId && (
-          <div className="mb-4 rounded-xl border border-[var(--info-soft)] bg-[var(--info-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--info)]">
+          <div className="mb-4 rounded-lg border border-[var(--info-soft)] bg-[var(--info-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--info)]">
             {t("requestNew.pulledFromApp", "ດຶງມาจากใบขอเบิกจากแอป")}: {fromAppId.replace(/^app-/, "APP-")} — {t("requestNew.pulledFromAppHint", "ເລືອກສາງ ແລ້ວ ສົ່ງ ເພื่อออกใบเบิกจริง")}
           </div>
         )}
@@ -395,7 +457,7 @@ export default function RequestPage() {
             <Field label={t("requestNew.usedBy", "ຜູ້ໃຊ້ວັດສະດຸ (ທີມ/ຊ່າງ)")}>
               {fromAppId ? (
                 // Pulled from an app request → locked to who requested it (read-only).
-                <div className="flex h-9.5 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] px-3 text-[13px] text-[var(--text)]">
+                <div className="flex h-9.5 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] px-3 text-[13px] text-[var(--text)]">
                   <span className="truncate">{usedByName || usedByCode || t("requestNew.fromRequest", "ຕາມໃບຂໍ")}</span>
                   <span className="ml-auto text-[10px] font-bold tracking-wider text-[var(--text-mute)]">{t("common.readonly", "ອ່ານຢ່າງດຽວ")}</span>
                 </div>
@@ -522,10 +584,10 @@ export default function RequestPage() {
 
       {pickerOpen && (
         <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/40 px-3 pt-[8vh]" onClick={() => setPickerOpen(false)}>
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-2xl overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-sunken)] px-4 py-3">
               <div className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"><PackageOpen size={15} /></span>
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"><PackageOpen size={15} /></span>
                 <div>
                   <h2 className="text-[13px] font-black tracking-wide text-[var(--text)]">{t("requestNew.pickerTitle", "ເລືອກວັດສະດຸຈາກ BOQ")}</h2>
                   <p className="text-[10.5px] text-[var(--text-mute)]">{t("requestNew.pickerSubtitle", "ເພີ່ມເຂົ້າ cart ທີລະລາຍການ")}</p>
@@ -534,7 +596,7 @@ export default function RequestPage() {
               <button type="button" onClick={() => setPickerOpen(false)} className="text-[var(--text-mute)] transition-colors hover:text-[var(--text)]"><X size={18} /></button>
             </div>
             <div className="border-b border-[var(--border)] p-3">
-              <div className="flex h-9.5 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
+              <div className="flex h-9.5 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
                 <Search size={14} className="text-[var(--text-mute)]" />
                 <input autoFocus value={pickerQuery} onChange={(e) => setPickerQuery(e.target.value)} placeholder={t("requestNew.searchPlaceholder", "ຄົ້ນຫາລະຫັດ ຫຼື ຊື່ວັດສະດຸ...")} className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]" />
               </div>
@@ -546,7 +608,7 @@ export default function RequestPage() {
                 <div className="px-4 py-10 text-center text-[12px] text-[var(--text-mute)]">{t("requestNew.noStockItems", "ບໍ່ພົບລາຍການ BOQ ທີ່ມີ stock ໃນສາງ/ທີ່ຈັດເກັບນີ້")}</div>
               ) : selectableRows.map((row) => (
                 <button key={rowKey(row)} type="button" onClick={() => addRow(row)} className="flex w-full items-center gap-3 border-b border-[var(--border-soft)] px-4 py-3 text-left transition-colors last:border-0 hover:bg-[var(--brand-tint)]">
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"><Plus size={15} /></span>
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]"><Plus size={15} /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[12.5px] font-bold text-[var(--text)]">{row.description || row.item_code}</span>
                     <span className="block truncate text-[10.5px] text-[var(--text-mute)]">{row.item_code || "-"} · {row.unit || "-"}</span>
@@ -568,10 +630,10 @@ export default function RequestPage() {
 
       {substIdx !== null && rows[substIdx] && (
         <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/40 px-3 pt-[8vh]" onClick={() => setSubstIdx(null)}>
-          <div className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]" onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface-sunken)] px-4 py-3">
               <div className="flex min-w-0 items-center gap-2.5">
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] text-[var(--warning)]"><Repeat size={15} /></span>
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--warning-soft)] bg-[var(--warning-soft)] text-[var(--warning)]"><Repeat size={15} /></span>
                 <div className="min-w-0">
                   <h2 className="text-[13px] font-black tracking-wide text-[var(--text)]">{t("requestNew.substituteTitle", "ປ່ຽນສິນຄ້າແທນ")}</h2>
                   <p className="truncate text-[10.5px] text-[var(--text-mute)]">{t("requestNew.substituteFor", "ແທນ BOQ")}: {rows[substIdx].boq_item_name || rows[substIdx].boq_item_code}</p>
@@ -581,7 +643,7 @@ export default function RequestPage() {
             </div>
             <div className="border-b border-[var(--border)] p-3">
               <p className="mb-2 text-[11.5px] text-[var(--text-mute)]">{t("requestNew.substituteHint", "ເລືອກສິນຄ້າມາແທນ — ຍອດ BOQ ເດີມຍັງຖືກຕັດ. ການປ່ຽນຕ້ອງຜ່ານການອະນຸມັດ.")}</p>
-              <div className="flex h-9.5 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
+              <div className="flex h-9.5 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
                 <Search size={14} className="text-[var(--text-mute)]" />
                 <input autoFocus value={substQuery} onChange={(e) => setSubstQuery(e.target.value)} placeholder={t("requestNew.searchProduct", "ຄົ້ນຫາສິນຄ້າ (ລະຫັດ/ຊື່)...")} className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]" />
               </div>
@@ -598,7 +660,7 @@ export default function RequestPage() {
                   onClick={() => applySubstitute(substIdx, { code: String(it.code ?? ""), name: String(it.name_1 ?? it.item_name ?? it.code ?? ""), unit: String(it.unit ?? it.unit_code ?? "") })}
                   className="flex w-full items-center gap-3 border-b border-[var(--border-soft)] px-4 py-2.5 text-left transition-colors last:border-0 hover:bg-[var(--brand-tint)]"
                 >
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] text-[var(--warning)]"><Repeat size={14} /></span>
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--warning-soft)] bg-[var(--warning-soft)] text-[var(--warning)]"><Repeat size={14} /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[12.5px] font-bold text-[var(--text)]">{it.name_1 || it.item_name || it.code}</span>
                     <span className="block truncate text-[10.5px] text-[var(--text-mute)]">{it.code || "-"}{it.unit ? ` · ${it.unit}` : ""}{it.brand_name ? ` · ${it.brand_name}` : ""}</span>

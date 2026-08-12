@@ -104,7 +104,7 @@ export default function CustomerDetailPage() {
         </div>
         {projects.length === 0 ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 text-[var(--text-mute)]">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface-sunken)] text-[var(--text-mute)]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[var(--text-mute)]">
               <FolderOpen className="h-7 w-7" />
             </div>
             <span className="text-[12.5px] font-semibold">{t("customers.noProjects", "ຍັງບໍ່ມີໂຄງການ")}</span>

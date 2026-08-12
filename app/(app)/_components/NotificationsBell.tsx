@@ -120,7 +120,7 @@ export default function NotificationsBell() {
     <div className="relative">
       <button
         onClick={() => { setOpen((o) => !o); load(); }}
-        className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)] transition"
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)] transition"
         title={tr("components.notifications.title", "ການແຈ້ງເຕືອນ")}
       >
         <Bell size={17} />
@@ -134,7 +134,7 @@ export default function NotificationsBell() {
       {open && (
         <>
           <button aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
+          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
             <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-4 py-3">
               <Bell size={15} className="text-[var(--brand)]" />
               <span className="text-[12.5px] font-black text-[var(--text)]">{tr("components.notifications.title", "ການແຈ້ງເຕືອນ")}</span>

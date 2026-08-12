@@ -159,7 +159,7 @@ export default function ChatWidget() {
       {!open && (
         <button
           onClick={toggle}
-          className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--brand)] text-white shadow-[var(--shadow-lg)] transition hover:-translate-y-0.5 hover:bg-[var(--brand-hover)] active:scale-95"
+          className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-lg bg-[var(--brand)] text-white shadow-[var(--shadow-lg)] transition hover:-translate-y-0.5 hover:bg-[var(--brand-hover)] active:scale-95"
           title="ແชັດ"
         >
           <MessageCircle size={24} />
@@ -173,11 +173,11 @@ export default function ChatWidget() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-5 right-5 z-50 flex h-[min(560px,80vh)] w-[min(380px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
+        <div className="fixed bottom-5 right-5 z-50 flex h-[min(560px,80vh)] w-[min(380px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
           {/* Header */}
           {/* Brand teal in both themes — ink would invert to a light slab in dark mode. */}
           <div className="flex items-center gap-2.5 border-b border-[var(--border-soft)] bg-[var(--brand)] px-4 py-3 text-white">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand)] text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--brand)] text-white">
               <Users size={16} />
             </span>
             <div className="min-w-0 flex-1">
@@ -198,7 +198,7 @@ export default function ChatWidget() {
             ) : msgs.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-1.5 text-[12px] font-semibold text-[var(--text-mute)]">
                 <MessageCircle size={26} className="text-[var(--text-mute)] opacity-50" />
-                ຍັງບໍ່ມີຂໍ້ຄວາມ — ທັກທາຍກ່ອນເລີຍ 👋
+                ຍັງບໍ່ມີຂໍ້ຄວາມ — ທັກທາຍກ່ອນເລີຍ
               </div>
             ) : (
               msgs.map((m) => {
@@ -212,7 +212,7 @@ export default function ChatWidget() {
                     )}
                     <div className={`min-w-0 max-w-[78%] ${mine ? "items-end text-right" : ""}`}>
                       {!mine && <div className="mb-0.5 px-1 text-[10.5px] font-bold text-[var(--text-soft)]">{m.user_name || m.username}</div>}
-                      <div className={`inline-block whitespace-pre-wrap break-words rounded-2xl px-3 py-1.5 text-[12.5px] leading-relaxed ${mine ? "bg-[var(--brand)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)]"}`}>
+                      <div className={`inline-block whitespace-pre-wrap break-words rounded-lg px-3 py-1.5 text-[12.5px] leading-relaxed ${mine ? "bg-[var(--brand)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)]"}`}>
                         {m.body}
                       </div>
                       <div className="mt-0.5 px-1 text-[9.5px] font-medium text-[var(--text-mute)]">
@@ -243,12 +243,12 @@ export default function ChatWidget() {
               }}
               rows={1}
               placeholder="ພິມຂໍ້ຄວາມ... (Enter ສົ່ງ)"
-              className="max-h-24 min-h-[40px] flex-1 resize-none rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-[13px] text-[var(--text)] outline-none transition placeholder:text-[var(--text-mute)] hover:border-[var(--border-strong)] focus:border-[var(--brand)] focus:ring-3 focus:ring-[var(--brand-ring)]"
+              className="max-h-24 min-h-[40px] flex-1 resize-none rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 text-[13px] text-[var(--text)] outline-none transition placeholder:text-[var(--text-mute)] hover:border-[var(--border-strong)] focus:border-[var(--brand)] focus:ring-3 focus:ring-[var(--brand-ring)]"
             />
             <button
               onClick={submit}
               disabled={!text.trim() || sending}
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-[var(--go)] text-white shadow-[var(--shadow-xs)] transition hover:bg-[var(--go-hover)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--go)] text-white shadow-[var(--shadow-xs)] transition hover:bg-[var(--go-hover)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>

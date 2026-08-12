@@ -4,7 +4,7 @@
  * ໃບງານ — flat list (ODIEN SERVICE layout): toolbar → stage tabs → one table.
  * Rows carry a status bar down the left edge; no day/project grouping.
  */
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BellRing,
@@ -42,7 +42,8 @@ import {
   trHover,
   type PillTone,
 } from "../_components/ui";
-import { getWorkOrders } from "@/_actions/workorder";
+import { getWorkOrdersPage } from "@/_actions/workorder";
+import type { Paged } from "@/_lib/paging";
 import { workOrderStage } from "@/_lib/workorder-stage";
 import { useT } from "@/_lib/i18n";
 
@@ -121,12 +122,13 @@ function ageBadge(r: any, stage: string, t: (k: string, f: string) => string) {
   );
 }
 
-export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }) {
+export default function WorkOrdersClient({ initial, initialTab = "all" }: { initial: Paged<any> | null; initialTab?: string }) {
   const t = useT();
   const router = useRouter();
   const [pick, setPick] = useState(false);
-  const [allRows, setAllRows] = useState<any[]>(initialRows ?? []);
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const [data, setData] = useState<Paged<any> | null>(initial);
+  const first = useRef(true);
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [draftQ, setDraftQ] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -139,49 +141,39 @@ export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }
     setPage(1);
   };
 
+  /** One server call per interaction; the response IS the page. */
   const reload = async () => {
     setLoading(true);
     try {
-      const res: any = await getWorkOrders({});
-      const data = res?.success ? res.data || [] : Array.isArray(res) ? res : [];
-      setAllRows(data);
+      const res = await getWorkOrdersPage({ q, tab: activeTab, page, sort: sort.key, dir: sort.dir });
+      if (res.success) setData(res.data);
     } finally {
       setLoading(false);
     }
   };
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: allRows.length };
-    for (const key of ["issued", "accepted", "in_progress", "awaiting_review", "closed", "rejected"]) {
-      c[key] = allRows.filter((r) => getStageKey(r) === key).length;
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
     }
-    return c;
-  }, [allRows]);
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, activeTab, page, sort]);
 
-  const rows = useMemo(() => {
-    const kw = q.trim().toLowerCase();
-    const list = allRows.filter((r) => {
-      if (activeTab !== "all" && getStageKey(r) !== activeTab) return false;
-      if (!kw) return true;
-      return `${r.work_no ?? ""} ${r.technician_name ?? ""} ${r.technician_code ?? ""} ${r.title ?? ""} ${r.project_name ?? ""}`
-        .toLowerCase()
-        .includes(kw);
-    });
-    const dir = sort.dir === "asc" ? 1 : -1;
-    return [...list].sort((a, b) => {
-      const av = sort.key === "work_date" ? a.work_date ?? a.created_at : a[sort.key];
-      const bv = sort.key === "work_date" ? b.work_date ?? b.created_at : b[sort.key];
-      if (sort.key === "labor_cost") return (Number(av) || 0) > (Number(bv) || 0) ? dir : -dir;
-      return String(av ?? "") > String(bv ?? "") ? dir : -dir;
-    });
-  }, [allRows, activeTab, q, sort]);
+  // Counts, rows and paging all come from the server response.
+  const counts = data?.counts ?? { all: 0 };
+  const rows = data?.rows ?? [];
+  const pageRows = rows;
+  const total = data?.total ?? 0;
+  const perPage = data?.perPage ?? PER_PAGE;
+  const current = data?.page ?? 1;
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
 
-  const pageCount = Math.max(1, Math.ceil(rows.length / PER_PAGE));
-  const current = Math.min(page, pageCount);
-  const pageRows = rows.slice((current - 1) * PER_PAGE, current * PER_PAGE);
-
-  const toggleSort = (key: SortKey) =>
+  const toggleSort = (key: SortKey) => {
+    setPage(1);
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  };
 
   const stages = [
     { value: "all", label: t("common.all", "ທັງໝົດ") },
@@ -255,7 +247,7 @@ export default function WorkOrdersClient({ initialRows }: { initialRows: any[] }
       </div>
 
       <Toolbar>
-        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
           <Search size={15} className="text-[var(--text-mute)]" />
           <input
             value={draftQ}

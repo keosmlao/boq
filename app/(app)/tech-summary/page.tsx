@@ -3,12 +3,22 @@
 /** Per-craftsman work-order performance summary. */
 import { useEffect, useMemo, useState } from "react";
 import { Award, CheckCircle2, Clock, Download, Loader2, RefreshCw, Search, Timer, XCircle } from "lucide-react";
-import { Page, PageHeader, Card, Stat, Btn, TwoLine, inputCls, tblCls, thCls, tdCls, trHover } from "../_components/ui";
+import { Page, PageHeader, Card, RowBar, RowBarTh, SortTh, Stat, Btn, Toolbar, TwoLine, tblCls, thCls, tdCls, trHover } from "../_components/ui";
 import { getTechSummary, type TechSummaryRow } from "@/_actions/tech-summary";
 import { useT } from "@/_lib/i18n";
 
 const fmtDate = (v: string | null) => (v ? new Date(v).toLocaleDateString("en-GB") : "—");
 const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
+
+type SortKey = "name" | "total" | "closed" | "in_progress" | "worked_hours" | "rate";
+
+/** Left-edge bar (ODS list): how close this craftsman is to clearing their board. */
+const barTone = (rate: number, total: number): "neutral" | "success" | "info" | "warning" => {
+  if (!total) return "neutral";
+  if (rate >= 80) return "success";
+  if (rate >= 40) return "info";
+  return "warning";
+};
 
 export default function TechSummaryPage() {
   const t = useT();
@@ -16,6 +26,7 @@ export default function TechSummaryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "total", dir: "desc" });
 
   const load = async () => {
     setLoading(true);
@@ -47,9 +58,17 @@ export default function TechSummaryPage() {
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return rows;
-    return rows.filter((r) => r.name.toLowerCase().includes(s) || (r.code || "").toLowerCase().includes(s));
-  }, [rows, q]);
+    const list = s ? rows.filter((r) => r.name.toLowerCase().includes(s) || (r.code || "").toLowerCase().includes(s)) : rows;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      if (sort.key === "name") return String(a.name).localeCompare(String(b.name)) * dir;
+      if (sort.key === "rate") return (pct(a.closed, a.total) - pct(b.closed, b.total)) * dir;
+      return ((Number(a[sort.key]) || 0) - (Number(b[sort.key]) || 0)) * dir;
+    });
+  }, [rows, q, sort]);
+
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }));
 
   const exportCsv = () => {
     const head = [
@@ -98,14 +117,19 @@ export default function TechSummaryPage() {
         <Stat icon={<Timer size={18} />} label={t("techSummary.totalHours", "ຊົ່ວໂມງລວມ")} value={`${totals.hours.toFixed(1)} ${t("techSummary.hoursAbbr", "ຊມ")}`} />
       </div>
 
-      <Card className="overflow-hidden p-0">
-        <div className="flex items-center gap-2 border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-3 py-3">
-          <div className="relative max-w-xs flex-1">
-            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-mute)]" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("techSummary.searchPlaceholder", "ຄົ້ນຫາຊື່ / ລະຫັດຊ່າງ")} className={`${inputCls} pl-9`} />
-          </div>
-        </div>
+      <Toolbar>
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
+          <Search size={15} className="text-[var(--text-mute)]" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("techSummary.searchPlaceholder", "ຄົ້ນຫາຊື່ / ລະຫັດຊ່າງ")}
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-mute)]"
+          />
+        </label>
+      </Toolbar>
 
+      <Card className="overflow-hidden p-0">
         {error ? (
           <p className="px-4 py-10 text-center text-[13px] font-semibold text-[var(--danger)]">{t("techSummary.loadFailed", "ໂຫຼດບໍ່ສຳເລັດ")}: {error}</p>
         ) : loading ? (
@@ -119,15 +143,16 @@ export default function TechSummaryPage() {
             <table className={tblCls}>
               <thead>
                 <tr>
-                  <th className={thCls}>{t("techSummary.tech", "ຊ່າງ")}</th>
-                  <th className={`${thCls} text-center`}>{t("techSummary.total", "ລວມ")}</th>
-                  <th className={`${thCls} text-center`}>{t("techSummary.completed", "ສຳເລັດ")}</th>
-                  <th className={`${thCls} text-center`}>{t("techSummary.inProgress", "ກຳລັງເຮັດ")}</th>
+                  <RowBarTh />
+                  <SortTh label={t("techSummary.tech", "ຊ່າງ")} active={sort.key === "name"} dir={sort.dir} onClick={() => toggleSort("name")} />
+                  <SortTh label={t("techSummary.total", "ລວມ")} active={sort.key === "total"} dir={sort.dir} onClick={() => toggleSort("total")} className="text-center" />
+                  <SortTh label={t("techSummary.completed", "ສຳເລັດ")} active={sort.key === "closed"} dir={sort.dir} onClick={() => toggleSort("closed")} className="text-center" />
+                  <SortTh label={t("techSummary.inProgress", "ກຳລັງເຮັດ")} active={sort.key === "in_progress"} dir={sort.dir} onClick={() => toggleSort("in_progress")} className="text-center" />
                   <th className={`${thCls} text-center`}>{t("techSummary.awaitingReview", "ລໍກວດສອບ")}</th>
                   <th className={`${thCls} text-center`}>{t("techSummary.notStarted", "ຍັງບໍ່ເລີ່ມ")}</th>
                   <th className={`${thCls} text-center`}>{t("status.rejected", "ປະຕິເສດ")}</th>
-                  <th className={`${thCls} text-center`}>{t("techSummary.workedHours", "ຊົ່ວໂມງເຮັດງານ")}</th>
-                  <th className={`${thCls}`}>{t("techSummary.completionRate", "ອັດຕາສຳເລັດ")}</th>
+                  <SortTh label={t("techSummary.workedHours", "ຊົ່ວໂມງເຮັດງານ")} active={sort.key === "worked_hours"} dir={sort.dir} onClick={() => toggleSort("worked_hours")} className="text-center" />
+                  <SortTh label={t("techSummary.completionRate", "ອັດຕາສຳເລັດ")} active={sort.key === "rate"} dir={sort.dir} onClick={() => toggleSort("rate")} />
                   <th className={`${thCls}`}>{t("techSummary.lastActivity", "ເຄື່ອນໄຫວລ່າສຸດ")}</th>
                 </tr>
               </thead>
@@ -136,6 +161,7 @@ export default function TechSummaryPage() {
                   const rate = pct(r.closed, r.total);
                   return (
                     <tr key={(r.code || r.name) + i} className={trHover}>
+                      <RowBar tone={barTone(rate, r.total)} />
                       <td className={tdCls}>
                         <TwoLine primary={r.name} secondary={r.code || undefined} />
                       </td>

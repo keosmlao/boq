@@ -10,7 +10,7 @@ import React from "react";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 
 export const cardCls =
-  "rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)] transition-colors duration-150 hover:border-[var(--border-strong)]";
+  "rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-xs)] transition-colors duration-150 hover:border-[var(--border-strong)]";
 
 export function Page({
   children,
@@ -108,7 +108,7 @@ const BTN_VARIANTS: Record<BtnVariant, string> = {
 
 export function Btn({ variant = "primary", className = "", ...props }: BtnProps) {
   const base =
-    "inline-flex h-9 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]";
+    "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-4 text-xs font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]";
   return <button className={`${base} ${BTN_VARIANTS[variant] || BTN_VARIANTS.primary} ${className}`} {...props} />;
 }
 
@@ -154,7 +154,7 @@ export function Segmented<T extends string>({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-[11.5px] font-bold transition-all ${
+            className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[11.5px] font-bold transition-all ${
               on
                 ? "bg-[var(--ink)] text-[var(--ink-text)]"
                 : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text)]"
@@ -247,7 +247,7 @@ export function TwoLine({ primary, secondary }: { primary: React.ReactNode; seco
 /* ── Form atoms ─────────────────────────────────────────────────────────── */
 
 export const inputCls =
-  "h-9.5 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-[13px] text-[var(--text)] outline-none transition-all duration-150 placeholder:text-[var(--text-mute)] hover:border-[var(--border-strong)] focus:border-[var(--brand)] focus:ring-3 focus:ring-[var(--brand-ring)]";
+  "h-9.5 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-[13px] text-[var(--text)] outline-none transition-all duration-150 placeholder:text-[var(--text-mute)] hover:border-[var(--border-strong)] focus:border-[var(--brand)] focus:ring-3 focus:ring-[var(--brand-ring)]";
 
 /** Coloured section header (icon chip + title) — for forms & cards. */
 const TONE_CHIP: Record<string, string> = {
@@ -279,7 +279,7 @@ export function SectionHeader({
 }) {
   return (
     <div className={`mb-4 flex items-center gap-2.5 ${className}`}>
-      <span className={`flex h-7.5 w-7.5 flex-shrink-0 items-center justify-center rounded-xl ${TONE_CHIP[tone] || TONE_CHIP.brand}`}>
+      <span className={`flex h-7.5 w-7.5 flex-shrink-0 items-center justify-center rounded-lg ${TONE_CHIP[tone] || TONE_CHIP.brand}`}>
         {icon}
       </span>
       <h3 className="text-xs font-black tracking-wider text-[var(--text)]">{title}</h3>
@@ -315,12 +315,12 @@ export function Stat({
   return (
     <Tag2
       onClick={onClick}
-      className={`flex items-center gap-3.5 rounded-2xl border bg-[var(--surface)] p-4 text-left transition-all ${
+      className={`flex items-center gap-3.5 rounded-lg border bg-[var(--surface)] p-4 text-left transition-all ${
         onClick ? "hover:border-[var(--border-strong)] active:scale-[0.99]" : ""
       } ${active ? "border-[var(--brand)] ring-2 ring-[var(--brand-ring)]" : "border-[var(--border)]"}`}
     >
       <div
-        className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${
+        className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg ${
           active ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]" : "bg-[var(--surface-sunken)] text-[var(--text-mute)]"
         }`}
       >

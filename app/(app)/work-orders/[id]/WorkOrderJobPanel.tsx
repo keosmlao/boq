@@ -100,7 +100,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
             ໃບງານນີ້ແມ່ນລະບົບເກົ່າ (ERP). ກົດ "ມອບໝາຍ & ອະນຸມັດ" ເພື່ອสร้างสำเนาให้ช่างฮับ/check-in/out ผ่านมือถือ — ຊ່າງຈະໄດ້ຮັບການແຈ້ງเตือน.
           </p>
           {err && (
-            <div className="rounded-xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12.5px] font-semibold text-[var(--danger)]">
+            <div className="rounded-lg border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12.5px] font-semibold text-[var(--danger)]">
               {err}
             </div>
           )}
@@ -242,7 +242,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
         </div>
 
         {err && (
-          <div className="rounded-xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12.5px] font-semibold text-[var(--danger)]">
+          <div className="rounded-lg border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-2 text-[12.5px] font-semibold text-[var(--danger)]">
             {err}
           </div>
         )}
@@ -342,7 +342,7 @@ export default function WorkOrderJobPanel({ wo, onChanged }: { wo: any; onChange
           )}
 
           {hasClose && (
-            <p className="flex items-center gap-1.5 rounded-xl border border-[var(--success-soft)] bg-[var(--success-soft)] px-3 py-2 text-[12.5px] font-bold text-[var(--success)]">
+            <p className="flex items-center gap-1.5 rounded-lg border border-[var(--success-soft)] bg-[var(--success-soft)] px-3 py-2 text-[12.5px] font-bold text-[var(--success)]">
               <CheckCircle2 size={15} /> ປິດງານສຳເລັດ
             </p>
           )}
@@ -383,10 +383,10 @@ function Evidence({ title, photo, lat, lng, at }: { title: string; photo?: strin
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <a href={photo} target="_blank" rel="noreferrer">
-          <img src={photo} alt={title} className="h-32 w-full rounded-xl border border-[var(--border)] object-cover" />
+          <img src={photo} alt={title} className="h-32 w-full rounded-lg border border-[var(--border)] object-cover" />
         </a>
       ) : (
-        <div className="flex h-32 w-full items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-[var(--text-mute)]">
+        <div className="flex h-32 w-full items-center justify-center rounded-lg border border-dashed border-[var(--border)] text-[var(--text-mute)]">
           <Camera size={20} />
         </div>
       )}

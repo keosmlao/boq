@@ -1,6 +1,8 @@
 "use server";
 
 import { query, withTransaction } from "@/_lib/db";
+import { workOrderStage } from "@/_lib/workorder-stage";
+import { byNumber, byText, byTime, paginate, type PageQuery, type Paged } from "@/_lib/paging";
 import { invalidate } from "@/_lib/cache";
 import { ensureWorkOrderSchema } from "@/_lib/schemas/work-order";
 import { ensureProjectTaskSchema } from "@/_lib/schemas/tasks";
@@ -66,6 +68,58 @@ const WO_SELECT_WITH_TECH = `
        ORDER BY length(t.name_1) DESC
        LIMIT 1
     ) tc ON true`;
+
+/**
+ * Tab bucket for a work order. ERP rows carry a Lao status string; v2 rows go
+ * through the shared stage machine, whose two rejection stages collapse into
+ * one "rejected" tab.
+ */
+function workOrderStageKey(r: any): string {
+  if (r?.src === "erp") {
+    const status = String(r.status || "").trim();
+    if (status === "ປິດງານແລ້ວ" || status === "closed" || status === "Closed") return "closed";
+    if (status === "ກຳລັງເຂົ້າໜ້າງານ" || status === "IN_PROGRESS" || status === "in_progress") return "in_progress";
+    if (status === "ຊ່າງຮັບງານ" || status === "ASSIGNED" || status === "assigned") return "accepted";
+    if (status === "ບໍ່ອະນຸມັດ" || status === "rejected") return "rejected";
+    return "issued";
+  }
+  const s = workOrderStage(r);
+  return s.key === "approval_rejected" || s.key === "accept_rejected" ? "rejected" : s.key;
+}
+
+/**
+ * One page of the ໃບງານ list — searched, tab-filtered, sorted and sliced on the
+ * server so the browser receives a page, not every work order ever raised.
+ */
+export async function getWorkOrdersPage(
+  params: PageQuery & { projectId?: string } = {},
+): Promise<{ success: true; data: Paged<any> } | Fail> {
+  try {
+    const res: any = await getWorkOrders(params.projectId ? { projectId: params.projectId } : {});
+    const all: any[] = res?.success ? res.data || [] : Array.isArray(res) ? res : [];
+    const stages = ["issued", "accepted", "in_progress", "awaiting_review", "closed", "rejected"];
+    return {
+      success: true,
+      data: paginate(all, params, {
+        search: (r, kw) =>
+          `${r.work_no ?? ""} ${r.technician_name ?? ""} ${r.technician_code ?? ""} ${r.title ?? ""} ${r.project_name ?? ""}`
+            .toLowerCase()
+            .includes(kw),
+        tabs: Object.fromEntries(stages.map((key) => [key, (r: any) => workOrderStageKey(r) === key])),
+        sorters: {
+          work_no: byText((r) => r.work_no),
+          technician_name: byText((r) => r.technician_name),
+          work_date: byTime((r) => r.work_date ?? r.created_at),
+          labor_cost: byNumber((r) => r.labor_cost),
+        },
+        defaultSort: "work_date",
+        defaultDir: "desc",
+      }),
+    };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
 
 export async function getWorkOrders(opts: { projectId?: string; projectCode?: string } = {}): Promise<{ success: true; data: any[] } | Fail> {
   try {

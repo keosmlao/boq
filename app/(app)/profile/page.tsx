@@ -52,7 +52,7 @@ export default function ProfilePage() {
       <Card className="mb-6 p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--brand)] text-lg font-black text-white shadow-[var(--shadow-sm)]">
+            <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-[var(--brand)] text-lg font-black text-white shadow-[var(--shadow-sm)]">
               {initial}
             </span>
             <div className="min-w-0">
@@ -123,7 +123,7 @@ export default function ProfilePage() {
         <SectionHeader icon={<Settings size={15} />} title={t("profile.settings", "ການຕັ້ງຄ່າ")} tone="neutral" />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-[var(--text-soft)]">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-sunken)] text-[var(--text-mute)]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[var(--text-mute)]">
               <LogOut size={16} />
             </span>
             <span className="text-[12.5px] font-semibold">{t("profile.logoutDevice", "ອອກຈາກລະບົບໃນອຸປະກອນນີ້")}</span>

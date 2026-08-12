@@ -227,7 +227,7 @@ export default function CreateContractPage() {
               <ArrowLeft size={14} /> {t("contractNew.toProject", "ໄປໂຄງການ")}
             </button>
             <h1 className="flex items-center gap-2.5 text-[19px] font-black leading-tight tracking-tight text-[var(--text)]">
-              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                 <FileSignature size={16} />
               </span>
               {editId ? t("contractNew.editContract", "ແກ້ໄຂສັນຍາ") : t("contractNew.createContract", "ສ້າງສັນຍາ")}
@@ -267,7 +267,7 @@ export default function CreateContractPage() {
       ) : (
         <>
           {error && (
-            <div className="mb-4 rounded-xl border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">
+            <div className="mb-4 rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">
               {error}
             </div>
           )}
@@ -307,10 +307,10 @@ export default function CreateContractPage() {
                 <SectionHeader icon={<Wind size={15} />} title={t("contractNew.paymentTitle", "ການຊຳລະ — ແບ່ງເປັນ 2 ສ່ວນ")} tone="brand" className="mb-3" />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {/* ສ່ວນແອ */}
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] p-3.5">
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] p-3.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--info-soft)] bg-[var(--info-soft)] text-[var(--info)]"><Wind size={17} /></span>
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--info-soft)] bg-[var(--info-soft)] text-[var(--info)]"><Wind size={17} /></span>
                         <div>
                           <div className="text-[12.5px] font-bold text-[var(--text)]">{t("contractNew.partAc", "ສ່ວນແອ")}</div>
                           <div className="text-[10.5px] text-[var(--text-mute)]">{t("contractNew.partAcDesc", "ຄ່າເຄື່ອງແອ")}</div>
@@ -318,16 +318,16 @@ export default function CreateContractPage() {
                       </div>
                       <span className="rounded-md border border-[var(--info-soft)] bg-[var(--info-soft)] px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums text-[var(--info)]">{installSum > 0 ? Math.round(((Number(acAmount) || 0) / installSum) * 100) : 0}%</span>
                     </div>
-                    <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
+                    <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
                       <input type="number" min="0" inputMode="numeric" value={acAmount} onChange={(e) => setAcAmount(e.target.value)} className="h-9 min-w-0 flex-1 bg-transparent text-right text-[14px] font-bold tabular-nums text-[var(--text)] outline-none" placeholder="0" />
                       <span className="text-[11px] font-semibold text-[var(--text-mute)]">{t("common.kip", "ບາດ")}</span>
                     </div>
                   </div>
                   {/* ສ່ວນຕິດຕັ້ງ */}
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] p-3.5">
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] p-3.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--warning-soft)] bg-[var(--warning-soft)] text-[var(--warning)]"><Wrench size={17} /></span>
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--warning-soft)] bg-[var(--warning-soft)] text-[var(--warning)]"><Wrench size={17} /></span>
                         <div>
                           <div className="text-[12.5px] font-bold text-[var(--text)]">{t("contractNew.partInstall", "ສ່ວນຕິດຕັ້ງ")}</div>
                           <div className="text-[10.5px] text-[var(--text-mute)]">{t("contractNew.partInstallDesc", "ຄ່າແຮງຕິດຕັ້ງ")}</div>
@@ -335,7 +335,7 @@ export default function CreateContractPage() {
                       </div>
                       <span className="rounded-md border border-[var(--warning-soft)] bg-[var(--warning-soft)] px-2 py-0.5 text-[10.5px] font-extrabold tabular-nums text-[var(--warning)]">{installSum > 0 ? Math.round(((Number(installAmount) || 0) / installSum) * 100) : 0}%</span>
                     </div>
-                    <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
+                    <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 transition-all focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
                       <input type="number" min="0" inputMode="numeric" value={installAmount} onChange={(e) => setInstallAmount(e.target.value)} className="h-9 min-w-0 flex-1 bg-transparent text-right text-[14px] font-bold tabular-nums text-[var(--text)] outline-none" placeholder="0" />
                       <span className="text-[11px] font-semibold text-[var(--text-mute)]">{t("common.kip", "ບາດ")}</span>
                     </div>
@@ -343,7 +343,7 @@ export default function CreateContractPage() {
                 </div>
                 {/* ລວມທັງໝົດ */}
                 <div
-                  className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2.5"
+                  className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-2.5"
                   style={{
                     borderColor: sumMatches ? "var(--success)" : "var(--warning)",
                     background: sumMatches ? "var(--success-soft)" : "var(--warning-soft)",
@@ -373,14 +373,14 @@ export default function CreateContractPage() {
               {(
                 <div className="lg:col-span-3">
                   <div className="mb-1.5 block text-[11px] font-bold tracking-wider text-[var(--text-mute)]">{t("contractNew.attachments", "ເອກະສານສັນຍາ (ແນບໄຟລ໌)")}</div>
-                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[12.5px] font-semibold text-[var(--text-mute)] transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]">
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[12.5px] font-semibold text-[var(--text-mute)] transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]">
                     <Paperclip size={15} /> {t("contractNew.pickFiles", "ກົດເພື່ອເລືອກໄຟລ໌ (PDF/ຮູບ)")}
                     <input type="file" multiple accept="application/pdf,image/*" className="hidden" onChange={onPickFiles} />
                   </label>
                   {attachments.length > 0 && (
                     <ul className="mt-2 space-y-1.5">
                       {attachments.map((a, i) => (
-                        <li key={i} className="flex items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px]">
+                        <li key={i} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px]">
                           {a.file_path ? (
                             <a href={a.file_path} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1.5 truncate font-semibold text-[var(--brand)] hover:underline"><Paperclip size={12} className="shrink-0" /> {a.fileName}</a>
                           ) : (

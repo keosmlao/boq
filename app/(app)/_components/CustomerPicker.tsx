@@ -110,7 +110,7 @@ export default function CustomerPicker({
   return (
     <div ref={boxRef} className="relative">
       {value ? (
-        <div className="flex h-9.5 items-center justify-between gap-2 rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-tint)] px-3">
+        <div className="flex h-9.5 items-center justify-between gap-2 rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-tint)] px-3">
           <span className="truncate text-[13px] font-semibold text-[var(--text)]">
             {value.name} <span className="font-mono text-[11px] font-normal text-[var(--text-mute)]">({value.code})</span>
           </span>
@@ -130,7 +130,7 @@ export default function CustomerPicker({
             setOpen((o) => !o);
             if (!results.length) search("");
           }}
-          className="flex h-9.5 w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-[13px] text-[var(--text-mute)] transition-colors hover:border-[var(--border-strong)]"
+          className="flex h-9.5 w-full items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-left text-[13px] text-[var(--text-mute)] transition-colors hover:border-[var(--border-strong)]"
         >
           <Search size={14} />
           <span className="flex-1">{t("components.customerPicker.selectOrSearch", "ເລືອກ ຫຼື ຄົ້ນຫາລູກຄ້າ...")}</span>
@@ -139,7 +139,7 @@ export default function CustomerPicker({
       )}
 
       {open && !value && (
-        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
+        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
           <div className="border-b border-[var(--border-soft)] p-2">
             <label className="flex h-8 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 focus-within:border-[var(--brand)]">
               <Search size={13} className="text-[var(--text-mute)]" />
@@ -189,18 +189,18 @@ export default function CustomerPicker({
       {showCreate && (
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 px-4 pt-[12vh] backdrop-blur-[2px]" onClick={() => !creating && setShowCreate(false)}>
           <div
-            className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
+            className="w-full max-w-md overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 border-b border-[var(--border-soft)] px-4 py-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                 <UserPlus size={14} />
               </span>
               <h3 className="text-[13px] font-black text-[var(--text)]">{t("components.customerPicker.createNew", "ສ້າງລູກຄ້າໃໝ່")}</h3>
             </div>
             <div className="space-y-3 p-4">
               {cErr && (
-                <div className="rounded-xl border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-1.5 text-[12px] font-semibold text-[var(--danger)]">{cErr}</div>
+                <div className="rounded-lg border border-[var(--danger-soft)] bg-[var(--danger-soft)] px-3 py-1.5 text-[12px] font-semibold text-[var(--danger)]">{cErr}</div>
               )}
               <Field label={t("components.customerPicker.nameLabel", "ຊື່ລູກຄ້າ")} required>
                 <input value={c.name} onChange={(e) => setC({ ...c, name: e.target.value })} className={inputCls} placeholder={t("components.customerPicker.nameLabel", "ຊື່ລູກຄ້າ")} />

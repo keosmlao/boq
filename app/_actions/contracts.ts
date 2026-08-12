@@ -3,6 +3,7 @@
 import { query, withTransaction } from "@/_lib/db";
 import { invalidate } from "@/_lib/cache";
 import { requirePermission } from "@/_lib/server-auth";
+import { byNumber, byText, byTime, paginate, type PageQuery, type Paged } from "@/_lib/paging";
 import { logActivity } from "./chatter";
 import { dateOrNull, ensureContractSchema, generateContractNo, num } from "@/_lib/schemas/contracts";
 import { saveBase64File } from "@/_lib/uploads";
@@ -36,6 +37,47 @@ export async function getContracts(opts: { projectId?: string; quotationId?: str
  * legacy ERP table (odg_projects_contract). Legacy read is defensive (SELECT *)
  * so unknown columns can't break it; if it fails, v2 still shows.
  */
+/** Approval stage of a contract — the tab buckets on the list screen. */
+const contractStage = (r: any): "awaiting_sales" | "awaiting_accounting" | "complete" => {
+  if (r?.sales_approved && r?.accounting_approved) return "complete";
+  if (r?.sales_approved) return "awaiting_accounting";
+  return "awaiting_sales";
+};
+
+/**
+ * One page of the contracts list — searched, tab-filtered, sorted and sliced on
+ * the server so the browser receives a page, not the whole book.
+ */
+export async function getContractsPage(
+  params: PageQuery = {},
+): Promise<{ success: true; data: Paged<any> } | Fail> {
+  try {
+    const res: any = await getAllContractsForList();
+    const all: any[] = res?.success ? res.data || [] : Array.isArray(res) ? res : [];
+    return {
+      success: true,
+      data: paginate(all, params, {
+        search: (r, kw) => `${r.contract_no ?? ""} ${r.project_name ?? ""} ${r.customer_name ?? ""}`.toLowerCase().includes(kw),
+        tabs: {
+          awaiting_sales: (r) => contractStage(r) === "awaiting_sales",
+          awaiting_accounting: (r) => contractStage(r) === "awaiting_accounting",
+          complete: (r) => contractStage(r) === "complete",
+        },
+        sorters: {
+          contract_no: byText((r) => r.contract_no),
+          customer_name: byText((r) => r.customer_name),
+          created_at: byTime((r) => r.created_at),
+          total_amount: byNumber((r) => r.total_amount),
+        },
+        defaultSort: "created_at",
+        defaultDir: "desc",
+      }),
+    };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
 export async function getAllContractsForList(): Promise<{ success: true; data: any[] } | Fail> {
   try {
     await ensureContractSchema();

@@ -143,7 +143,7 @@ export default function TechCalendarPage() {
               <button
                 key={row.wo_id}
                 onClick={() => router.push(`/work-orders/${row.wo_id}`)}
-                className="group flex w-full items-center gap-3 rounded-xl border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-3 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface)]"
+                className="group flex w-full items-center gap-3 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-sunken)] p-3 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface)]"
               >
                 <span
                   className="h-9 w-1 shrink-0 rounded-full"
@@ -179,7 +179,7 @@ export default function TechCalendarPage() {
             <Btn variant="outline" onClick={goToday}>
               <CalendarDays size={14} /> {t("techCal.today", "ມື້ນີ້")}
             </Btn>
-            <div className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1">
+            <div className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1">
               <button
                 onClick={() => changeMonth(-1)}
                 aria-label={t("techCal.prevMonth", "ເດືອນກ່ອນ")}
@@ -259,7 +259,7 @@ export default function TechCalendarPage() {
             </div>
             <div className="grid grid-cols-7 gap-1 md:gap-2">
               {cells.map((date, index) => {
-                if (!date) return <div key={`empty-${index}`} className="min-h-[68px] rounded-xl bg-[var(--surface-sunken)]/50 md:min-h-[94px]" />;
+                if (!date) return <div key={`empty-${index}`} className="min-h-[68px] rounded-lg bg-[var(--surface-sunken)]/50 md:min-h-[94px]" />;
                 const key = iso(date);
                 const aggregate = byDate.get(key);
                 const isToday = key === todayIso;
@@ -268,7 +268,7 @@ export default function TechCalendarPage() {
                   <button
                     key={key}
                     onClick={() => setSelected(key)}
-                    className={`group relative flex min-h-[68px] flex-col overflow-hidden rounded-xl border p-1.5 text-left transition-all duration-200 md:min-h-[94px] md:p-2.5 ${
+                    className={`group relative flex min-h-[68px] flex-col overflow-hidden rounded-lg border p-1.5 text-left transition-all duration-200 md:min-h-[94px] md:p-2.5 ${
                       isSelected
                         ? "border-[var(--brand)] bg-[var(--brand-tint)] ring-2 ring-[var(--brand-ring)]"
                         : aggregate
@@ -333,7 +333,7 @@ export default function TechCalendarPage() {
                 </p>
               </div>
               <span
-                className={`flex h-11 w-11 items-center justify-center rounded-xl text-lg font-black tabular-nums ${
+                className={`flex h-11 w-11 items-center justify-center rounded-lg text-lg font-black tabular-nums ${
                   selected === todayIso
                     ? "bg-[var(--ink)] text-[var(--ink-text)]"
                     : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
@@ -343,12 +343,12 @@ export default function TechCalendarPage() {
               </span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-[var(--info-soft)] bg-[var(--info-soft)] px-3 py-2 text-[var(--info)]">
+              <div className="rounded-lg border border-[var(--info-soft)] bg-[var(--info-soft)] px-3 py-2 text-[var(--info)]">
                 <span className="block text-[9px] font-bold">{t("techCal.legendPlanned", "ວາງແຜນ")}</span>
                 <strong className="text-lg font-black tabular-nums">{dayDetail.planned.length}</strong>{" "}
                 <small className="text-[9px] font-bold">{t("techCal.jobsUnit", "ວຽກ")}</small>
               </div>
-              <div className="rounded-xl border border-[var(--success-soft)] bg-[var(--success-soft)] px-3 py-2 text-[var(--success)]">
+              <div className="rounded-lg border border-[var(--success-soft)] bg-[var(--success-soft)] px-3 py-2 text-[var(--success)]">
                 <span className="block text-[9px] font-bold">{t("techCal.completed", "ສຳເລັດແລ້ວ")}</span>
                 <strong className="text-lg font-black tabular-nums">{dayDetail.done.length}</strong>{" "}
                 <small className="text-[9px] font-bold">{t("techCal.jobsUnit", "ວຽກ")}</small>
@@ -358,7 +358,7 @@ export default function TechCalendarPage() {
 
           {dayDetail.planned.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center px-6 py-14 text-center">
-              <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--surface-sunken)] text-[var(--text-mute)]">
+              <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[var(--text-mute)]">
                 <CalendarDays size={28} strokeWidth={1.6} />
               </span>
               <h3 className="text-[13px] font-black text-[var(--text)]">{t("techCal.noJobs", "ບໍ່ມີວຽກໃນມື້ນີ້")}</h3>

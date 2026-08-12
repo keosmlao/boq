@@ -4,6 +4,7 @@ import { query } from "@/_lib/db";
 import { logActivity } from "./chatter";
 import { cached, invalidate } from "@/_lib/cache";
 import { cleanText, isTruthyFlag } from "@/_lib/http";
+import { byText, byTime, paginate, type PageQuery, type Paged } from "@/_lib/paging";
 import { requireManager, requirePermission } from "@/_lib/server-auth";
 import {
   approveProjectRequest,
@@ -37,6 +38,52 @@ function fail(message: string): Fail { return { success: false, message }; }
 function f(formData: FormData, key: string): string {
   const v = formData.get(key);
   return typeof v === "string" ? v : "";
+}
+
+/** Tab bucket for a project row. */
+function projectMatchesStatus(r: any, key: string): boolean {
+  const status = String(r?.project_status || "");
+  if (key === "open") return status !== "ປິດໂຄງການ";
+  if (key === "waiting") return status.startsWith("ລໍຖ້າ");
+  if (key === "closed") return status === "ປິດໂຄງການ";
+  return true;
+}
+
+/**
+ * One page of the projects list — searched, tab-filtered, sorted and sliced on
+ * the server. The board / map / group-by-customer views need the whole set, so
+ * they ask for a large perPage instead of every screen paying for it.
+ */
+export async function getProjectsPage(
+  params: PageQuery = {},
+): Promise<{ success: true; data: Paged<any> } | Fail> {
+  try {
+    const res: any = await getProjects({ summary: true });
+    const all: any[] = res?.success ? res.data || [] : Array.isArray(res) ? res : [];
+    return {
+      success: true,
+      data: paginate(all, params, {
+        search: (r, kw) =>
+          [r.project_name, r.customer_name, r.coordinator, r.sml_code, r.village_name, r.district_name, r.province_name, r.project_status]
+            .some((x: unknown) => String(x ?? "").toLowerCase().includes(kw)),
+        tabs: {
+          open: (r) => projectMatchesStatus(r, "open"),
+          waiting: (r) => projectMatchesStatus(r, "waiting"),
+          closed: (r) => projectMatchesStatus(r, "closed"),
+        },
+        sorters: {
+          project_name: byText((r) => r.project_name),
+          customer_name: byText((r) => r.customer_name),
+          project_status: byText((r) => r.project_status),
+          created_at: byTime((r) => r.created_at),
+        },
+        defaultSort: "project_name",
+        defaultDir: "asc",
+      }),
+    };
+  } catch (e) {
+    return { success: false, message: (e as Error).message } as Fail;
+  }
 }
 
 export async function getProjects(opts: { summary?: boolean } = {}): Promise<Result<unknown[]>> {

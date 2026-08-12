@@ -94,7 +94,7 @@ export default function InventoryPicker({
       {open && mounted && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/40 px-3 pt-[10vh] backdrop-blur-[2px]" onClick={() => setOpen(false)}>
           <div
-            className="flex max-h-[78vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
+            className="flex max-h-[78vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 border-b border-[var(--border-soft)] px-3 py-2.5">

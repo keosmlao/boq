@@ -109,7 +109,7 @@ export default function Followers({ entityType, entityId }: { entityType: string
       {open && (
         <>
           <button aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-64 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
+          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-64 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)] animate-scale-up">
             <div className="border-b border-[var(--border-soft)] bg-[var(--surface-sunken)] px-3.5 py-2.5 text-[11px] font-black tracking-wider text-[var(--text-mute)]">
               {t("components.followers.followers", "ຜູ້ຕິດຕາມ")} ({followers.length})
             </div>

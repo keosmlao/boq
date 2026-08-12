@@ -4,7 +4,7 @@
  * ໃບສະເໜີລາຄາ — flat list (ODIEN SERVICE layout): toolbar → status tabs → one table.
  * Rows carry a status bar down the left edge; no customer/project accordion.
  */
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BellRing,
@@ -40,7 +40,8 @@ import {
   trHover,
   type PillTone,
 } from "../_components/ui";
-import { getQuotations } from "@/_actions/quotations";
+import { getQuotationsPage } from "@/_actions/quotations";
+import type { Paged } from "@/_lib/paging";
 import { useT } from "@/_lib/i18n";
 
 const PER_PAGE = 25;
@@ -89,12 +90,13 @@ const STATUS_PILL: Record<string, PillTone> = {
 
 type SortKey = "quotation_no" | "quotation_date" | "customer_name" | "total_amount";
 
-export default function QuotationsClient({ initialRows }: { initialRows: Quote[] }) {
+export default function QuotationsClient({ initial, initialTab = "all" }: { initial: Paged<Quote> | null; initialTab?: string }) {
   const t = useT();
   const router = useRouter();
   const [pick, setPick] = useState(false);
-  const [allRows, setAllRows] = useState<Quote[]>(initialRows ?? []);
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const [data, setData] = useState<Paged<Quote> | null>(initial);
+  const first = useRef(true);
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [draftQ, setDraftQ] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -107,50 +109,41 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
     setPage(1);
   };
 
+  /** One server call per interaction; the response IS the page. */
   const reload = async () => {
     setLoading(true);
     try {
-      const res: any = await getQuotations({});
-      setAllRows(res?.success ? res.data || [] : Array.isArray(res) ? res : []);
-    } catch {
-      setAllRows([]);
+      const res = await getQuotationsPage({ q, tab: activeTab, page, sort: sort.key, dir: sort.dir });
+      if (res.success) setData(res.data as Paged<Quote>);
     } finally {
       setLoading(false);
     }
   };
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: allRows.length };
-    for (const key of [PENDING, APPROVED, REJECTED]) {
-      c[key] = allRows.filter((r) => statusKey(r) === key).length;
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
     }
-    return c;
-  }, [allRows]);
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, activeTab, page, sort]);
 
-  const rows = useMemo(() => {
-    const kw = q.trim().toLowerCase();
-    const list = allRows.filter((r) => {
-      if (activeTab !== "all" && statusKey(r) !== activeTab) return false;
-      if (!kw) return true;
-      return `${r.quotation_no ?? ""} ${r.project_name ?? ""} ${r.customer_name ?? ""}`.toLowerCase().includes(kw);
-    });
-    const dir = sort.dir === "asc" ? 1 : -1;
-    return [...list].sort((a, b) => {
-      const av = sort.key === "quotation_date" ? a.quotation_date ?? a.created_at : a[sort.key];
-      const bv = sort.key === "quotation_date" ? b.quotation_date ?? b.created_at : b[sort.key];
-      if (sort.key === "total_amount") return (Number(av) || 0) > (Number(bv) || 0) ? dir : -dir;
-      return String(av ?? "") > String(bv ?? "") ? dir : -dir;
-    });
-  }, [allRows, activeTab, q, sort]);
+  // Counts, rows and paging all come from the server response.
+  const counts = data?.counts ?? { all: 0 };
+  const rows = data?.rows ?? [];
+  const pageRows = rows;
+  const total = data?.total ?? 0;
+  const perPage = data?.perPage ?? PER_PAGE;
+  const current = data?.page ?? 1;
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
+  /** Value of the rows on THIS page (the full-set total would need every row). */
+  const totalValue = rows.reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0);
 
-  const totalValue = useMemo(() => rows.reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0), [rows]);
-
-  const pageCount = Math.max(1, Math.ceil(rows.length / PER_PAGE));
-  const current = Math.min(page, pageCount);
-  const pageRows = rows.slice((current - 1) * PER_PAGE, current * PER_PAGE);
-
-  const toggleSort = (key: SortKey) =>
+  const toggleSort = (key: SortKey) => {
+    setPage(1);
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  };
 
   const statuses = [
     { value: "all", label: t("common.all", "ທັງໝົດ") },
@@ -216,7 +209,7 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
       />
 
       <Toolbar>
-        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
           <Search size={15} className="text-[var(--text-mute)]" />
           <input
             value={draftQ}
@@ -358,7 +351,7 @@ export default function QuotationsClient({ initialRows }: { initialRows: Quote[]
                 {pageRows.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-12 text-center text-[12.5px] text-[var(--text-mute)]">
-                      {allRows.length ? t("quotations.noMatch", "ບໍ່ພົບໃບສະເໜີທີ່ກົງ") : t("quotations.empty", "ຍັງບໍ່ມີໃບສະເໜີລາຄາ")}
+                      {q || activeTab !== "all" ? t("quotations.noMatch", "ບໍ່ພົບໃບສະເໜີທີ່ກົງ") : t("quotations.empty", "ຍັງບໍ່ມີໃບສະເໜີລາຄາ")}
                     </td>
                   </tr>
                 ) : (

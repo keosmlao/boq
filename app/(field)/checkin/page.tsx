@@ -102,11 +102,11 @@ export default function CheckinPage() {
       </div>
 
       {loadErr && (
-        <div className="mb-3 rounded-xl border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-[12.5px] font-semibold text-rose-600">{loadErr}</div>
+        <div className="mb-3 rounded-lg border border-rose-300 bg-rose-50 px-3.5 py-2.5 text-[12.5px] font-semibold text-rose-600">{loadErr}</div>
       )}
 
       {rows.length === 0 && !loadErr ? (
-        <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-12 text-center text-[13px] font-semibold text-neutral-400">
+        <div className="rounded-lg border border-neutral-200 bg-white px-4 py-12 text-center text-[13px] font-semibold text-neutral-400">
           {t("checkin.noJobs", "ຍັງບໍ່ມີໃບງານທີ່ມອບໝາຍໃຫ້ທ່ານ")}
         </div>
       ) : (
@@ -139,16 +139,16 @@ function WoCard({ w, onDone, t }: { w: Wo; onDone: () => Promise<void>; t: (k: s
   const rejected = w.accept_status === "rejected";
 
   const state = done
-    ? { label: t("checkin.stDone", "ສຳເລັດແລ້ວ (ລໍຖ້າກວດສອບ)"), cls: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 size={13} /> }
+    ? { label: t("checkin.stDone", "ສຳເລັດແລ້ວ (ລໍຖ້າກວດສອບ)"), cls: "bg-[var(--success-soft)] text-[var(--success)]", icon: <CheckCircle2 size={13} /> }
     : inProgress
-      ? { label: t("checkin.stInProgress", "ກຳລັງເຮັດວຽກ"), cls: "bg-blue-100 text-blue-700", icon: <Clock size={13} /> }
+      ? { label: t("checkin.stInProgress", "ກຳລັງເຮັດວຽກ"), cls: "bg-[var(--info-soft)] text-[var(--info)]", icon: <Clock size={13} /> }
       : readyCheckin
-        ? { label: t("checkin.stReady", "ພ້ອມເຊັກອິນ"), cls: "bg-teal-100 text-teal-700", icon: <LogIn size={13} /> }
+        ? { label: t("checkin.stReady", "ພ້ອມເຊັກອິນ"), cls: "bg-[var(--brand-soft)] text-[var(--brand-strong)]", icon: <LogIn size={13} /> }
         : awaitingAccept
-          ? { label: t("checkin.stAccept", "ລໍຖ້າຮັບງານ"), cls: "bg-amber-100 text-amber-700", icon: <ShieldCheck size={13} /> }
+          ? { label: t("checkin.stAccept", "ລໍຖ້າຮັບງານ"), cls: "bg-[var(--warning-soft)] text-[var(--warning)]", icon: <ShieldCheck size={13} /> }
           : rejected
-            ? { label: t("checkin.stRejected", "ປະຕິເສດແລ້ວ"), cls: "bg-neutral-200 text-neutral-600", icon: null }
-            : { label: t("checkin.stWaitApproval", "ລໍຖ້າອະນຸມັດໃບງານ"), cls: "bg-neutral-200 text-neutral-600", icon: null };
+            ? { label: t("checkin.stRejected", "ປະຕິເສດແລ້ວ"), cls: "bg-[var(--surface-sunken)] text-[var(--text-soft)]", icon: null }
+            : { label: t("checkin.stWaitApproval", "ລໍຖ້າອະນຸມັດໃບງານ"), cls: "bg-[var(--surface-sunken)] text-[var(--text-soft)]", icon: null };
 
   const resetCapture = () => { setMode(null); setCoords(null); setGpsErr(""); setPhoto(""); setNote(""); setErr(""); };
 
@@ -203,7 +203,7 @@ function WoCard({ w, onDone, t }: { w: Wo; onDone: () => Promise<void>; t: (k: s
   };
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-[14px] font-black text-neutral-900">{w.work_no || t("checkin.job", "ໃບງານ")}</div>
@@ -229,7 +229,7 @@ function WoCard({ w, onDone, t }: { w: Wo; onDone: () => Promise<void>; t: (k: s
       {!legacy && (
         <div className="mt-3">
           {awaitingAccept && (
-            <button onClick={accept} disabled={busy} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-amber-500 text-[13px] font-bold text-white transition-colors hover:bg-amber-600 disabled:opacity-60">
+            <button onClick={accept} disabled={busy} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-amber-500 text-[13px] font-bold text-white transition-colors hover:bg-amber-600 disabled:opacity-60">
               {busy ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} {t("checkin.accept", "ຮັບງານ")}
             </button>
           )}
@@ -237,7 +237,7 @@ function WoCard({ w, onDone, t }: { w: Wo; onDone: () => Promise<void>; t: (k: s
           {(readyCheckin || inProgress) && mode === null && (
             <button
               onClick={() => setMode(inProgress ? "checkout" : "checkin")}
-              className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl text-[13px] font-bold text-white transition-colors ${inProgress ? "bg-blue-600 hover:bg-blue-700" : "bg-teal-600 hover:bg-teal-700"}`}
+              className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg text-[13px] font-bold text-white transition-colors ${inProgress ? "bg-[var(--ink)] hover:bg-[var(--ink-hover)]" : "bg-[var(--brand)] hover:bg-[var(--brand-hover)]"}`}
             >
               {inProgress ? <><LogOut size={16} /> {t("checkin.checkout", "ເຊັກເອົາ (ສຳເລັດວຽກ)")}</> : <><LogIn size={16} /> {t("checkin.checkin", "ເຊັກອິນ (ເລີ່ມວຽກ)")}</>}
             </button>
@@ -245,7 +245,7 @@ function WoCard({ w, onDone, t }: { w: Wo; onDone: () => Promise<void>; t: (k: s
 
           {/* Capture panel */}
           {mode !== null && (
-            <div className="mt-1 space-y-2.5 rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+            <div className="mt-1 space-y-2.5 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
               <div className="text-[12px] font-black text-neutral-800">
                 {mode === "checkin" ? t("checkin.checkin", "ເຊັກອິນ (ເລີ່ມວຽກ)") : t("checkin.checkout", "ເຊັກເອົາ (ສຳເລັດວຽກ)")}
               </div>
@@ -278,13 +278,13 @@ function WoCard({ w, onDone, t }: { w: Wo; onDone: () => Promise<void>; t: (k: s
               {err && <div className="text-center text-[11.5px] font-semibold text-rose-600">{err}</div>}
 
               <div className="flex gap-2">
-                <button onClick={resetCapture} disabled={busy} className="h-10 flex-1 rounded-xl border border-neutral-300 bg-white text-[12.5px] font-bold text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-60">
+                <button onClick={resetCapture} disabled={busy} className="h-10 flex-1 rounded-lg border border-neutral-300 bg-white text-[12.5px] font-bold text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-60">
                   {t("common.cancel", "ຍົກເລີກ")}
                 </button>
                 <button
                   onClick={submit}
                   disabled={busy || !coords || !photo}
-                  className="inline-flex h-10 flex-[2] items-center justify-center gap-2 rounded-xl bg-teal-600 text-[12.5px] font-bold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex h-10 flex-[2] items-center justify-center gap-2 rounded-lg bg-[var(--brand)] text-[12.5px] font-bold text-white transition-colors hover:bg-[var(--brand-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {busy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />} {t("checkin.confirm", "ຢືນຢັນ")}
                 </button>

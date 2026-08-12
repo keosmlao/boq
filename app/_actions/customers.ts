@@ -3,6 +3,12 @@
 import { query, withTransaction } from "@/_lib/db";
 import { requirePermission } from "@/_lib/server-auth";
 import { logActivity } from "./chatter";
+import { cached } from "@/_lib/cache";
+import { byNumber, byText, paginate, type PageQuery, type Paged } from "@/_lib/paging";
+import { getProjects } from "./projects";
+
+/** How long the customer + project roll-up may be reused before rebuilding. */
+const CUSTOMER_LIST_TTL = 60 * 1000;
 
 type Fail = { success: false; message: string };
 function fail(message: string): Fail {
@@ -22,6 +28,55 @@ const mapRow = (r: any) => ({
 });
 
 /** Project customers from ar_customer (those flagged with ar_project_code in ar_customer_detail). */
+/**
+ * One page of the customers list, each row carrying its projects.
+ *
+ * The customer table and the project summary are loaded once (cached for a
+ * minute) and then searched / filtered / sorted / sliced on the server, so the
+ * browser gets 25 rows instead of the entire customer book.
+ */
+export async function getCustomersPage(
+  params: PageQuery = {},
+): Promise<{ success: true; data: Paged<any> } | Fail> {
+  try {
+    const rows = await cached("cust:list", CUSTOMER_LIST_TTL, async () => {
+      const [cRes, pRes] = await Promise.all([getCustomers(), getProjects({ summary: true })]);
+      const customers = (cRes as any)?.success ? ((cRes as any).data as any[]) : [];
+      const projects: any[] = Array.isArray(pRes) ? pRes : ((pRes as any)?.data ?? []);
+      const byCode = new Map<string, any[]>();
+      for (const p of projects) {
+        const code = String(p.sml_code ?? "");
+        if (!code) continue;
+        byCode.set(code, [...(byCode.get(code) || []), p]);
+      }
+      return customers.map((c: any) => ({ ...c, projects: byCode.get(String(c.code)) || [] }));
+    });
+
+    return {
+      success: true,
+      data: paginate(rows, params, {
+        search: (c, kw) =>
+          [c.name, c.code, c.phone].some((x: unknown) => String(x ?? "").toLowerCase().includes(kw)) ||
+          (c.projects || []).some((p: any) => String(p.project_name ?? "").toLowerCase().includes(kw)),
+        tabs: {
+          has: (c) => (c.projects?.length ?? 0) > 0,
+          none: (c) => (c.projects?.length ?? 0) === 0,
+        },
+        sorters: {
+          name: byText((c) => c.name),
+          code: byText((c) => c.code),
+          phone: byText((c) => c.phone),
+          projects: byNumber((c) => c.projects?.length ?? 0),
+        },
+        defaultSort: "name",
+        defaultDir: "asc",
+      }),
+    };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
 export async function getCustomers(opts: { search?: string } = {}): Promise<{ success: true; data: unknown[] } | Fail> {
   try {
     const s = (opts.search || "").trim();

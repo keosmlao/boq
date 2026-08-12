@@ -96,9 +96,9 @@ export default function ReportsClient({
         {/* Revenue + sales */}
         <div className="space-y-6 xl:col-span-4">
           {/* Revenue hero — ink slab */}
-          <div className="overflow-hidden rounded-xl bg-[var(--ink)] p-6 text-[var(--ink-text)] shadow-[var(--shadow-md)]">
+          <div className="overflow-hidden rounded-lg bg-[var(--ink)] p-6 text-[var(--ink-text)] shadow-[var(--shadow-md)]">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: onInk(12) }}>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: onInk(12) }}>
                 <Wallet size={18} />
               </div>
               <span className="text-[12px] font-bold tracking-wider opacity-70">{t("reports.revenueContract", "ລາຍຮັບ (ສັນຍາ)")}</span>
@@ -110,7 +110,7 @@ export default function ReportsClient({
                 {money(rev?.total)} <span className="text-lg font-bold opacity-60">{t("reports.kip", "ບາດ")}</span>
               </h3>
             )}
-            <div className="mt-5 flex items-center justify-between rounded-xl px-4 py-3" style={{ background: onInk(10) }}>
+            <div className="mt-5 flex items-center justify-between rounded-lg px-4 py-3" style={{ background: onInk(10) }}>
               <span className="text-[12px] font-bold opacity-70">{t("reports.thisMonth", "ເດືອນນີ້")}</span>
               <span className="text-[14px] font-black tabular-nums">{money(rev?.monthly)} {t("reports.kip", "ບາດ")}</span>
             </div>
@@ -120,7 +120,7 @@ export default function ReportsClient({
           <Card className="p-5">
             <SectionHeader icon={<FileSignature size={15} />} title={t("reports.salesContract", "ການຂາຍ (ສັນຍາ)")} tone="brand" />
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                 <FileSignature size={18} />
               </div>
               <div className="min-w-0">
@@ -133,14 +133,14 @@ export default function ReportsClient({
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2.5">
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] px-3.5 py-3">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] px-3.5 py-3">
                 <span className="block text-[11px] font-bold text-[var(--text-mute)]">{t("reports.thisMonth", "ເດືອນນີ້")}</span>
                 <span className="mt-1 flex items-center gap-2 text-[15px] font-black tabular-nums text-[var(--text)]">
                   {sales?.monthlySales ?? 0}
                   {!loading && sales && <GrowthPill value={sales.salesGrowth} />}
                 </span>
               </div>
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] px-3.5 py-3">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] px-3.5 py-3">
                 <span className="block text-[11px] font-bold text-[var(--text-mute)]">{t("reports.lastMonth", "ເດືອນກ່ອນ")}</span>
                 <span className="mt-1 block text-[15px] font-black tabular-nums text-[var(--text)]">{sales?.lastMonthSales ?? 0}</span>
               </div>
@@ -161,7 +161,7 @@ export default function ReportsClient({
           {loading ? (
             <div className="space-y-4">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-10 animate-pulse rounded-xl bg-[var(--surface-sunken)]" />
+                <div key={i} className="h-10 animate-pulse rounded-lg bg-[var(--surface-sunken)]" />
               ))}
             </div>
           ) : statusBars.length === 0 ? (
@@ -195,7 +195,7 @@ export default function ReportsClient({
 
           {/* Monthly performance footer */}
           {!loading && dash && (
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] px-5 py-4">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] px-5 py-4">
               <div>
                 <span className="block text-[11px] font-semibold tracking-wider text-[var(--text-mute)]">{t("reports.contractsThisVsLast", "ສັນຍາ ເດືອນນີ້ vs ເດືອນກ່ອນ")}</span>
                 <span className="text-base font-black tabular-nums text-[var(--text)]">

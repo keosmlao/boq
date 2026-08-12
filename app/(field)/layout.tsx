@@ -9,7 +9,7 @@ import FieldTopBar from "./_FieldTopBar";
 
 export default function FieldLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-[var(--canvas,#f5f6f8)]">
+    <div className="min-h-screen bg-[var(--bg)]">
       <FieldTopBar />
       <main className="mx-auto w-full max-w-[560px] px-4 py-4">{children}</main>
     </div>

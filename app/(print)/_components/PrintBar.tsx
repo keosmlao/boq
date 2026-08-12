@@ -27,14 +27,14 @@ export default function PrintBar({ autoPrint = true }: { autoPrint?: boolean }) 
       <button
         type="button"
         onClick={() => window.close()}
-        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-neutral-300 px-4 text-xs font-bold text-neutral-700 transition-colors hover:bg-neutral-100"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-neutral-300 px-4 text-xs font-bold text-neutral-700 transition-colors hover:bg-neutral-100"
       >
         <X size={14} /> {t("print.close", "ປິດ")}
       </button>
       <button
         type="button"
         onClick={() => window.print()}
-        className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-neutral-900 px-4 text-xs font-bold text-white transition-colors hover:bg-neutral-700"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-neutral-900 px-4 text-xs font-bold text-white transition-colors hover:bg-neutral-700"
       >
         <Printer size={14} /> {t("print.print", "ພິມ")}
       </button>

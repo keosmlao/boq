@@ -8,6 +8,7 @@ import {
   Bell,
   Boxes,
   CalendarRange,
+  Car,
   ChevronDown,
   ChevronRight,
   FileSignature,
@@ -21,6 +22,7 @@ import {
   PanelLeftClose,
   Search,
   ShieldCheck,
+  ShoppingCart,
   Sun,
   Moon,
   UserCog,
@@ -44,40 +46,57 @@ import ChatWidget from "./ChatWidget";
 import ConfirmProvider from "./Confirm";
 import MyActivitiesBell from "./MyActivitiesBell";
 import NotificationsBell from "./NotificationsBell";
+import ProjectContextBar from "./ProjectContextBar";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useT } from "@/_lib/i18n";
 
 type NavItem = { label: string; tKey: string; href: string; icon: React.ReactNode; permKey?: string };
 type NavSection = { section?: string; sectionKey?: string; icon?: React.ReactNode; items: NavItem[] };
 
+/**
+ * Navigation, ordered the way the business actually works: the PROJECT is the
+ * subject, so it sits at the top on its own. Below it come the queues — the
+ * things waiting for this user — and only then the document registers, which
+ * are reference views over projects rather than places you live in.
+ */
 const NAV_SECTIONS: NavSection[] = [
   { items: [
     { label: "ພາບລວມ", tKey: "nav.overview", href: "/", icon: <Home size={14} /> },
-    { label: "ລໍຖ້າອະນຸມັດ", tKey: "nav.approvals", href: "/approvals", icon: <Inbox size={14} />, permKey: "*" },
+    { label: "ໂຄງການ", tKey: "nav.projects", href: "/projects", icon: <FolderKanban size={14} /> },
+    { label: "ແຜນທີ່ໂຄງການ", tKey: "nav.projectsMap", href: "/projects/map", icon: <MapPin size={14} />, permKey: "projects" },
   ] },
   {
-    section: "ການຂາຍ",
-    sectionKey: "nav.section.sales",
-    icon: <FolderKanban size={15} />,
+    // What is waiting for ME — the daily working list.
+    section: "ຄິວວຽກ",
+    sectionKey: "nav.section.queue",
+    icon: <Inbox size={15} />,
     items: [
-      { label: "ລູກຄ້າ", tKey: "nav.customers", href: "/customers", icon: <Users size={14} /> },
-      { label: "ໂຄງການ", tKey: "nav.projects", href: "/projects", icon: <FolderKanban size={14} /> },
-      { label: "ແຜນທີ່ໂຄງການ", tKey: "nav.projectsMap", href: "/projects/map", icon: <MapPin size={14} />, permKey: "projects" },
-      { label: "ໃບສະເໜີລາຄາ", tKey: "nav.quotations", href: "/quotations", icon: <FileText size={14} /> },
-      { label: "ສັນຍາ", tKey: "nav.contracts", href: "/contracts", icon: <FileSignature size={14} /> },
+      { label: "ລໍຖ້າອະນຸມັດ", tKey: "nav.approvals", href: "/approvals", icon: <Inbox size={14} />, permKey: "*" },
+      { label: "ການຂໍເບີກ", tKey: "nav.requests", href: "/requests", icon: <PackageOpen size={14} /> },
+      { label: "ໃບງານ", tKey: "nav.workorders", href: "/work-orders", icon: <Wrench size={14} /> },
+      { label: "ຕາຕະລາງວຽກ", tKey: "nav.schedule", href: "/schedule", icon: <CalendarRange size={14} /> },
+      { label: "ຕິດຕາມການຕິດຕັ້ງ", tKey: "nav.installtracking", href: "/install-tracking", icon: <CalendarRange size={14} /> },
     ],
   },
   {
-    section: "ໜ້າງານ & ຕິດຕັ້ງ",
-    sectionKey: "nav.section.work",
-    icon: <Wrench size={15} />,
+    // Registers: every document type, as a cross-project view.
+    section: "ເອກະສານໂຄງການ",
+    sectionKey: "nav.section.docs",
+    icon: <FileText size={15} />,
     items: [
+      { label: "ໃບສະເໜີລາຄາ", tKey: "nav.quotations", href: "/quotations", icon: <FileText size={14} /> },
+      { label: "ສັນຍາ", tKey: "nav.contracts", href: "/contracts", icon: <FileSignature size={14} /> },
       { label: "BOQ", tKey: "nav.boq", href: "/boq", icon: <ListChecks size={14} /> },
+    ],
+  },
+  {
+    section: "ວັດສະດຸ & ຈັດຊື້",
+    sectionKey: "nav.section.inventory",
+    icon: <Boxes size={15} />,
+    items: [
+      { label: "ສະຕັອກຕາມ BOQ", tKey: "nav.inventory", href: "/inventory", icon: <Boxes size={14} /> },
+      { label: "ຂໍຊື້", tKey: "nav.purchase", href: "/purchase", icon: <ShoppingCart size={14} /> },
       { label: "ລວມວັດສະດຸ", tKey: "nav.materials", href: "/materials", icon: <Boxes size={14} />, permKey: "boq" },
-      { label: "ຕາຕະລາງວຽກ", tKey: "nav.schedule", href: "/schedule", icon: <CalendarRange size={14} /> },
-      { label: "ໃບງານ", tKey: "nav.workorders", href: "/work-orders", icon: <Wrench size={14} /> },
-      { label: "ງານຕິດຕັ້ງມາດຕະຖານ", tKey: "nav.stdtasks", href: "/std-tasks", icon: <ClipboardCheck size={14} /> },
-      { label: "ຕິດຕາມການຕິດຕັ້ງ", tKey: "nav.installtracking", href: "/install-tracking", icon: <CalendarRange size={14} /> },
     ],
   },
   {
@@ -86,25 +105,19 @@ const NAV_SECTIONS: NavSection[] = [
     icon: <UsersRound size={15} />,
     items: [
       { label: "ຈັດການທີມຊ່າງ", tKey: "nav.techteams", href: "/tech-teams", icon: <UsersRound size={14} /> },
+      { label: "ລົດຊ່າງ", tKey: "nav.vehicles", href: "/vehicles", icon: <Car size={14} />, permKey: "tech-teams" },
       { label: "ປະຕິທິນງານຊ່າງ", tKey: "nav.techcalendar", href: "/tech-calendar", icon: <CalendarRange size={14} />, permKey: "work-orders" },
       { label: "ສະຫຼຸບຜົນງານຊ່າງ", tKey: "nav.techsummary", href: "/tech-summary", icon: <Award size={14} /> },
       { label: "ຕິດຕາມຊ່າງ", tKey: "nav.tracking", href: "/tracking", icon: <MapPin size={14} /> },
+      { label: "ງານຕິດຕັ້ງມາດຕະຖານ", tKey: "nav.stdtasks", href: "/std-tasks", icon: <ClipboardCheck size={14} /> },
     ],
   },
   {
-    section: "ສິນຄ້າ & ເບີກ",
-    sectionKey: "nav.section.inventory",
-    icon: <Boxes size={15} />,
+    section: "ຂໍ້ມູນອ້າງອີງ",
+    sectionKey: "nav.section.reference",
+    icon: <Users size={15} />,
     items: [
-      { label: "ການຂໍເບີກ", tKey: "nav.requests", href: "/requests", icon: <PackageOpen size={14} /> },
-      { label: "ສິນຄ້າ / ສະຕັອກ", tKey: "nav.inventory", href: "/inventory", icon: <Boxes size={14} /> },
-    ],
-  },
-  {
-    section: "ການເງິນ & ລາຍງານ",
-    sectionKey: "nav.section.finance",
-    icon: <Wallet size={15} />,
-    items: [
+      { label: "ລູກຄ້າ", tKey: "nav.customers", href: "/customers", icon: <Users size={14} /> },
       { label: "ບັນຊີ / ງວດຈ່າຍ", tKey: "nav.finance", href: "/finance", icon: <Wallet size={14} /> },
       { label: "ລາຍງານ & ສະຖິຕິ", tKey: "nav.reports", href: "/reports", icon: <BarChart3 size={14} /> },
     ],
@@ -258,7 +271,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   if (!ready) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--bg)]">
-        <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-xs font-bold text-[var(--text-mute)] shadow-[var(--shadow-sm)]">
+        <div className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-5 py-3 text-xs font-bold text-[var(--text-mute)] shadow-[var(--shadow-sm)]">
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--brand)]" />
           {t("shell.opening")}
         </div>
@@ -270,34 +283,40 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const roleLabel = ROLE_LABELS[(user?.role as Role) || "staff"] || "ຜູ້ໃຊ້ງານ";
 
   const sidebar = (
-    <nav className="flex h-full flex-col overflow-hidden border-r border-white/10 bg-[#050b1d] text-slate-300">
-      <div className="flex h-[58px] items-center gap-2.5 border-b border-white/10 px-4">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500 text-white">
+    <nav className="relative flex h-full flex-col overflow-hidden border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)]">
+      {/* The login panel's glow, carried through the workspace. */}
+      <div
+        className="pointer-events-none absolute -left-16 -top-20 h-64 w-64 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(0,155,131,0.20) 0%, rgba(0,155,131,0) 70%)" }}
+      />
+
+      <div className="relative flex h-[58px] items-center gap-2.5 border-b border-[var(--sidebar-border)] px-4">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--brand)] text-white">
           <Wrench size={16} strokeWidth={2.5} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="font-display block truncate text-[12.5px] font-bold tracking-wide text-white">ODG PROJECTS</span>
-          <span className="block truncate text-[9.5px] font-medium text-slate-500">{t("app.subtitle")}</span>
+          <span className="font-display block truncate text-[14px] font-black tracking-wide text-white">ODG PROJECTS</span>
+          <span className="block truncate text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--sidebar-fg-soft)]">{t("app.subtitle")}</span>
         </span>
-        <PanelLeftClose size={15} className="hidden text-slate-500 md:block" />
-        <button onClick={() => setMobileOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-mute)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] md:hidden" aria-label={t("shell.closeMenu")}>
+        <PanelLeftClose size={15} className="hidden text-[var(--sidebar-fg-soft)] md:block" />
+        <button onClick={() => setMobileOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--sidebar-fg-soft)] hover:bg-[var(--sidebar-hover)] hover:text-white md:hidden" aria-label={t("shell.closeMenu")}>
           <X size={17} />
         </button>
       </div>
 
-      <div className="px-4 pt-4">
-        <label className="flex h-8 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-slate-500 focus-within:border-teal-500/60">
+      <div className="relative px-4 pt-4">
+        <label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] px-2.5 text-[var(--sidebar-fg-soft)] transition-colors focus-within:border-[var(--sidebar-accent)] focus-within:bg-white/10">
           <Search size={14} />
           <input
             value={navQuery}
             onChange={(event) => setNavQuery(event.target.value)}
             placeholder={t("shell.searchMenu", "ຄົ້ນຫາເມນູ...")}
-            className="min-w-0 flex-1 border-0 bg-transparent text-[11.5px] text-slate-200 outline-none placeholder:text-slate-600"
+            className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-white outline-none placeholder:text-[var(--sidebar-fg-soft)]"
           />
         </label>
       </div>
 
-      <div className="theme-scrollbar flex-1 space-y-1 overflow-y-auto px-2.5 py-3">
+      <div className="theme-scrollbar relative flex-1 space-y-1 overflow-y-auto px-2.5 py-3">
         {visibleSections.map((section, index) => (
           <div key={section.section || index}>
             {section.section && (() => {
@@ -307,12 +326,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => toggleSection(section.section!)}
-                  className={`flex h-8.5 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[11.5px] font-bold transition ${containsActive ? "bg-white/[0.06] text-white" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
+                  className={`flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[11px] font-black uppercase tracking-[0.14em] transition ${containsActive ? "text-white" : "text-[var(--sidebar-fg-soft)] hover:bg-[var(--sidebar-hover)] hover:text-white/80"}`}
                   aria-expanded={expanded}
                 >
-                  <span className={containsActive ? "text-teal-400" : "text-slate-500"}>{section.icon}</span>
+                  <span className={containsActive ? "text-[var(--sidebar-accent)]" : "text-[var(--sidebar-fg-soft)]"}>{section.icon}</span>
                   <span className="min-w-0 flex-1 truncate">{t(section.sectionKey || "", section.section)}</span>
-                  <ChevronDown size={14} className={`text-slate-600 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                  <ChevronDown size={13} className={`text-[var(--sidebar-fg-soft)] transition-transform ${expanded ? "rotate-180" : ""}`} />
                 </button>
               );
             })()}
@@ -325,16 +344,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     onClick={() => setMobileOpen(false)}
-                    className={`group relative flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[11px] font-medium transition-colors duration-150 ${
+                    className={`group relative flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-colors duration-150 ${
                       active
-                        ? "bg-teal-500/10 pl-4 font-semibold text-white"
-                        : "text-slate-400 hover:bg-white/5 hover:text-slate-100"
+                        ? "bg-[var(--sidebar-active)] pl-4 font-bold text-white"
+                        : "text-[var(--sidebar-fg)] hover:bg-[var(--sidebar-hover)] hover:text-white"
                     }`}
                   >
-                    {active && <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-teal-400" />}
+                    {active && <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-[var(--sidebar-accent)]" />}
                     <span
                       className={`flex h-6 w-6 items-center justify-center transition-colors duration-150 ${
-                        active ? "text-teal-400" : "text-slate-500 group-hover:text-teal-400"
+                        active ? "text-[var(--sidebar-accent)]" : "text-[var(--sidebar-fg-soft)] group-hover:text-[var(--sidebar-accent)]"
                       } ${section.section ? "hidden" : ""}`}
                     >
                       {item.icon}
@@ -342,11 +361,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     <span className="min-w-0 flex-1 truncate">{t(item.tKey, item.label)}</span>
                     {item.href === "/approvals" ? (
                       approvalCount > 0 && (
-                        <span className="ml-auto inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[9.5px] font-bold text-white">{approvalCount > 99 ? "99+" : approvalCount}</span>
+                        <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-bold text-white">{approvalCount > 99 ? "99+" : approvalCount}</span>
                       )
                     ) : (
                       (navCounts[item.href] ?? 0) > 0 && (
-                        <span className="ml-auto inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-white/10 px-1.5 text-[9.5px] font-bold text-slate-300">
+                        <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/10 px-1.5 text-[11px] font-bold text-[var(--sidebar-accent)]">
                           {navCounts[item.href]! > 99 ? "99+" : navCounts[item.href]}
                         </span>
                       )
@@ -359,14 +378,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      <div className="border-t border-white/10 p-3">
-        <Link href="/profile" onClick={() => setMobileOpen(false)} className="group flex items-center gap-3 rounded-lg p-2.5 transition hover:bg-white/5">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-600 text-[10px] font-bold text-white">{initial}</span>
+      <div className="relative border-t border-[var(--sidebar-border)] p-3">
+        <Link href="/profile" onClick={() => setMobileOpen(false)} className="group flex items-center gap-3 rounded-lg p-2.5 transition hover:bg-[var(--sidebar-hover)]">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand)] text-[10px] font-bold text-white">{initial}</span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[10.5px] font-bold text-slate-100">{user?.name || user?.username}</span>
-            <span className="mt-0.5 block truncate text-[9.5px] font-medium text-slate-500">{roleLabel}</span>
+            <span className="block truncate text-[12.5px] font-bold text-white">{user?.name || user?.username}</span>
+            <span className="mt-0.5 block truncate text-[11px] font-medium text-[var(--sidebar-fg-soft)]">{roleLabel}</span>
           </span>
-          <UserCog size={14} className="text-slate-600 transition-colors group-hover:text-teal-400" />
+          <UserCog size={14} className="text-[var(--sidebar-fg-soft)] transition-colors group-hover:text-[var(--sidebar-accent)]" />
         </Link>
       </div>
     </nav>
@@ -377,7 +396,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <NavProgress />
       <ChatWidget />
 
-      <aside className="hidden w-[228px] flex-shrink-0 md:block">{sidebar}</aside>
+      <aside className="hidden w-[244px] flex-shrink-0 md:block">{sidebar}</aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
@@ -388,13 +407,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="relative z-20 flex h-[52px] flex-shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 md:px-6">
-          <button onClick={() => setMobileOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition md:hidden" aria-label={t("shell.openMenu")}>
+          <button onClick={() => setMobileOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition md:hidden" aria-label={t("shell.openMenu")}>
             <Menu size={18} />
           </button>
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--text-mute)]">
-              <span>ODG Projects</span><ChevronRight size={10} /><span className="truncate font-extrabold text-teal-600 dark:text-teal-400">{(() => { const s = sectionFor(pathname); return t(s.key, s.fallback); })()}</span>
+              <span>ODG Projects</span><ChevronRight size={10} /><span className="truncate font-extrabold text-[var(--brand)]">{(() => { const s = sectionFor(pathname); return t(s.key, s.fallback); })()}</span>
             </div>
             <h2 className="mt-1 truncate text-[13.5px] font-black tracking-tight text-[var(--text)]">{(() => { const ti = titleFor(pathname); return t(ti.key, ti.fallback); })()}</h2>
           </div>
@@ -406,13 +425,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             
             <button
               onClick={toggleTheme}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition-all duration-300 relative overflow-hidden active:scale-95 group"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition-all duration-300 relative overflow-hidden active:scale-95"
               title={theme === "dark" ? t("shell.theme.toLight") : t("shell.theme.toDark")}
             >
-              <span className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <span className="relative z-10 transition-transform duration-500 group-hover:rotate-45">
-                {theme === "dark" ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} className="text-indigo-600 dark:text-indigo-400" />}
-              </span>
+              {theme === "dark" ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} className="text-indigo-600 dark:text-indigo-400" />}
             </button>
 
             <span className="mx-1 hidden h-6 w-px bg-[var(--border)] sm:block" />
@@ -420,10 +436,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen((open) => !open)}
-                className="flex h-10 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 pr-2.5 transition-all duration-200 hover:border-[var(--border-strong)] hover:bg-[var(--surface-soft)]"
+                className="flex h-10 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 pr-2.5 transition-all duration-200 hover:border-[var(--border-strong)] hover:bg-[var(--surface-soft)]"
                 aria-expanded={userMenuOpen}
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-[10px] font-bold text-white">{initial}</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand)] text-[10px] font-bold text-white">{initial}</span>
                 <span className="hidden max-w-[130px] text-left sm:block">
                   <span className="block truncate text-[11px] font-bold text-[var(--text)]">{user?.name || user?.username}</span>
                   <span className="block truncate text-[8.5px] font-semibold text-[var(--text-mute)] uppercase tracking-wider">{roleLabel}</span>
@@ -434,15 +450,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               {userMenuOpen && (
                 <>
                   <button aria-hidden tabIndex={-1} className="fixed inset-0 z-40 cursor-default" onClick={() => setUserMenuOpen(false)} />
-                  <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_20px_50px_-16px_rgba(15,23,42,0.32)] animate-scale-up">
+                  <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_20px_50px_-16px_rgba(15,23,42,0.32)] animate-scale-up">
                     <div className="border-b border-[var(--border-soft)] px-3 py-2.5">
                       <p className="truncate text-[12px] font-black text-[var(--text)]">{user?.name || user?.username}</p>
                       <p className="mt-0.5 text-[9.5px] font-semibold text-[var(--text-mute)] uppercase tracking-wider">{roleLabel}</p>
                     </div>
-                    <button onClick={() => { setUserMenuOpen(false); router.push("/profile"); }} className="mt-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[11.5px] font-bold text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition-colors">
+                    <button onClick={() => { setUserMenuOpen(false); router.push("/profile"); }} className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-[11.5px] font-bold text-[var(--text-soft)] hover:bg-[var(--surface-soft)] hover:text-[var(--text)] transition-colors">
                       <UserCog size={15} /> {t("shell.profileSettings")}
                     </button>
-                    <button onClick={doLogout} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[11.5px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/25 transition-colors">
+                    <button onClick={doLogout} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-[11.5px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/25 transition-colors">
                       <LogOut size={15} /> {t("shell.logout")}
                     </button>
                   </div>
@@ -451,6 +467,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
+
+        {/* The project you are inside stays visible while you work its documents. */}
+        <React.Suspense fallback={null}>
+          <ProjectContextBar />
+        </React.Suspense>
 
         <main className="system-content min-h-0 flex-1 overflow-y-auto bg-[var(--bg)]"><ConfirmProvider>{children}</ConfirmProvider></main>
       </div>

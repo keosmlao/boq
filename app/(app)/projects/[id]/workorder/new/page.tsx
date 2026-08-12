@@ -528,7 +528,7 @@ export default function WorkOrderPage() {
 
       {taskModal && (
         <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 pt-[6vh]" onClick={() => setTaskModal(false)}>
-          <div className="flex max-h-[84vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]" onClick={(e) => e.stopPropagation()}>
+          <div className="flex max-h-[84vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between bg-[var(--ink)] px-4 py-3 text-[var(--ink-text)]">
               <h3 className="flex items-center gap-2 text-[14px] font-bold">
                 <ListChecks size={16} /> {t("workorderNew.selectTasks", "ເລືອກໜ້າວຽກ")} ({selected.length}/{rows.length})
@@ -537,7 +537,7 @@ export default function WorkOrderPage() {
             </div>
 
             <div className="flex items-center gap-2 border-b border-[var(--border-soft)] p-2">
-              <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+              <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
                 <Search size={15} className="text-[var(--text-mute)]" />
                 <input
                   autoFocus

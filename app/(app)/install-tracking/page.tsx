@@ -103,7 +103,7 @@ export default function InstallTrackingPage() {
       </div>
 
       <Toolbar>
-        <label className="flex h-9 min-w-[240px] max-w-xs flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+        <label className="flex h-9 min-w-[240px] max-w-xs flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
           <Search size={15} className="text-[var(--text-mute)]" />
           <input
             value={q}

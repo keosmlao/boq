@@ -129,7 +129,7 @@ export default function TrackingPage() {
         )}
         {pts.map((p, i) => (
           <Card key={i} className="flex items-center gap-3 p-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--success-soft)] text-[var(--success)]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--success-soft)] text-[var(--success)]">
               <MapPin size={16} />
             </span>
             <div className="min-w-0 flex-1">

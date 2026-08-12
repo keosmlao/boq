@@ -3,6 +3,8 @@
 import { query } from "@/_lib/db";
 import { num } from "@/_lib/schemas/boq";
 import { ensureRequestSchema } from "@/_lib/schemas/request";
+import { byNumber, byText, byTime, paginate, type PageQuery, type Paged } from "@/_lib/paging";
+import { erpWithdrawnRequestNos } from "@/_lib/erp-requests";
 
 type Fail = { success: false; message: string };
 function fail(message: string): Fail {
@@ -41,9 +43,13 @@ export async function getAllMaterials(): Promise<{ success: true; data: any[] } 
     // v2 requests (ຂໍເບີກ) across all projects — credited to the BOQ item.
     try {
       await ensureRequestSchema();
-      const reqs = await query(`SELECT status, items FROM odg_request WHERE COALESCE(status,'') <> 'rejected'`);
+      const reqs = await query(`SELECT request_no, status, items FROM odg_request WHERE COALESCE(status,'') <> 'rejected'`);
+      // Issued in SML but never closed out on the web still counts as ເບີກແລ້ວ.
+      const { all: erpWithdrawn } = await erpWithdrawnRequestNos(
+        (reqs.rows as any[]).filter((r) => r.status !== "withdrawn").map((r) => r.request_no),
+      );
       for (const r of reqs.rows as any[]) {
-        const withdrawn = r.status === "withdrawn";
+        const withdrawn = r.status === "withdrawn" || erpWithdrawn.has(String(r.request_no || ""));
         for (const it of Array.isArray(r.items) ? r.items : []) {
           const e = map.get(keyOf(it.boq_item_code || it.item_code, it.description));
           if (!e) continue;
@@ -63,6 +69,48 @@ export async function getAllMaterials(): Promise<{ success: true; data: any[] } 
     });
     data.sort((a, b) => String(a.description).localeCompare(String(b.description)));
     return { success: true, data };
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/** Approval bucket for a BOQ — the tabs on the list screen. */
+const boqStatusKey = (r: any): "approved" | "rejected" | "pending" => {
+  const s = String(r?.status || "").trim();
+  if (s === "ອະນຸມັດແລ້ວ" || s === "approved") return "approved";
+  if (s === "ປະຕິເສດ" || s === "rejected") return "rejected";
+  return "pending";
+};
+
+/**
+ * One page of the BOQ list — searched, tab-filtered, sorted and sliced on the
+ * server so the browser receives a page, not the whole book.
+ */
+export async function getBoqsPage(
+  params: PageQuery = {},
+): Promise<{ success: true; data: Paged<any> } | Fail> {
+  try {
+    const res: any = await getAllBoqsForList();
+    const all: any[] = res?.success ? res.data || [] : Array.isArray(res) ? res : [];
+    return {
+      success: true,
+      data: paginate(all, params, {
+        search: (r, kw) => `${r.boq_no ?? ""} ${r.project_name ?? ""} ${r.customer_name ?? ""}`.toLowerCase().includes(kw),
+        tabs: {
+          approved: (r) => boqStatusKey(r) === "approved",
+          rejected: (r) => boqStatusKey(r) === "rejected",
+          pending: (r) => boqStatusKey(r) === "pending",
+        },
+        sorters: {
+          boq_no: byText((r) => r.boq_no),
+          project_name: byText((r) => r.project_name),
+          created_at: byTime((r) => r.created_at),
+          total_amount: byNumber((r) => r.total_amount),
+        },
+        defaultSort: "created_at",
+        defaultDir: "desc",
+      }),
+    };
   } catch (e) {
     return fail((e as Error).message);
   }
@@ -201,11 +249,17 @@ export async function getProjectMaterials(projectId: string): Promise<{ success:
     try {
       await ensureRequestSchema();
       const reqs = await query(
-        `SELECT status, items FROM odg_request WHERE project_id = $1 AND COALESCE(status,'') <> 'rejected'`,
+        `SELECT request_no, status, items FROM odg_request WHERE project_id = $1 AND COALESCE(status,'') <> 'rejected'`,
         [String(projectId)],
       );
+      // A request the warehouse already issued in SML counts as ເບີກແລ້ວ even if
+      // its status column was never closed out on the web. (Either way it draws
+      // the BOQ down by the same qty — this only decides which column it lands in.)
+      const { all: erpWithdrawn } = await erpWithdrawnRequestNos(
+        (reqs.rows as any[]).filter((r) => r.status !== "withdrawn").map((r) => r.request_no),
+      );
       for (const r of reqs.rows as any[]) {
-        const withdrawn = r.status === "withdrawn";
+        const withdrawn = r.status === "withdrawn" || erpWithdrawn.has(String(r.request_no || ""));
         for (const it of Array.isArray(r.items) ? r.items : []) {
           // Substitutes (Option B): the line is issued as `item_code` (the real
           // product) but fulfils BOQ line `boq_item_code` — credit the drawdown

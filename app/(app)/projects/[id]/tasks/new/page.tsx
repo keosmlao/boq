@@ -163,7 +163,7 @@ export default function TaskPlanPage() {
               <ArrowLeft size={14} /> {t("tasksNew.toProject", "ໄປໂຄງການ")}
             </button>
             <h1 className="flex items-center gap-2.5 text-[19px] font-black leading-tight tracking-tight text-[var(--text)]">
-              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                 <CalendarRange size={16} />
               </span>
               {t("tasksNew.title", "ກຳນົດໜ້າວຽກ")}
@@ -183,7 +183,7 @@ export default function TaskPlanPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">{error}</div>
+          <div className="mb-4 rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">{error}</div>
         )}
 
         <Card className="overflow-hidden">

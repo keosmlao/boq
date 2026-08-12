@@ -60,12 +60,12 @@ export default function ProjectPickerModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 px-4 pt-[10vh] backdrop-blur-[2px]" onClick={onClose}>
       <div
-        className="w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
+        className="w-full max-w-md overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-4 py-3">
           <h3 className="flex items-center gap-2 text-[13px] font-black text-[var(--text)]">
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand-strong)]">
               <FolderKanban size={14} />
             </span>
             {titleText}
@@ -78,7 +78,7 @@ export default function ProjectPickerModal({
           </button>
         </div>
         <div className="border-b border-[var(--border-soft)] p-2.5">
-          <label className="flex h-9 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
+          <label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 focus-within:border-[var(--brand)] focus-within:ring-3 focus-within:ring-[var(--brand-ring)]">
             <Search size={14} className="text-[var(--text-mute)]" />
             <input
               autoFocus

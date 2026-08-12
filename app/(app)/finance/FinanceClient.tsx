@@ -133,7 +133,7 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
 
       {/* ── ສ່ວນທີ 2: ຄົ້ນຫາ / ກັ່ນຕອງ ────────────────────── */}
       <Toolbar>
-        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
           <Search size={15} className="text-[var(--text-mute)]" />
           <input
             value={q}
@@ -181,7 +181,7 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
                   className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--brand-tint)] ${opened ? "bg-[var(--surface-sunken)]" : ""}`}
                 >
                   <ChevronRight className={`h-4 w-4 flex-shrink-0 text-[var(--text-mute)] transition-transform duration-200 ${opened ? "rotate-90" : ""}`} />
-                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--brand-soft)] text-sm font-black text-[var(--brand-strong)]">
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-sm font-black text-[var(--brand-strong)]">
                     {initial(g.customer)}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -200,9 +200,14 @@ export default function FinanceClient({ initialRows }: { initialRows: Contract[]
                       <button
                         key={c.id ?? c.contract_no ?? i}
                         onClick={() => open(c)}
-                        className="group flex w-full items-center gap-3 border-b border-[var(--border-soft)] px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-[var(--brand-tint)]"
+                        className="group flex w-full items-center gap-3 border-b border-[var(--border-soft)] py-2.5 pr-4 text-left transition-colors last:border-b-0 hover:bg-[var(--brand-tint)]"
                       >
-                        <FileSignature size={15} className="flex-shrink-0 text-[var(--text-mute)] group-hover:text-[var(--brand)]" />
+                        {/* ODS status bar down the left edge — green once fully approved. */}
+                        <span
+                          className="h-9 w-[4px] flex-shrink-0 rounded-r"
+                          style={{ background: isFull(c) ? "var(--success)" : "var(--warning)" }}
+                        />
+                        <FileSignature size={15} className="ml-1 flex-shrink-0 text-[var(--text-mute)] group-hover:text-[var(--brand)]" />
                         <div className="min-w-0 flex-1">
                           <div className="truncate font-mono text-[12.5px] font-bold text-[var(--text)]">{c.contract_no || t("finance.noContractNo", "(ບໍ່ມີເລກທີ່)")}</div>
                           <div className="truncate text-[11px] font-semibold text-[var(--text-mute)]">{c.project_name || "-"} · {d10(c.created_at)}</div>

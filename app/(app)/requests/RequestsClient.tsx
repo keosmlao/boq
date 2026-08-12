@@ -4,7 +4,7 @@
  * ຂໍເບີກ — flat list (ODIEN SERVICE layout): toolbar → status tabs → one table.
  * Rows carry a status bar down the left edge; no project grouping.
  */
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BellRing,
@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Search,
   Table as TableIcon,
+  Truck,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import ProjectPickerModal from "../_components/ProjectPickerModal";
@@ -40,7 +41,8 @@ import {
   trHover,
   type PillTone,
 } from "../_components/ui";
-import { getRequests } from "@/_actions/request-v2";
+import { getRequestsPage } from "@/_actions/request-v2";
+import type { Paged } from "@/_lib/paging";
 import { useT } from "@/_lib/i18n";
 
 const PER_PAGE = 25;
@@ -54,6 +56,7 @@ const d10 = (v: unknown) => {
 };
 
 const itemCount = (r: any) => (Array.isArray(r.items) ? r.items.length : 0);
+
 
 /**
  * Status of a request row. App requests (raised by craftsmen) keep their own
@@ -87,33 +90,46 @@ const STAGE_PILL: Record<string, PillTone> = {
 
 type SortKey = "request_no" | "project_name" | "created_at" | "items";
 
-export default function RequestsClient({ initialRows }: { initialRows: any[] }) {
+export default function RequestsClient({ initial, initialTab = "all" }: { initial: Paged<any> | null; initialTab?: string }) {
   const router = useRouter();
   const t = useT();
   const [pick, setPick] = useState(false);
-  const [allRows, setAllRows] = useState<any[]>(initialRows ?? []);
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const [data, setData] = useState<Paged<any> | null>(initial);
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [draftQ, setDraftQ] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
   const [view, setView] = useState<"table" | "board">("table");
   const [loading, setLoading] = useState(false);
+  const first = useRef(true);
+
+  /** Every filter/sort/page change is one server call returning one page. */
+  const fetchPage = async () => {
+    setLoading(true);
+    try {
+      const res = await getRequestsPage({ q, tab: activeTab, page, sort: sort.key, dir: sort.dir });
+      if (res.success) setData(res.data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    void fetchPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, activeTab, page, sort]);
 
   const runSearch = () => {
     setQ(draftQ);
     setPage(1);
   };
 
-  const reload = async () => {
-    setLoading(true);
-    try {
-      const res: any = await getRequests({});
-      setAllRows(res?.success ? res.data || [] : Array.isArray(res) ? res : []);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const reload = () => void fetchPage();
 
   const stages = [
     { value: "all", label: t("common.all", "ທັງໝົດ") },
@@ -126,34 +142,18 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
 
   const stageLabel = (key: string) => stages.find((s) => s.value === key)?.label ?? key;
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: allRows.length };
-    for (const key of ["awaiting_pull", "awaiting_head", "requested", "withdrawn", "rejected"]) {
-      c[key] = allRows.filter((r) => getStageKey(r) === key).length;
-    }
-    return c;
-  }, [allRows]);
+  // Counts, rows and paging all come from the server response.
+  const counts = data?.counts ?? { all: 0 };
+  const pageRows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const perPage = data?.perPage ?? PER_PAGE;
+  const current = data?.page ?? 1;
+  const pageCount = Math.max(1, Math.ceil(total / perPage));
 
-  const rows = useMemo(() => {
-    const kw = q.trim().toLowerCase();
-    const list = allRows.filter((r) => {
-      if (activeTab !== "all" && getStageKey(r) !== activeTab) return false;
-      if (!kw) return true;
-      return `${r.request_no ?? ""} ${r.project_name ?? ""}`.toLowerCase().includes(kw);
-    });
-    const dir = sort.dir === "asc" ? 1 : -1;
-    return [...list].sort((a, b) => {
-      if (sort.key === "items") return itemCount(a) > itemCount(b) ? dir : -dir;
-      return String(a[sort.key] ?? "") > String(b[sort.key] ?? "") ? dir : -dir;
-    });
-  }, [allRows, activeTab, q, sort]);
-
-  const pageCount = Math.max(1, Math.ceil(rows.length / PER_PAGE));
-  const current = Math.min(page, pageCount);
-  const pageRows = rows.slice((current - 1) * PER_PAGE, current * PER_PAGE);
-
-  const toggleSort = (key: SortKey) =>
+  const toggleSort = (key: SortKey) => {
+    setPage(1);
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  };
 
   const tabs = stages.map((tab) => ({
     value: tab.value,
@@ -168,11 +168,12 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
   /** Excel export of exactly what is on screen (current filter + sort, all pages). */
   const exportExcel = () => {
     const sheet = XLSX.utils.json_to_sheet(
-      rows.map((r) => ({
+      pageRows.map((r) => ({
         [t("requests.docNo", "ເລກທີ່")]: r.request_no || "",
         [t("requests.project", "ໂຄງການ")]: r.project_name || "",
         [t("common.date", "ວັນທີ")]: d10(r.created_at),
         [t("requests.items", "ລາຍການ")]: itemCount(r),
+        [t("requests.slipNo", "ໃບເບີກ")]: Array.isArray(r.withdraw_docs) ? r.withdraw_docs.join(", ") : "",
         [t("common.status", "ສະຖານະ")]: stageLabel(getStageKey(r)),
       })),
     );
@@ -187,13 +188,13 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
     <Page max="max-w-none">
       <PageHeader
         title={t("requests.title", "ຂໍເບີກ")}
-        subtitle={`${t("requests.totalPrefix", "ທັງໝົດ")} ${rows.length} ${t("requests.items", "ລາຍການ")} · ${t("common.page", "ໜ້າ")} ${current}/${pageCount}`}
+        subtitle={`${t("requests.totalPrefix", "ທັງໝົດ")} ${total} ${t("requests.items", "ລາຍການ")} · ${t("common.page", "ໜ້າ")} ${current}/${pageCount}`}
         actions={
           <>
             <Btn variant="go" onClick={() => setPick(true)}>
               <Plus size={14} /> {t("requests.create", "ສ້າງໃບຂໍເບີກ")}
             </Btn>
-            <Btn variant="outline" onClick={exportExcel} disabled={rows.length === 0}>
+            <Btn variant="outline" onClick={exportExcel} disabled={pageRows.length === 0}>
               <FileSpreadsheet size={14} /> Excel
             </Btn>
             <Btn variant="outline" onClick={reload} disabled={loading}>
@@ -213,7 +214,7 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
       />
 
       <Toolbar>
-        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3">
+        <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3">
           <Search size={15} className="text-[var(--text-mute)]" />
           <input
             value={draftQ}
@@ -272,7 +273,7 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
             .filter((s) => s.value !== "all")
             .filter((s) => activeTab === "all" || activeTab === s.value)
             .map((s) => {
-              const col = rows.filter((r) => getStageKey(r) === s.value);
+              const col = pageRows.filter((r) => getStageKey(r) === s.value);
               return (
                 <Card key={s.value} className="overflow-hidden">
                   <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-3 py-2">
@@ -344,13 +345,14 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
                     onClick={() => toggleSort("items")}
                     className="w-24 text-right"
                   />
+                  <th className={`${thCls} w-44`}>{t("requests.slipNo", "ໃບເບີກ")}</th>
                   <th className={`${thCls} w-48`}>{t("common.status", "ສະຖານະ")}</th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-[12.5px] text-[var(--text-mute)]">
+                    <td colSpan={7} className="px-4 py-12 text-center text-[12.5px] text-[var(--text-mute)]">
                       {t("requests.empty", "ຍັງບໍ່ມີການຂໍເບີກ")}
                     </td>
                   </tr>
@@ -369,6 +371,25 @@ export default function RequestsClient({ initialRows }: { initialRows: any[] }) 
                         <td className={tdCls}>{r.project_name || t("requests.noProject", "(ບໍ່ລະບຸໂຄງການ)")}</td>
                         <td className={`${tdCls} tabular-nums`}>{d10(r.created_at)}</td>
                         <td className={`${tdCls} text-right font-semibold tabular-nums text-[var(--text)]`}>{itemCount(r)}</td>
+                        {/* Which warehouse slip closed this request — the whole
+                            point of "ເບີກແລ້ວ" is being able to point at the paper. */}
+                        <td className={tdCls}>
+                          {Array.isArray(r.withdraw_docs) && r.withdraw_docs.length ? (
+                            <span className="flex flex-wrap items-center gap-1">
+                              <Truck size={13} className="flex-shrink-0 text-[var(--success)]" />
+                              {r.withdraw_docs.slice(0, 2).map((doc: string) => (
+                                <span key={doc} className="font-mono text-[11.5px] font-bold text-[var(--text)]">
+                                  {doc}
+                                </span>
+                              ))}
+                              {r.withdraw_docs.length > 2 && (
+                                <span className="text-[10.5px] text-[var(--text-mute)]">+{r.withdraw_docs.length - 2}</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-[var(--text-mute)]">—</span>
+                          )}
+                        </td>
                         <td className={tdCls}>
                           <Pill tone={STAGE_PILL[stage] || "neutral"}>{stageLabel(stage)}</Pill>
                         </td>

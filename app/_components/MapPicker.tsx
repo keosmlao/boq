@@ -178,11 +178,11 @@ export default function MapPicker({
   );
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <div className="relative w-full overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
       {/* Search + GPS toolbar */}
       <div className="absolute left-3 right-3 top-3 z-[1000] flex items-center gap-2">
         <div className="relative flex-1">
-          <div className="flex h-9 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 shadow-[var(--shadow-xs)] focus-within:border-[var(--brand)] focus-within:ring-2 focus-within:ring-[var(--brand-ring)]">
+          <div className="flex h-9 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 shadow-[var(--shadow-xs)] focus-within:border-[var(--brand)] focus-within:ring-2 focus-within:ring-[var(--brand-ring)]">
             <Search size={14} className="text-[var(--text-mute)]" />
             <input
               type="text"
@@ -212,7 +212,7 @@ export default function MapPicker({
             )}
           </div>
           {showResults && results.length > 0 && (
-            <ul className="absolute left-0 right-0 top-10 max-h-64 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
+            <ul className="absolute left-0 right-0 top-10 max-h-64 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
               {results.map((r, i) => (
                 <li key={i}>
                   <button
@@ -228,7 +228,7 @@ export default function MapPicker({
             </ul>
           )}
           {showResults && !searching && results.length === 0 && (
-            <div className="absolute left-0 right-0 top-10 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[12px] text-[var(--text-mute)] shadow-[var(--shadow-lg)]">
+            <div className="absolute left-0 right-0 top-10 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[12px] text-[var(--text-mute)] shadow-[var(--shadow-lg)]">
               ບໍ່ພົບສະຖານທີ່
             </div>
           )}
@@ -239,7 +239,7 @@ export default function MapPicker({
           onClick={goToMyLocation}
           disabled={disabled}
           title="ໃຊ້ຕຳແໜ່ງປັດຈຸບັນ"
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] shadow-[var(--shadow-xs)] transition hover:border-[var(--brand)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand)] disabled:opacity-50"
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] shadow-[var(--shadow-xs)] transition hover:border-[var(--brand)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand)] disabled:opacity-50"
           aria-label="My location"
         >
           <Crosshair size={14} />

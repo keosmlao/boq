@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { can } from "@/_lib/permissions";
 import { getV2User, type V2User } from "../_lib/session";
-import { Btn, Card, Page, PageHeader, Pill, SectionHeader, Stat } from "./_components/ui";
+import { Btn, Card, Page, Pill, SectionHeader } from "./_components/ui";
 import DashboardActivity from "./_components/DashboardActivity";
 import { useT } from "@/_lib/i18n";
 
@@ -40,6 +40,14 @@ const laoDate = (date: Date) => `ວັນ${LAO_DAYS[date.getDay()]} ທີ ${da
 
 /** Divider / chip tint that reads correctly on the ink slab in both themes. */
 const onInk = (pct: number) => `color-mix(in srgb, var(--ink-text) ${pct}%, transparent)`;
+
+/**
+ * Brand field — Navy #003260 (Brand Guideline p.16), lit by the guideline's own
+ * gradient partners: Sky Blue on one corner, Warm Yellow on the other (p.17).
+ */
+const INK_NAVY = "var(--sidebar-bg)";
+const GLOW_BRAND = "radial-gradient(circle, rgba(75,199,239,0.28) 0%, rgba(75,199,239,0) 70%)";
+const GLOW_SKY = "radial-gradient(circle, rgba(255,208,113,0.10) 0%, rgba(255,208,113,0) 70%)";
 
 const NEXT_ACTIONS: Record<string, { label: string; key: string; href?: string }> = {
   "ລົງທະບຽນ": { label: "ບັນທຶກການສຳຫຼວດ", key: "overview.next.recordSurvey" },
@@ -144,34 +152,64 @@ export default function DashboardClient({
 
   return (
     <Page max="max-w-none">
-      <PageHeader
-        title={`${t("overview.greeting", "ສະບາຍດີ")}${user?.name ? `, ${user.name}` : ""}`}
-        subtitle={t("overview.intro", "ກວດວຽກສຳຄັນ ແລະ ດຳເນີນຂັ້ນຕອນຕໍ່ໄປຈາກໜ້ານີ້.")}
-        badge={<Pill tone="neutral">{today || t("overview.todayOverview", "ພາບລວມມື້ນີ້")}</Pill>}
-        actions={
-          <>
-            <Btn variant="outline" onClick={() => router.push("/schedule")}>
-              <CalendarRange size={14} /> {t("overview.schedule", "ຕາຕະລາງວຽກ")}
-            </Btn>
-            {can(user, "projects", "create") && (
-              <Btn variant="go" onClick={() => router.push("/projects/new")}>
-                <Plus size={14} strokeWidth={3} /> {t("overview.newProject", "ໂຄງການໃໝ່")}
-              </Btn>
-            )}
-          </>
-        }
-      />
+      {/* ── Hero: the login page's brand field, carried into the workspace ── */}
+      <section className="relative mb-5 overflow-hidden rounded-lg p-6 text-white md:p-8" style={{ background: INK_NAVY }}>
+        <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full" style={{ background: GLOW_BRAND }} />
+        <div className="pointer-events-none absolute -bottom-28 -left-20 h-80 w-80 rounded-full" style={{ background: GLOW_SKY }} />
 
-      <section className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-        {attention.map((item) => (
-          <Stat
-            key={item.label}
-            icon={item.icon}
-            label={item.label}
-            value={loading ? "—" : item.value}
-            onClick={() => router.push(item.href)}
-          />
-        ))}
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[10.5px] font-black uppercase tracking-[0.28em] text-[var(--brand)]">
+              {t("overview.eyebrow", "Project overview")}
+            </p>
+            <h1 className="mt-2.5 font-display text-[26px] font-black leading-tight tracking-tight md:text-[32px]">
+              {t("overview.greeting", "ສະບາຍດີ")}
+              {user?.name ? `, ${user.name}` : ""}
+            </h1>
+            <p className="mt-2 max-w-lg text-[13px] leading-6 text-white/55">
+              {t("overview.intro", "ກວດວຽກສຳຄັນ ແລະ ດຳເນີນຂັ້ນຕອນຕໍ່ໄປຈາກໜ້ານີ້.")}
+            </p>
+          </div>
+
+          <div className="flex flex-shrink-0 flex-col items-end gap-3">
+            <span className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-white/70">
+              {today || t("overview.todayOverview", "ພາບລວມມື້ນີ້")}
+            </span>
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => router.push("/schedule")}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/20 px-4 text-xs font-bold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <CalendarRange size={14} /> {t("overview.schedule", "ຕາຕະລາງວຽກ")}
+              </button>
+              {can(user, "projects", "create") && (
+                <Btn variant="go" className="rounded-lg" onClick={() => router.push("/projects/new")}>
+                  <Plus size={14} strokeWidth={3} /> {t("overview.newProject", "ໂຄງການໃໝ່")}
+                </Btn>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* KPIs live on the dark field so the eye lands on the numbers first. */}
+        <div className="relative mt-7 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+          {attention.map((item) => (
+            <button
+              key={item.label}
+              onClick={() => router.push(item.href)}
+              className="group flex items-center gap-3.5 rounded-lg border border-white/10 bg-white/[0.06] p-4 text-left transition-colors hover:border-white/25 hover:bg-white/10"
+            >
+              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/80">
+                {item.icon}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[11px] font-semibold tracking-wide text-white/55">{item.label}</span>
+                <span className="mt-0.5 block text-[22px] font-black leading-tight tabular-nums">{loading ? "—" : item.value}</span>
+              </span>
+              <ArrowUpRight size={15} className="flex-shrink-0 text-white/30 transition-transform group-hover:translate-x-0.5 group-hover:text-white/70" />
+            </button>
+          ))}
+        </div>
       </section>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.8fr)]">
@@ -209,7 +247,7 @@ export default function DashboardClient({
                       className="group flex items-center gap-3 border-b border-[var(--border-soft)] px-4 py-3 transition-colors last:border-b-0 hover:bg-[var(--brand-tint)]"
                     >
                       <button onClick={() => router.push(projectHref)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--surface-sunken)] text-[11px] font-bold text-[var(--text-mute)] transition-colors group-hover:bg-[var(--brand-soft)] group-hover:text-[var(--brand-strong)]">
+                        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[11px] font-bold text-[var(--text-mute)] transition-colors group-hover:bg-[var(--brand-soft)] group-hover:text-[var(--brand-strong)]">
                           {String(index + 1).padStart(2, "0")}
                         </span>
                         <span className="min-w-0 flex-1">
@@ -264,21 +302,23 @@ export default function DashboardClient({
 
         <aside className="space-y-5">
           <div
-            className="overflow-hidden rounded-xl bg-[var(--ink)] p-5 text-[var(--ink-text)] shadow-[var(--shadow-md)]"
+            className="relative overflow-hidden rounded-lg p-5 text-white shadow-[var(--shadow-md)]"
+            style={{ background: INK_NAVY }}
           >
-            <div className="flex items-center justify-between">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: onInk(12) }}>
+            <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full" style={{ background: GLOW_BRAND }} />
+            <div className="relative flex items-center justify-between">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: onInk(12) }}>
                 <Wallet size={17} />
               </span>
               <Link href="/reports" className="inline-flex items-center gap-1 text-[10.5px] font-bold opacity-70 transition-opacity hover:opacity-100">
                 {t("overview.reports", "ລາຍງານ")} <ArrowUpRight size={12} />
               </Link>
             </div>
-            <p className="mt-5 text-[10.5px] font-bold tracking-wider opacity-60">{t("overview.totalRevenue", "ລາຍຮັບລວມ")}</p>
-            <div className="mt-1 text-[1.8rem] font-black leading-tight tracking-tight tabular-nums">
+            <p className="relative mt-5 text-[10.5px] font-black uppercase tracking-[0.22em] opacity-55">{t("overview.totalRevenue", "ລາຍຮັບລວມ")}</p>
+            <div className="relative mt-1.5 text-[1.8rem] font-black leading-tight tracking-tight tabular-nums">
               {loading ? "—" : money(revenue?.total)} <span className="text-xs font-bold opacity-60">{t("overview.kip", "ບາດ")}</span>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-2 border-t pt-4" style={{ borderColor: onInk(14) }}>
+            <div className="relative mt-5 grid grid-cols-2 gap-2 border-t pt-4" style={{ borderColor: onInk(14) }}>
               <div>
                 <p className="text-[10px] font-semibold opacity-60">{t("overview.thisMonth", "ເດືອນນີ້")}</p>
                 <p className="mt-1 truncate text-[12px] font-bold tabular-nums">{loading ? "—" : money(revenue?.monthly)}</p>
@@ -306,7 +346,7 @@ export default function DashboardClient({
                 <MiniStat value={teams.working} label={t("overview.teamWorking", "ກຳລັງເຮັດ")} />
               </div>
               {teams.busy === 0 ? (
-                <p className="mt-3 border-t border-[var(--border-soft)] pt-3 text-center text-[11px] font-semibold text-[var(--text-mute)]">{t("overview.allTeamsFree", "ທຸກທີມວ່າງ 🎉")}</p>
+                <p className="mt-3 border-t border-[var(--border-soft)] pt-3 text-center text-[11px] font-semibold text-[var(--text-mute)]">{t("overview.allTeamsFree", "ທຸກທີມວ່າງ")}</p>
               ) : (
                 <div className="mt-3 space-y-1 border-t border-[var(--border-soft)] pt-3">
                   {(teams.busyTeams ?? []).slice(0, 5).map((tm: any) => (
@@ -361,8 +401,8 @@ export default function DashboardClient({
               {quickActions.length === 0 ? (
                 <p className="py-6 text-center text-[11px] font-semibold text-[var(--text-mute)]">{t("overview.noCreatePermission", "ບໍ່ມີສິດສ້າງລາຍການ")}</p>
               ) : quickActions.map((item) => (
-                <Link key={item.label} href={item.href} className="group flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-[var(--brand-tint)]">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-sunken)] text-[var(--text-soft)] transition-colors group-hover:bg-[var(--brand-soft)] group-hover:text-[var(--brand-strong)]">
+                <Link key={item.label} href={item.href} className="group flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-[var(--brand-tint)]">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--surface-sunken)] text-[var(--text-soft)] transition-colors group-hover:bg-[var(--brand-soft)] group-hover:text-[var(--brand-strong)]">
                     {item.icon}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -392,7 +432,7 @@ export default function DashboardClient({
 
 function MiniStat({ value, label }: { value: React.ReactNode; label: string }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] px-2 py-2 text-center">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] px-2 py-2 text-center">
       <div className="text-lg font-black tabular-nums text-[var(--text)]">{value}</div>
       <div className="text-[10px] font-bold text-[var(--text-mute)]">{label}</div>
     </div>
@@ -403,7 +443,7 @@ function Shortcut({ href, icon, label }: { href: string; icon: React.ReactNode; 
   return (
     <Link
       href={href}
-      className="flex min-h-20 flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] p-3 text-[var(--text-soft)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--text)]"
+      className="flex min-h-20 flex-col justify-between rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] p-3 text-[var(--text-soft)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--text)]"
     >
       {icon}
       <span className="text-[10.5px] font-bold">{label}</span>

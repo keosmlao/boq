@@ -26,7 +26,7 @@ import CustomerPicker, { type PickedCustomer } from "../_components/CustomerPick
 const MapPicker = dynamic(() => import("@/_components/MapPicker"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[300px] items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-sunken)] text-[12px] text-[var(--text-mute)]">
+    <div className="flex h-[300px] items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] text-[12px] text-[var(--text-mute)]">
       ກຳລັງໂຫຼດແຜນທີ່...
     </div>
   ),
@@ -275,7 +275,7 @@ export default function ProjectForm({
               <ArrowLeft size={14} /> {mode === "edit" ? "ກັບໄປໂຄງການ" : "ກັບໄປລາຍການໂຄງການ"}
             </button>
             <h1 className="flex items-center gap-2.5 text-[19px] font-black leading-tight tracking-tight text-[var(--text)]">
-              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)] text-[var(--brand-strong)]">
                 <FolderKanban size={16} />
               </span>
               {mode === "edit" ? "ແກ້ໄຂໂຄງການ" : "ລົງທະບຽນໂຄງການ"}
@@ -297,7 +297,7 @@ export default function ProjectForm({
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">
+          <div className="mb-4 rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-3.5 py-2.5 text-[12.5px] font-semibold text-[var(--danger)]">
             {error}
           </div>
         )}
@@ -337,13 +337,13 @@ export default function ProjectForm({
             {imagePreview ? (
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={imagePreview} alt="preview" onError={() => setImagePreview("")} className="h-44 w-full rounded-xl object-cover ring-1 ring-[var(--border)]" />
+                <img src={imagePreview} alt="preview" onError={() => setImagePreview("")} className="h-44 w-full rounded-lg object-cover ring-1 ring-[var(--border)]" />
                 <button type="button" onClick={clearImage} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80">
                   <X size={14} />
                 </button>
               </div>
             ) : (
-              <label className="flex h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-sunken)] text-[var(--text-mute)] transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]">
+              <label className="flex h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-sunken)] text-[var(--text-mute)] transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]">
                 <ImagePlus size={26} />
                 <span className="text-[12px] font-semibold">ກົດເພື່ອອັບໂຫຼດຮູບ</span>
                 <input type="file" accept="image/*" className="hidden" onChange={onPickImage} />
@@ -462,7 +462,7 @@ function SearchableSelect({
       </button>
 
       {open && !disabled && (
-        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
+        <div className="absolute left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
           <div className="border-b border-[var(--border)] p-2">
             <div className="flex h-8 items-center gap-2 rounded-lg border border-[var(--border)] px-2">
               <Search size={13} className="text-[var(--text-mute)]" />
